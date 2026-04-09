@@ -74,7 +74,7 @@ dependencies {
 
     // Flyway
     implementation 'org.flywaydb:flyway-core'
-    implementation 'org.flywaydb:flyway-database-postgres'
+    implementation 'org.flywaydb:flyway-database-postgresql'
 
     // QueryDSL
     implementation "com.querydsl:querydsl-jpa:${querydslVersion}:jakarta"
@@ -86,8 +86,8 @@ dependencies {
     // 4. Cache
     //----------------------------------------------------------------------
 
-    // Redis
-    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    // Redis 추후 도입 예정
+    // implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
     // ----------------------------------------------------------------------
     // 5. Message Queue
@@ -100,8 +100,8 @@ dependencies {
     // 6. AWS
     // ----------------------------------------------------------------------
 
-    // Spring Cloud AWS S3
-    implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3'
+    // Spring Cloud AWS S3 (추후 S3 연동 시 도입 예정)
+    // implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3'
 
     // ----------------------------------------------------------------------
     // 7. Monitoring
@@ -137,6 +137,11 @@ dependencies {
     testImplementation 'org.springframework.amqp:spring-rabbit-test'
 
     // Testcontainers
+    compileOnly "org.testcontainers:testcontainers"
+    developmentOnly "org.testcontainers:testcontainers"
+    developmentOnly "org.testcontainers:jdbc"
+    developmentOnly "org.testcontainers:postgresql"
+
     testImplementation "org.testcontainers:junit-jupiter"
     testImplementation "org.testcontainers:postgresql"
     testImplementation "org.testcontainers:rabbitmq"
