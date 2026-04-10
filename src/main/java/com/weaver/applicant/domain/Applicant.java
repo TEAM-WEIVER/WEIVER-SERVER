@@ -1,5 +1,6 @@
 package com.weaver.applicant.domain;
 
+import com.weaver.analysis.domain.ResumeAnalysis;
 import com.weaver.coverletter.domain.CoverletterAnswer;
 import com.weaver.global.common.BaseTimeEntity;
 import com.weaver.portfolio.domain.Portfolio;
@@ -36,6 +37,10 @@ public class Applicant extends BaseTimeEntity {
     private LocalDateTime lastScreeningAt;  // 마지막 분석
 
     private LocalDateTime nextAvailableScreeningAt; // 다음 분석 가능 시점
+
+    @ToString.Exclude
+    @OneToOne(mappedBy = "applicant", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private ResumeAnalysis resumeAnalysis;
 
     @Builder.Default
     @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -101,5 +106,10 @@ public class Applicant extends BaseTimeEntity {
     public void addCoverletterAnswer(CoverletterAnswer coverletterAnswer) {
         coverletterAnswers.add(coverletterAnswer);
         coverletterAnswer.assignApplicant(this);
+    }
+
+    public void assignResumeAnalysis(ResumeAnalysis resumeAnalysis) {
+        this.resumeAnalysis = resumeAnalysis;
+        resumeAnalysis.assignApplicant(this);
     }
 }
