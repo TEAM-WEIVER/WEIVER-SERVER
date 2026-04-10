@@ -1,5 +1,6 @@
 package com.weaver.applicant.domain;
 
+import com.weaver.portfolio.domain.Portfolio;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -42,21 +43,32 @@ public class Applicant {
     @Column(columnDefinition = "TIMESTAMP")
     private LocalDateTime updatedAt; // 수정 시간
 
+    @Builder.Default
     @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     List<Education> educations = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     List<WorkExperience> workExperiences = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     List<Award> awards = new ArrayList<>();
 
+    @Builder.Default
     @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     List<Certificate> certificates = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    List<Portfolio> portfolios = new ArrayList<>();
+
+
 
 
     /**
@@ -80,5 +92,10 @@ public class Applicant {
     public void addCertificate(Certificate certificate) {
         certificates.add(certificate);
         certificate.assignApplicant(this);
+    }
+
+    public void addPortfolio(Portfolio portfolio) {
+        portfolios.add(portfolio);
+        portfolio.assignApplicant(this);
     }
 }
