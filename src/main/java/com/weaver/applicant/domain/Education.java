@@ -2,19 +2,19 @@ package com.weaver.applicant.domain;
 
 import com.weaver.applicant.type.Degree;
 import com.weaver.applicant.type.Status;
+import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class Education {
+public class Education extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,12 +38,6 @@ public class Education {
 
     @Enumerated(EnumType.STRING)
     private Status status;
-
-    @Column(columnDefinition = "TIMESTAMP")
-    private LocalDateTime createdAt;
-
-    @Column(columnDefinition = "TIMESTAMP")
-    private LocalDateTime updatedAt;
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)

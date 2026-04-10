@@ -2,18 +2,18 @@ package com.weaver.applicant.domain;
 
 
 import com.weaver.applicant.type.EmploymentType;
+import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
-public class WorkExperience {
+public class WorkExperience extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,12 +36,6 @@ public class WorkExperience {
     private String duties;  // 담당 업무
 
     private boolean isRecognized;   // 경력 여부
-
-    @Column(columnDefinition = "TIMESTAMP")
-    private LocalDateTime createdAt;    // 생성 시간
-
-    @Column(columnDefinition = "TIMESTAMP")
-    private LocalDateTime updatedAt;    // 수정 시간
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)

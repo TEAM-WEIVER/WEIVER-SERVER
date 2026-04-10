@@ -1,17 +1,17 @@
 package com.weaver.applicant.domain;
 
+import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
-public class Award {
+public class Award extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -24,11 +24,6 @@ public class Award {
     @Column(columnDefinition = "DATE")
     private LocalDate awardDate;
 
-    @Column(columnDefinition = "TIMESTAMP")
-    private LocalDateTime createdAt;
-
-    @Column(columnDefinition = "TIMESTAMP")
-    private LocalDateTime updatedAt;
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)

@@ -1,27 +1,28 @@
-package com.weaver.applicant.domain;
+package com.weaver.coverletter.domain;
 
-
+import com.weaver.applicant.domain.Applicant;
 import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.time.LocalDate;
-
+@Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-@Entity
-public class Certificate extends BaseTimeEntity {
+public class CoverletterAnswer extends BaseTimeEntity {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long certificateId;
+    private Long answerId;
 
-    private String certificateName;
-    private String issuer;
+    @Column(columnDefinition = "TEXT")
+    private String answer;
 
-    @Column(columnDefinition = "DATE")
-    private LocalDate acquisitionDate;
+    @ToString.Exclude
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "question_id")
+    private CoverletterQuestion coverletterQuestion;
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)

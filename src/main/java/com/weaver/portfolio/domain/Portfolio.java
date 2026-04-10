@@ -1,6 +1,7 @@
 package com.weaver.portfolio.domain;
 
 import com.weaver.applicant.domain.Applicant;
+import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -11,7 +12,7 @@ import java.time.LocalDateTime;
 @Entity
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class Portfolio {
+public class Portfolio extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,12 +33,6 @@ public class Portfolio {
 
     @Column(columnDefinition = "TIMESTAMP")
     private LocalDateTime uploadedAt; // 파일 업로드 일시
-
-    @Column(columnDefinition = "TIMESTAMP")
-    private LocalDateTime createdAt; // 포트폴리오 생성 일시
-
-    @Column(columnDefinition = "TIMESTAMP")
-    private LocalDateTime updatedAt; // 포트폴리오 수정 일시
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)

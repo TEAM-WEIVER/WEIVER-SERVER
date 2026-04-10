@@ -1,5 +1,7 @@
 package com.weaver.applicant.domain;
 
+import com.weaver.coverletter.domain.CoverletterAnswer;
+import com.weaver.global.common.BaseTimeEntity;
 import com.weaver.portfolio.domain.Portfolio;
 import jakarta.persistence.*;
 import lombok.*;
@@ -14,7 +16,7 @@ import java.util.List;
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
-public class Applicant {
+public class Applicant extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,17 +33,9 @@ public class Applicant {
     @Column(columnDefinition = "TEXT")
     private String photoUrl;    // s3 프로필 이미지 경로
 
-    @Column(columnDefinition = "TIMESTAMP")
     private LocalDateTime lastScreeningAt;  // 마지막 분석
 
-    @Column(columnDefinition = "TIMESTAMP")
     private LocalDateTime nextAvailableScreeningAt; // 다음 분석 가능 시점
-
-    @Column(columnDefinition = "TIMESTAMP")
-    private LocalDateTime createdAt; // 생성 시간
-
-    @Column(columnDefinition = "TIMESTAMP")
-    private LocalDateTime updatedAt; // 수정 시간
 
     @Builder.Default
     @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -67,6 +61,11 @@ public class Applicant {
     @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     List<Portfolio> portfolios = new ArrayList<>();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    List<CoverletterAnswer> coverletterAnswers = new ArrayList<>();
 
 
 
@@ -97,5 +96,10 @@ public class Applicant {
     public void addPortfolio(Portfolio portfolio) {
         portfolios.add(portfolio);
         portfolio.assignApplicant(this);
+    }
+
+    public void addCoverletterAnswer(CoverletterAnswer coverletterAnswer) {
+        coverletterAnswers.add(coverletterAnswer);
+        coverletterAnswer.assignApplicant(this);
     }
 }
