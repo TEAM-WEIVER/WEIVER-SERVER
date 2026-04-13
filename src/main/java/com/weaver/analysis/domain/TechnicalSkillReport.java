@@ -15,14 +15,14 @@ import java.util.List;
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
-public class TechnicalSkill extends BaseTimeEntity {
+public class TechnicalSkillReport extends BaseTimeEntity {
 
     /**
      * /worker/extract_skills/essay || /worker/evaluate_interview response 저장
      * */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long technicalSkillId;
+    private Long skillReportId;
 
     @JdbcTypeCode(SqlTypes.JSON)
     private List<String> skillTag; // 스킬 태그

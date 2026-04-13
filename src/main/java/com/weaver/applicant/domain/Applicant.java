@@ -1,7 +1,8 @@
 package com.weaver.applicant.domain;
 
 import com.weaver.analysis.domain.AnalysisReport;
-import com.weaver.analysis.domain.TechnicalSkill;
+import com.weaver.analysis.domain.CultureReport;
+import com.weaver.analysis.domain.TechnicalSkillReport;
 import com.weaver.essay.domain.EssayAnswer;
 import com.weaver.global.common.BaseTimeEntity;
 import com.weaver.portfolio.domain.Portfolio;
@@ -41,11 +42,15 @@ public class Applicant extends BaseTimeEntity {
 
     @OneToOne(mappedBy = "applicant", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @ToString.Exclude
-    private TechnicalSkill technicalSkill;
+    private TechnicalSkillReport technicalSkillReport;
 
     @OneToOne(mappedBy = "applicant", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @ToString.Exclude
     private EssayAnswer essayAnswer;
+
+    @OneToOne(mappedBy = "applicant", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @ToString.Exclude
+    private CultureReport cultureReport;
 
     @Builder.Default
     @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -115,13 +120,18 @@ public class Applicant extends BaseTimeEntity {
         analysisReport.assignApplicant(this);
     }
 
-    public void assignTechnicalSkill(TechnicalSkill technicalSkill) {
-        this.technicalSkill = technicalSkill;
-        technicalSkill.assignApplicant(this);
+    public void assignTechnicalSkill(TechnicalSkillReport technicalSkillReport) {
+        this.technicalSkillReport = technicalSkillReport;
+        technicalSkillReport.assignApplicant(this);
     }
 
     public void assignEssayAnswer(EssayAnswer essayAnswer) {
         this.essayAnswer = essayAnswer;
         essayAnswer.assignApplicant(this);
+    }
+
+    public void assignCultureReport(CultureReport cultureReport) {
+        this.cultureReport = cultureReport;
+        cultureReport.assignApplicant(this);
     }
 }
