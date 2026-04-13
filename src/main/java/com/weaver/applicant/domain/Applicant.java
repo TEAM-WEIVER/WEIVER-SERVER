@@ -1,5 +1,6 @@
 package com.weaver.applicant.domain;
 
+import com.weaver.analysis.domain.AnalysisReport;
 import com.weaver.analysis.domain.TechnicalSkill;
 import com.weaver.essay.domain.EssayAnswer;
 import com.weaver.global.common.BaseTimeEntity;
@@ -71,6 +72,12 @@ public class Applicant extends BaseTimeEntity {
     @ToString.Exclude
     private List<Portfolio> portfolios = new ArrayList<>();
 
+    @Builder.Default
+    @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
+    @ToString.Exclude
+    private List<AnalysisReport> analysisReports = new ArrayList<>();
+
+
 
 
 
@@ -101,6 +108,11 @@ public class Applicant extends BaseTimeEntity {
     public void addPortfolio(Portfolio portfolio) {
         portfolios.add(portfolio);
         portfolio.assignApplicant(this);
+    }
+
+    public void addAnalysisReport(AnalysisReport analysisReport) {
+        analysisReports.add(analysisReport);
+        analysisReport.assignApplicant(this);
     }
 
     public void assignTechnicalSkill(TechnicalSkill technicalSkill) {
