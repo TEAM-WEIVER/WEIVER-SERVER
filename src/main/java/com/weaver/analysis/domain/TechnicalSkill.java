@@ -1,0 +1,39 @@
+package com.weaver.analysis.domain;
+
+
+import com.weaver.applicant.domain.Applicant;
+import com.weaver.global.common.BaseTimeEntity;
+import jakarta.persistence.*;
+import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.util.List;
+
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Entity
+public class TechnicalSkill extends BaseTimeEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long technicalSkillId;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<String> skillTag; // 스킬 태그
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<String> userProvidedTags; // 유저 제공 스킬 태그
+
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "applicant_id")
+    @ToString.Exclude
+    private Applicant applicant;
+
+    public void assignApplicant(Applicant applicant) {
+        this.applicant = applicant;
+    }
+
+}

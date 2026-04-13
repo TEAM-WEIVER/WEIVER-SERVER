@@ -1,7 +1,7 @@
 package com.weaver.applicant.domain;
 
-import com.weaver.analysis.domain.ResumeAnalysis;
-import com.weaver.coverletter.domain.CoverletterAnswer;
+import com.weaver.analysis.domain.TechnicalSkill;
+import com.weaver.essay.domain.EssayAnswer;
 import com.weaver.global.common.BaseTimeEntity;
 import com.weaver.portfolio.domain.Portfolio;
 import jakarta.persistence.*;
@@ -38,39 +38,39 @@ public class Applicant extends BaseTimeEntity {
 
     private LocalDateTime nextAvailableScreeningAt; // 다음 분석 가능 시점
 
-    @ToString.Exclude
     @OneToOne(mappedBy = "applicant", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private ResumeAnalysis resumeAnalysis;
+    @ToString.Exclude
+    private TechnicalSkill technicalSkill;
+
+    @OneToOne(mappedBy = "applicant", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @ToString.Exclude
+    private EssayAnswer essayAnswer;
 
     @Builder.Default
     @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
-    List<Education> educations = new ArrayList<>();
+    private List<Education> educations = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
-    List<WorkExperience> workExperiences = new ArrayList<>();
+    private List<WorkExperience> workExperiences = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
-    List<Award> awards = new ArrayList<>();
+    private List<Award> awards = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
-    List<Certificate> certificates = new ArrayList<>();
+    private List<Certificate> certificates = new ArrayList<>();
 
     @Builder.Default
     @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
-    List<Portfolio> portfolios = new ArrayList<>();
+    private List<Portfolio> portfolios = new ArrayList<>();
 
-    @Builder.Default
-    @OneToMany(mappedBy = "applicant", cascade = CascadeType.ALL, orphanRemoval = true)
-    @ToString.Exclude
-    List<CoverletterAnswer> coverletterAnswers = new ArrayList<>();
 
 
 
@@ -103,13 +103,13 @@ public class Applicant extends BaseTimeEntity {
         portfolio.assignApplicant(this);
     }
 
-    public void addCoverletterAnswer(CoverletterAnswer coverletterAnswer) {
-        coverletterAnswers.add(coverletterAnswer);
-        coverletterAnswer.assignApplicant(this);
+    public void assignTechnicalSkill(TechnicalSkill technicalSkill) {
+        this.technicalSkill = technicalSkill;
+        technicalSkill.assignApplicant(this);
     }
 
-    public void assignResumeAnalysis(ResumeAnalysis resumeAnalysis) {
-        this.resumeAnalysis = resumeAnalysis;
-        resumeAnalysis.assignApplicant(this);
+    public void assignEssayAnswer(EssayAnswer essayAnswer) {
+        this.essayAnswer = essayAnswer;
+        essayAnswer.assignApplicant(this);
     }
 }
