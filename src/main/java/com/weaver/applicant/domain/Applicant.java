@@ -1,6 +1,5 @@
 package com.weaver.applicant.domain;
 
-import com.weaver.essay.domain.EssayAnswer;
 import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -45,7 +44,4 @@ public class Applicant extends BaseTimeEntity {
     @Column(name = "next_available_screening_at")
     private LocalDateTime nextAvailableScreeningAt; // 다음 분석 가능 시점
 
-    @OneToOne(mappedBy = "applicant", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @ToString.Exclude
-    private EssayAnswer essayAnswers;
 }
