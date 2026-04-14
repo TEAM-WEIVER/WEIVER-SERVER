@@ -46,9 +46,9 @@ public class WorkExperience extends BaseTimeEntity {
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "applicant_id", nullable = false)
-    private Applicant applicants;
+    private Applicant applicant;
 
-    public void assignApplicant(Applicant applicants) {
-        this.applicants = applicants;
+    public void assignApplicant(Applicant applicant) {
+        this.applicant = applicant;
     }
 }
