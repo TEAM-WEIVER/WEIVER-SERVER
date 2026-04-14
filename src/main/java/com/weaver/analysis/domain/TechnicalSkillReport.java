@@ -31,7 +31,7 @@ public class TechnicalSkillReport extends BaseTimeEntity {
     private List<String> skillTags; // 스킬 태그
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "application_provider_tags", columnDefinition = "jsonb", nullable = false)
+    @Column(name = "application_provider_tags", columnDefinition = "jsonb")
     private List<String> applicationProviderTags; // 유저 제공 스킬 태그
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
