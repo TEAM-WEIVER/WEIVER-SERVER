@@ -23,7 +23,7 @@ public class EssayAnswers extends BaseTimeEntity {
     private String answer;  // 답변
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "applicant_id")
+    @JoinColumn(name = "applicant_id", nullable = false)
     @ToString.Exclude
     private Applicants applicants;
 

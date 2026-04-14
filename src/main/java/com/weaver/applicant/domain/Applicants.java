@@ -35,8 +35,8 @@ public class Applicants extends BaseTimeEntity {
     @Column(name = "phone_number")
     private String phoneNumber; // 연락처
 
-    @Column(name = "birth_day",columnDefinition = "DATE")
-    private LocalDate birthDay; // 생년월일
+    @Column(name = "birthday",columnDefinition = "DATE")
+    private LocalDate birthday; // 생년월일
 
     @Column(name = "photo_url",columnDefinition = "TEXT")
     private String photoUrl;    // s3 프로필 이미지 경로

@@ -30,10 +30,10 @@ public class CultureReports extends BaseTimeEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "culturefit_tag", columnDefinition = "jsonb")
-    private List<String> cultureFitTag; // 컬처핏 리스트
+    private List<String> culturefitTag; // 컬처핏 리스트
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "applicant_id")
+    @JoinColumn(name = "applicant_id", nullable = false)
     @ToString.Exclude
     private Applicants applicants;
 

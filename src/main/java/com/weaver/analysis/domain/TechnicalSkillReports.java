@@ -27,8 +27,8 @@ public class TechnicalSkillReports extends BaseTimeEntity {
     private Long skillReportId;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "skill_tag", columnDefinition = "jsonb")
-    private List<String> skillTag; // 스킬 태그
+    @Column(name = "skill_tags", columnDefinition = "jsonb")
+    private List<String> skillTags; // 스킬 태그
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "user_provided_tags", columnDefinition = "jsonb")
