@@ -21,19 +21,19 @@ public class Applicant extends BaseTimeEntity {
     @Column(name = "applicant_id")
     private Long applicantId;
 
-    @Column(name = "email", unique = true)
+    @Column(name = "email", unique = true, nullable = false)
     private String email;   // 이메일
 
-    @Column(name = "password")
+    @Column(name = "password", nullable = false)
     private String password;    // 비밀번호
 
-    @Column(name = "name")
+    @Column(name = "name", nullable = false)
     private String name;    // 사용자 이름
 
-    @Column(name = "phone_number")
+    @Column(name = "phone_number", nullable = false)
     private String phoneNumber; // 연락처
 
-    @Column(name = "birthday", columnDefinition = "DATE")
+    @Column(name = "birthday", columnDefinition = "DATE", nullable = false)
     private LocalDate birthday; // 생년월일
 
     @Column(name = "photo_url", columnDefinition = "TEXT")

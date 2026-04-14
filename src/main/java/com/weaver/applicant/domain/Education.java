@@ -23,26 +23,26 @@ public class Education extends BaseTimeEntity {
     private Long educationId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "degree")
+    @Column(name = "degree", nullable = false)
     private Degree degree;
 
-    @Column(name = "school_name")
+    @Column(name = "school_name", nullable = false)
     private String schoolName;
 
-    @Column(name = "major")
+    @Column(name = "major", nullable = false)
     private String major;
 
     @Column(name = "gpa", columnDefinition = "DECIMAL(3,2)")
     private BigDecimal gpa;
 
-    @Column(name = "start_date", columnDefinition = "DATE")
+    @Column(name = "start_date", columnDefinition = "DATE", nullable = false)
     private LocalDate startDate;
 
     @Column(name = "end_date", columnDefinition = "DATE")
     private LocalDate endDate;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "status")
+    @Column(name = "status", nullable = false)
     private Status status;
 
     @ToString.Exclude

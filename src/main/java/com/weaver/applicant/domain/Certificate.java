@@ -19,14 +19,14 @@ public class Certificate extends BaseTimeEntity {
     @Column(name = "certificate_id")
     private Long certificateId;
 
-    @Column(name = "certificate_name")
-    private String certificateName;
+    @Column(name = "certificate_name", nullable = false)
+    private String certificateName; // 자격증명
 
-    @Column(name = "issuer")
-    private String issuer;
+    @Column(name = "issuer", nullable = false)
+    private String issuer;  // 발행처
 
-    @Column(name = "acquisition_date", columnDefinition = "DATE")
-    private LocalDate acquisitionDate;
+    @Column(name = "acquisition_date", columnDefinition = "DATE", nullable = false)
+    private LocalDate acquisitionDate; // 취득 날짜
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)

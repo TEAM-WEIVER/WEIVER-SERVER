@@ -19,14 +19,14 @@ public class Award extends BaseTimeEntity {
     @Column(name = "award_id")
     private Long awardId;
 
-    @Column(name = "award_name")
-    private String awardName;
+    @Column(name = "award_name", nullable = false)
+    private String awardName; // 대회, 상훈명
 
     @Column(name = "issuer")
-    private String issuer;
+    private String issuer; // 발행 기관
 
-    @Column(name = "award_date", columnDefinition = "DATE")
-    private LocalDate awardDate;
+    @Column(name = "award_date", columnDefinition = "DATE", nullable = false)
+    private LocalDate awardDate; // 수상 날짜
 
 
     @ToString.Exclude

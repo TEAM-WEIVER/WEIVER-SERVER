@@ -19,7 +19,7 @@ public class EssayAnswer extends BaseTimeEntity {
     @Column(name = "answer_id")
     private Long answerId;
 
-    @Column(name = "answer", columnDefinition = "TEXT")
+    @Column(name = "answer", columnDefinition = "TEXT", nullable = false)
     private String answer;  // 답변
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
