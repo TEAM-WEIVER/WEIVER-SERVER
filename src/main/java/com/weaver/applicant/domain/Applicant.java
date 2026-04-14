@@ -24,7 +24,7 @@ public class Applicant extends BaseTimeEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long applicantId;
-
+    @Column(unique = true)
     private String email;   // 이메일
     private String password;    // 비밀번호
     private String name;    // 사용자 이름
