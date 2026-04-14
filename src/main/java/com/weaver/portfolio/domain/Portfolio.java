@@ -20,13 +20,13 @@ public class Portfolio extends BaseTimeEntity {
     @Column(name = "portfolio_id")
     private Long portfolioId;
 
-    @Column(name = "file_name", nullable = false)
+    @Column(name = "file_name")
     private String fileName;    // 원본 파일명
 
-    @Column(name = "file_type", nullable = false)
+    @Column(name = "file_type")
     private String fileType;    // 파일 유형
 
-    @Column(name = "file_key", columnDefinition = "TEXT", nullable = false)
+    @Column(name = "file_key", columnDefinition = "TEXT")
     private String fileKey; // S3 PDF 저장 경로
 
     @Column(name = "file_size")
@@ -41,7 +41,7 @@ public class Portfolio extends BaseTimeEntity {
     @Column(name = "url_etc")
     private String urlEtc;  // 포트폴리오_기타
 
-    @Column(name = "uploaded_at", columnDefinition = "TIMESTAMP", nullable = false)
+    @Column(name = "uploaded_at", columnDefinition = "TIMESTAMP")
     private LocalDateTime uploadedAt; // 파일 업로드 일시
 
     @ToString.Exclude
