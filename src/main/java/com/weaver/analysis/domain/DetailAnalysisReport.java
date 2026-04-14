@@ -40,6 +40,6 @@ public class DetailAnalysisReport extends BaseTimeEntity {
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "applicant_id", nullable = false)
-    private Applicant applicants;
+    private Applicant applicant;
 
 }

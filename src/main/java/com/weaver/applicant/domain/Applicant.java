@@ -1,7 +1,5 @@
 package com.weaver.applicant.domain;
 
-import com.weaver.analysis.domain.CultureReport;
-import com.weaver.analysis.domain.TechnicalSkillReport;
 import com.weaver.essay.domain.EssayAnswer;
 import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
@@ -49,14 +47,5 @@ public class Applicant extends BaseTimeEntity {
 
     @OneToOne(mappedBy = "applicant", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @ToString.Exclude
-    private TechnicalSkillReport technicalSkillReports;
-
-    @OneToOne(mappedBy = "applicant", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @ToString.Exclude
     private EssayAnswer essayAnswers;
-
-    @OneToOne(mappedBy = "applicant", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @ToString.Exclude
-    private CultureReport cultureReports;
-
 }

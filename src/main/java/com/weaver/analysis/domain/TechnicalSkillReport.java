@@ -37,10 +37,10 @@ public class TechnicalSkillReport extends BaseTimeEntity {
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "applicant_id", nullable = false)
     @ToString.Exclude
-    private Applicant applicants;
+    private Applicant applicant;
 
-    public void assignApplicant(Applicant applicants) {
-        this.applicants = applicants;
+    public void assignApplicant(Applicant applicant) {
+        this.applicant = applicant;
     }
 
 }
