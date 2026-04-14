@@ -2,7 +2,7 @@ package com.weaver.analysis.domain;
 
 
 import com.weaver.analysis.type.CulturefitStyle;
-import com.weaver.applicant.domain.Applicants;
+import com.weaver.applicant.domain.Applicant;
 import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -17,7 +17,7 @@ import java.util.List;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
 @Table(name = "culture_reports")
-public class CultureReports extends BaseTimeEntity {
+public class CultureReport extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,9 +35,9 @@ public class CultureReports extends BaseTimeEntity {
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "applicant_id", nullable = false)
     @ToString.Exclude
-    private Applicants applicants;
+    private Applicant applicants;
 
-    public void assignApplicant(Applicants applicants) {
+    public void assignApplicant(Applicant applicants) {
         this.applicants = applicants;
     }
 

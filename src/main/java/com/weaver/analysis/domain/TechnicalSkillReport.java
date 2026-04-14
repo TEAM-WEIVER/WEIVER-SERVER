@@ -1,7 +1,7 @@
 package com.weaver.analysis.domain;
 
 
-import com.weaver.applicant.domain.Applicants;
+import com.weaver.applicant.domain.Applicant;
 import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -16,7 +16,7 @@ import java.util.List;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
 @Table(name = "technical_skill_reports")
-public class TechnicalSkillReports extends BaseTimeEntity {
+public class TechnicalSkillReport extends BaseTimeEntity {
 
     /**
      * /worker/extract_skills/essay || /worker/evaluate_interview response 저장
@@ -31,15 +31,15 @@ public class TechnicalSkillReports extends BaseTimeEntity {
     private List<String> skillTags; // 스킬 태그
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "user_provided_tags", columnDefinition = "jsonb")
-    private List<String> userProvidedTags; // 유저 제공 스킬 태그
+    @Column(name = "user_provided_tags", columnDefinition = "jsonb", nullable = false)
+    private List<String> applicationProviderTags; // 유저 제공 스킬 태그
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "applicant_id", nullable = false)
     @ToString.Exclude
-    private Applicants applicants;
+    private Applicant applicants;
 
-    public void assignApplicant(Applicants applicants) {
+    public void assignApplicant(Applicant applicants) {
         this.applicants = applicants;
     }
 

@@ -1,6 +1,6 @@
 package com.weaver.analysis.domain;
 
-import com.weaver.applicant.domain.Applicants;
+import com.weaver.applicant.domain.Applicant;
 import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -15,7 +15,7 @@ import java.util.List;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
 @Table(name = "detail_analysis_reports")
-public class DetailAnalysisReports extends BaseTimeEntity {
+public class DetailAnalysisReport extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -39,7 +39,7 @@ public class DetailAnalysisReports extends BaseTimeEntity {
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "applicant_id",nullable = false)
-    private Applicants applicants;
+    @JoinColumn(name = "applicant_id", nullable = false)
+    private Applicant applicants;
 
 }

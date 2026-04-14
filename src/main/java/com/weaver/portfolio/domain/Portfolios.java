@@ -1,6 +1,6 @@
 package com.weaver.portfolio.domain;
 
-import com.weaver.applicant.domain.Applicants;
+import com.weaver.applicant.domain.Applicant;
 import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -47,9 +47,9 @@ public class Portfolios extends BaseTimeEntity {
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "applicant_id", nullable = false)
-    private Applicants applicants;
+    private Applicant applicants;
 
-    public void assignApplicant(Applicants applicants) {
+    public void assignApplicant(Applicant applicants) {
         this.applicants = applicants;
     }
 

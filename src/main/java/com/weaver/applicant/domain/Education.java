@@ -15,7 +15,7 @@ import java.time.LocalDate;
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Table(name = "educations")
-public class Educations extends BaseTimeEntity {
+public class Education extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -32,13 +32,13 @@ public class Educations extends BaseTimeEntity {
     @Column(name = "major")
     private String major;
 
-    @Column(name = "gpa",columnDefinition = "DECIMAL(3,2)")
+    @Column(name = "gpa", columnDefinition = "DECIMAL(3,2)")
     private BigDecimal gpa;
 
-    @Column(name = "start_date",columnDefinition = "DATE")
+    @Column(name = "start_date", columnDefinition = "DATE")
     private LocalDate startDate;
 
-    @Column(name = "end_date",columnDefinition = "DATE")
+    @Column(name = "end_date", columnDefinition = "DATE")
     private LocalDate endDate;
 
     @Enumerated(EnumType.STRING)
@@ -48,9 +48,9 @@ public class Educations extends BaseTimeEntity {
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "applicant_id", nullable = false)
-    private Applicants applicants;
+    private Applicant applicants;
 
-    public void assignApplicant(Applicants applicants) {
+    public void assignApplicant(Applicant applicants) {
         this.applicants = applicants;
     }
 }
