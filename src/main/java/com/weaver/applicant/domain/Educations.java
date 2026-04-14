@@ -14,37 +14,43 @@ import java.time.LocalDate;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class Education extends BaseTimeEntity {
+@Table(name = "educations")
+public class Educations extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "education_id")
     private Long educationId;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "degree")
     private Degree degree;
 
+    @Column(name = "school_name")
     private String schoolName;
 
+    @Column(name = "major")
     private String major;
 
-    @Column(columnDefinition = "DECIMAL(3,2)")
+    @Column(name = "gpa",columnDefinition = "DECIMAL(3,2)")
     private BigDecimal gpa;
 
-    @Column(columnDefinition = "DATE")
+    @Column(name = "start_date",columnDefinition = "DATE")
     private LocalDate startDate;
 
-    @Column(columnDefinition = "DATE")
+    @Column(name = "end_date",columnDefinition = "DATE")
     private LocalDate endDate;
 
     @Enumerated(EnumType.STRING)
+    @Column(name = "status")
     private Status status;
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "applicant_id")
-    private Applicant applicant;
+    @JoinColumn(name = "applicant_id", nullable = false)
+    private Applicants applicants;
 
-    public void assignApplicant(Applicant applicant) {
-        this.applicant = applicant;
+    public void assignApplicant(Applicants applicants) {
+        this.applicants = applicants;
     }
 }

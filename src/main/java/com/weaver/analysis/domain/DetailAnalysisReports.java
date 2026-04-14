@@ -1,6 +1,6 @@
 package com.weaver.analysis.domain;
 
-import com.weaver.applicant.domain.Applicant;
+import com.weaver.applicant.domain.Applicants;
 import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -14,34 +14,32 @@ import java.util.List;
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
-public class AnalysisReport extends BaseTimeEntity {
+@Table(name = "detail_analysis_reports")
+public class DetailAnalysisReports extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "report_id")
     private Long reportId;
-
-    @Column(columnDefinition = "TEXT")
-    private String aiSummary;
 
 
     /**
      * /worker/evaluate_interview response 저장
      * */
     @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "skill_analysis", columnDefinition = "jsonb")
     private List<String> skillAnalysis; // 기술핏 분석 결과
 
     /**
      * /worker/insert/interview_result response 저장
      * */
     @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "culture_analysis", columnDefinition = "jsonb")
     private List<String> cultureAnalysis; // 컬처핏 분석 결과
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "applicant_id")
-    private Applicant applicant;
+    @JoinColumn(name = "applicant_id",nullable = false)
+    private Applicants applicants;
 
-    public void assignApplicant(Applicant applicant) {
-        this.applicant = applicant;
-    }
 }

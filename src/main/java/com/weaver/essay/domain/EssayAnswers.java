@@ -1,7 +1,7 @@
 package com.weaver.essay.domain;
 
 
-import com.weaver.applicant.domain.Applicant;
+import com.weaver.applicant.domain.Applicants;
 import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -11,23 +11,23 @@ import lombok.*;
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
-public class EssayAnswer extends BaseTimeEntity {
+@Table(name = "essay_answers")
+public class EssayAnswers extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "answer_id")
     private Long answerId;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "answer",columnDefinition = "TEXT")
     private String answer;  // 답변
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "applicant_id")
     @ToString.Exclude
-    private Applicant applicant;
+    private Applicants applicants;
 
-    public void assignApplicant(Applicant applicant) {
-        this.applicant = applicant;
+    public void assignApplicant(Applicants applicants) {
+        this.applicants = applicants;
     }
-
-
 }

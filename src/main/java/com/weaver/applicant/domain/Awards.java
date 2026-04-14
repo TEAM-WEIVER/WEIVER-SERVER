@@ -11,26 +11,30 @@ import java.time.LocalDate;
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
-public class Award extends BaseTimeEntity {
+@Table(name = "awards")
+public class Awards extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "award_id")
     private Long awardId;
 
+    @Column(name = "award_name")
     private String awardName;
 
+    @Column(name = "issuer")
     private String issuer;
 
-    @Column(columnDefinition = "DATE")
+    @Column(name = "award_date",columnDefinition = "DATE")
     private LocalDate awardDate;
 
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "applicant_id")
-    private Applicant applicant;
+    @JoinColumn(name = "applicant_id", nullable = false)
+    private Applicants applicants;
 
-    public void assignApplicant(Applicant applicant) {
-        this.applicant = applicant;
+    public void assignApplicant(Applicants applicants) {
+        this.applicants = applicants;
     }
 }

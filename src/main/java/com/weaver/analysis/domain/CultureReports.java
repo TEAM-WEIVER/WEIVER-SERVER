@@ -1,8 +1,8 @@
 package com.weaver.analysis.domain;
 
 
-import com.weaver.analysis.type.CULTUREFITSTYLE;
-import com.weaver.applicant.domain.Applicant;
+import com.weaver.analysis.type.CulturefitStyle;
+import com.weaver.applicant.domain.Applicants;
 import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -16,25 +16,29 @@ import java.util.List;
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
-public class CultureReport extends BaseTimeEntity {
+@Table(name = "culture_reports")
+public class CultureReports extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "culture_report_id")
     private Long cultureReportId;
 
     @Enumerated(EnumType.STRING)
-    private CULTUREFITSTYLE cultureFitStyle; // 컬처핏 스타일
+    @Column(name = "culturefit_style")
+    private CulturefitStyle culturefitStyles; // 컬처핏 스타일
 
     @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "culturefit_tag", columnDefinition = "jsonb")
     private List<String> cultureFitTag; // 컬처핏 리스트
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "applicant_id")
     @ToString.Exclude
-    private Applicant applicant;
+    private Applicants applicants;
 
-    public void assignApplicant(Applicant applicant) {
-        this.applicant = applicant;
+    public void assignApplicant(Applicants applicants) {
+        this.applicants = applicants;
     }
 
 }
