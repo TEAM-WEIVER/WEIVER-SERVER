@@ -44,9 +44,9 @@ public class Portfolio extends BaseTimeEntity {
     @Column(name = "uploaded_at", columnDefinition = "TIMESTAMP")
     private LocalDateTime uploadedAt; // 파일 업로드 일시
 
-    @ToString.Exclude
-    @ManyToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "applicant_id", nullable = false)
+    @ToString.Exclude
     private Applicant applicant;
 
     public void assignApplicant(Applicant applicant) {
