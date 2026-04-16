@@ -1,4 +1,4 @@
-# WEAVER
+# WEIVER
 
 <br/> <strong>"검증된 인재를 엮다, 위버"</strong>
 
