@@ -3,8 +3,6 @@ package com.weaver.company.domain;
 import com.weaver.company.type.CompanyType;
 import com.weaver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDate;
