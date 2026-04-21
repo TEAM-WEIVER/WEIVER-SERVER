@@ -44,4 +44,7 @@ public class Applicant extends BaseTimeEntity {
     @Column(name = "next_available_screening_at")
     private LocalDateTime nextAvailableScreeningAt; // 다음 분석 가능 시점
 
+    @Column(name = "address", nullable = false)
+    private String address;  // 주소
+
 }
