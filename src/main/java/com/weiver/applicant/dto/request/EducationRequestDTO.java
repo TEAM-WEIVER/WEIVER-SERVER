@@ -1,6 +1,8 @@
 package com.weiver.applicant.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.weiver.applicant.domain.Applicant;
+import com.weiver.applicant.domain.Education;
 import jakarta.validation.Valid;
 
 import java.util.List;
@@ -8,4 +10,10 @@ import java.util.List;
 public record EducationRequestDTO (
     @Valid
     @JsonProperty("EducationDTO")
-    List<EducationDetailDTO> educationList){}
+    List<EducationDetailDTO> educationList){
+    public List<Education> toEntityList(Applicant applicant){
+        return educationList.stream()
+                .map(educationDetailDTO -> educationDetailDTO.toEntity(applicant))
+                .toList();
+    }
+}

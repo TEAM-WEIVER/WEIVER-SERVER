@@ -1,8 +1,13 @@
 package com.weiver.applicant.dto.request;
 
+import com.weiver.applicant.domain.Applicant;
+import com.weiver.applicant.domain.WorkExperience;
+import com.weiver.applicant.type.EmploymentType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+
+import java.time.LocalDate;
 
 public record WorkExperienceDetailDTO (
     @NotBlank(message = "회사명은 필수입니다.")
@@ -19,4 +24,17 @@ public record WorkExperienceDetailDTO (
     @NotBlank(message = "담당 업무는 필수 입력값입니다.")
     String duties,
     @NotNull(message = "경력 여부는 필수 입력값입니다.")
-    Boolean isRecognized){}
+    Boolean isRecognized){
+    public WorkExperience toEntity(Applicant applicant){
+        return WorkExperience.builder()
+            .companyName(this.companyName())
+            .startDate(LocalDate.parse(this.startDate()))
+            .endDate(LocalDate.parse(this.endDate()))
+            .employmentType(EmploymentType.valueOf(this.employmentType()))
+            .position(this.position())
+            .duties(this.duties())
+            .isRecognized(this.isRecognized())
+            .applicant(applicant)
+            .build();
+    }
+}
