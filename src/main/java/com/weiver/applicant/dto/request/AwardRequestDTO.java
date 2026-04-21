@@ -1,12 +1,12 @@
 package com.weiver.applicant.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Getter;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
-@Getter
-public class AwardRequestDTO {
+public record AwardRequestDTO (
     @JsonProperty("AwardDTO")
-    private List<AwardDetailDTO> educationList;
-}
+    @Valid
+    List<AwardDetailDTO> educationList
+) {}
