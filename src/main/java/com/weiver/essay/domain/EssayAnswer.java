@@ -27,7 +27,4 @@ public class EssayAnswer extends BaseTimeEntity {
     @ToString.Exclude
     private Applicant applicant;
 
-    public void assignApplicant(Applicant applicant) {
-        this.applicant = applicant;
-    }
 }
