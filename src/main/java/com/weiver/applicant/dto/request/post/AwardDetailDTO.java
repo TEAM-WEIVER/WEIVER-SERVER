@@ -1,4 +1,4 @@
-package com.weiver.applicant.dto.request;
+package com.weiver.applicant.dto.request.post;
 
 
 import com.weiver.applicant.domain.Applicant;

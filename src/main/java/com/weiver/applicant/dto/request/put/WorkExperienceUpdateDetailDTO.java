@@ -1,4 +1,4 @@
-package com.weiver.applicant.dto.request;
+package com.weiver.applicant.dto.request.put;
 
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.domain.WorkExperience;
@@ -9,7 +9,8 @@ import jakarta.validation.constraints.Pattern;
 
 import java.time.LocalDate;
 
-public record WorkExperienceDetailDTO (
+public record WorkExperienceUpdateDetailDTO(
+    Long workExperienceId,
     @NotBlank(message = "회사명은 필수입니다.")
     String companyName,
     @NotBlank(message = "재직 날짜는 필수 입력값입니다.")

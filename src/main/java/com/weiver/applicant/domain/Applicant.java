@@ -1,5 +1,6 @@
 package com.weiver.applicant.domain;
 
+import com.weiver.applicant.dto.request.put.ApplicantInfoUpdateRequestDTO;
 import com.weiver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -47,4 +48,27 @@ public class Applicant extends BaseTimeEntity {
     @Column(name = "address", nullable = false)
     private String address;  // 주소
 
+    /**
+     * 정보 업데이트 편의메소드
+     * */
+    public void updateInfo(ApplicantInfoUpdateRequestDTO updateDTO){
+        if(updateDTO.profileImageUrl() != null) {
+            this.photoUrl = updateDTO.profileImageUrl();
+        }
+        if(updateDTO.name() != null) {
+            this.name = updateDTO.name();
+        }
+        if(updateDTO.email() != null) {
+            this.email = updateDTO.email();
+        }
+        if(updateDTO.phoneNumber() != null) {
+            this.phoneNumber = updateDTO.phoneNumber();
+        }
+        if(updateDTO.address() != null) {
+            this.address = updateDTO.address();
+        }
+        if(updateDTO.birthday() != null) {
+            this.birthday = LocalDate.parse(updateDTO.birthday());
+        }
+    }
 }

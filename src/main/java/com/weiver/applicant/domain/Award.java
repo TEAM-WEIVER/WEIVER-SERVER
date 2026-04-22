@@ -1,5 +1,6 @@
 package com.weiver.applicant.domain;
 
+import com.weiver.applicant.dto.request.put.AwardUpdateDetailDTO;
 import com.weiver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -36,5 +37,17 @@ public class Award extends BaseTimeEntity {
 
     public void assignApplicant(Applicant applicant) {
         this.applicant = applicant;
+    }
+
+    public void updateAward(AwardUpdateDetailDTO updateDTO){
+        if(updateDTO.awardDate() != null) {
+            this.awardDate = LocalDate.parse(updateDTO.awardDate());
+        }
+        if(updateDTO.awardName() != null) {
+            this.awardName = updateDTO.awardName();
+        }
+        if(updateDTO.issuer() != null) {
+            this.issuer = updateDTO.issuer();
+        }
     }
 }
