@@ -12,4 +12,4 @@ import java.util.List;
 public record WorkExperienceUpdateRequestDTO(
     @JsonProperty("WorkExperienceUpdateDTO")
     @Valid
-    List<WorkExperienceUpdateDetailDTO> workExperiences){}
+    List<WorkExperienceUpdateDetailDTO> workExperienceList){}
