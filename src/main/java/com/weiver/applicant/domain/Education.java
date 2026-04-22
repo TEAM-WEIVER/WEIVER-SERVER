@@ -7,7 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.YearMonth;
 
 @Entity
 @Getter
@@ -36,10 +36,10 @@ public class Education extends BaseTimeEntity {
     private BigDecimal gpa;
 
     @Column(name = "start_date", columnDefinition = "DATE", nullable = false)
-    private LocalDate startDate;
+    private YearMonth startDate;
 
     @Column(name = "end_date", columnDefinition = "DATE")
-    private LocalDate endDate;
+    private YearMonth endDate;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)

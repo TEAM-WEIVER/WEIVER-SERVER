@@ -10,6 +10,7 @@ import jakarta.validation.constraints.Pattern;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 
 public record EducationDetailDTO (
 
@@ -36,8 +37,8 @@ public record EducationDetailDTO (
                 .schoolName(schoolName)
                 .major(major)
                 .gpa(BigDecimal.valueOf(gpa))
-                .startDate(LocalDate.parse(startDate))
-                .endDate(LocalDate.parse(endDate))
+                .startDate(YearMonth.parse(startDate))
+                .endDate(YearMonth.parse(endDate))
                 .status(Status.valueOf(status))
                 .build();
     }
