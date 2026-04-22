@@ -8,15 +8,14 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
 import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
 
 public record WorkExperienceDetailDTO (
     @NotBlank(message = "회사명은 필수입니다.")
     String companyName,
     @NotBlank(message = "재직 날짜는 필수 입력값입니다.")
-    @Pattern(regexp = "^\\d{4}\\.\\d{2}\\.\\d{2}$", message = "재직 날짜는 YYYY.MM.DD 형식이어야 합니다.")
+    @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "입사 날짜는 YYYY-MM-DD 형식이어야 합니다.")
     String startDate,
-    @Pattern(regexp = "^\\d{4}\\.\\d{2}\\.\\d{2}$", message = "퇴직 날짜는 YYYY.MM.DD 형식이어야 합니다.")
+    @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "입사 날짜는 YYYY-MM-DD 형식이어야 합니다.")
     String endDate,
     @NotBlank(message = "경력 형태는 필수 입력값입니다.")
     String employmentType,
@@ -27,11 +26,10 @@ public record WorkExperienceDetailDTO (
     @NotNull(message = "경력 여부는 필수 입력값입니다.")
     Boolean isRecognized){
     public WorkExperience toEntity(Applicant applicant){
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy.MM.dd");
         return WorkExperience.builder()
             .companyName(this.companyName())
-            .startDate(LocalDate.parse(this.startDate(), formatter))
-            .endDate(this.endDate() != null ? LocalDate.parse(this.endDate(), formatter) : null)
+            .startDate(LocalDate.parse(this.startDate()))
+            .endDate(this.endDate() != null ? LocalDate.parse(this.endDate()) : null)
             .employmentType(EmploymentType.valueOf(this.employmentType()))
             .position(this.position())
             .duties(this.duties())

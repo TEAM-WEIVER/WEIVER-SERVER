@@ -15,7 +15,7 @@ import java.time.LocalDate;
 public record AwardUpdateDetailDTO(
     Long awardId,
     @NotBlank(message = "취득 날짜는 필수 입력값입니다.")
-    @Pattern(regexp = "^\\d{4}\\.\\d{2}\\.\\d{2}$", message = "취득 날짜는 YYYY.MM.DD 형식이어야 합니다.")
+    @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "취득 날짜는 YYYY-MM-DD 형식이어야 합니다.")
     String awardDate,
     @NotBlank(message = "수상 이름은 필수 입력값입니다.")
     String awardName,

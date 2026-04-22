@@ -14,9 +14,9 @@ public record WorkExperienceUpdateDetailDTO(
     @NotBlank(message = "회사명은 필수입니다.")
     String companyName,
     @NotBlank(message = "재직 날짜는 필수 입력값입니다.")
-    @Pattern(regexp = "^\\d{4}\\.\\d{2}\\.\\d{2}$", message = "재직 날짜는 YYYY.MM.DD 형식이어야 합니다.")
+    @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "입사 날짜는 YYYY-MM-DD 형식이어야 합니다.")
     String startDate,
-    @Pattern(regexp = "^\\d{4}\\.\\d{2}\\.\\d{2}$", message = "퇴직 날짜는 YYYY.MM.DD 형식이어야 합니다.")
+    @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "퇴직 날짜는 YYYY-MM-DD 형식이어야 합니다.")
     String endDate,
     @NotBlank(message = "경력 형태는 필수 입력값입니다.")
     String employmentType,

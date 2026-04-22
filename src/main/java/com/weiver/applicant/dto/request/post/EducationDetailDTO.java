@@ -22,10 +22,10 @@ public record EducationDetailDTO (
     @NotNull(message = "학점은 필수 입력값입니다.")
     Double gpa,
     @NotBlank(message = "입학 날짜는 필수 입력값입니다.")
-    @Pattern(regexp = "^\\d{4}\\.\\d{2}$", message = "입학 날짜는 YYYY.MM 형식이어야 합니다.")
+    @Pattern(regexp = "^\\d{4}-\\d{2}$", message = "입학 날짜는 YYYY-MM 형식이어야 합니다.")
     String startDate,
     @NotBlank(message = "졸업 날짜는 필수 입력값입니다.")
-    @Pattern(regexp = "^\\d{4}\\.\\d{2}$", message = "졸업 날짜는 YYYY.MM 형식이어야 합니다.")
+    @Pattern(regexp = "^\\d{4}-\\d{2}$", message = "졸업 날짜는 YYYY-MM 형식이어야 합니다.")
     String endDate,
     @NotBlank(message = "학력 상태는 필수 입력값입니다.")
     String status){
