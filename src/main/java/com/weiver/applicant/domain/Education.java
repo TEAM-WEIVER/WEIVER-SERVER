@@ -1,5 +1,6 @@
 package com.weiver.applicant.domain;
 
+import com.weiver.applicant.dto.request.put.EducationUpdateDetailDTO;
 import com.weiver.applicant.type.Degree;
 import com.weiver.applicant.type.Status;
 import com.weiver.global.common.BaseTimeEntity;
@@ -50,7 +51,30 @@ public class Education extends BaseTimeEntity {
     @JoinColumn(name = "applicant_id", nullable = false)
     private Applicant applicant;
 
-    public void assignApplicant(Applicant applicant) {
-        this.applicant = applicant;
+    /**
+     * 편의 메소드
+     * */
+    public void updateEducation(EducationUpdateDetailDTO updateDTO){
+        if(updateDTO.degreeType() != null) {
+            this.degree = Degree.valueOf(updateDTO.degreeType());
+        }
+        if(updateDTO.schoolName() != null) {
+            this.schoolName = updateDTO.schoolName();
+        }
+        if(updateDTO.major() != null) {
+            this.major = updateDTO.major();
+        }
+        if(updateDTO.gpa() != null) {
+            this.gpa = new BigDecimal(updateDTO.gpa());
+        }
+        if(updateDTO.startDate() != null) {
+            this.startDate = YearMonth.parse(updateDTO.startDate());
+        }
+        if(updateDTO.endDate() != null) {
+            this.endDate = YearMonth.parse(updateDTO.endDate());
+        }
+        if(updateDTO.status() != null) {
+            this.status = Status.valueOf(updateDTO.status());
+        }
     }
 }

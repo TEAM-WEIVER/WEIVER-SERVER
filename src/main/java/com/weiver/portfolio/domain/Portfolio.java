@@ -2,6 +2,7 @@ package com.weiver.portfolio.domain;
 
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.global.common.BaseTimeEntity;
+import com.weiver.portfolio.dto.request.PortfolioUpdateRequestDTO;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -49,8 +50,27 @@ public class Portfolio extends BaseTimeEntity {
     @ToString.Exclude
     private Applicant applicant;
 
-    public void assignApplicant(Applicant applicant) {
-        this.applicant = applicant;
+    /**
+     * 편의 메소드
+     * */
+    public void updatePortfolio(PortfolioUpdateRequestDTO updateDTO){
+        if(updateDTO.urlGithub() != null) {
+            this.urlGithub = updateDTO.urlGithub();
+        }
+        if(updateDTO.urlTech() != null) {
+            this.urlTech = updateDTO.urlTech();
+        }
+        if(updateDTO.urlEtc() != null) {
+            this.urlEtc = updateDTO.urlEtc();
+        }
+        if(updateDTO.fileKey() != null) {
+            this.fileKey = updateDTO.fileKey();
+        }
+        if(updateDTO.fileName() != null) {
+            this.fileName = updateDTO.fileName();
+        }
+        if(updateDTO.fileType() != null) {
+            this.fileType = updateDTO.fileType();
+        }
     }
-
 }

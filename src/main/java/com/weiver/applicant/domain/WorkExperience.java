@@ -1,6 +1,7 @@
 package com.weiver.applicant.domain;
 
 
+import com.weiver.applicant.dto.request.put.WorkExperienceUpdateDetailDTO;
 import com.weiver.applicant.type.EmploymentType;
 import com.weiver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
@@ -48,7 +49,31 @@ public class WorkExperience extends BaseTimeEntity {
     @JoinColumn(name = "applicant_id", nullable = false)
     private Applicant applicant;
 
-    public void assignApplicant(Applicant applicant) {
-        this.applicant = applicant;
+    /**
+     * 편의 메소드
+     * */
+    public void updateWorkExperience(WorkExperienceUpdateDetailDTO updateDTO){
+        if(updateDTO.companyName() != null) {
+            this.companyName = updateDTO.companyName();
+        }
+        if(updateDTO.startDate() != null) {
+            this.startDate = LocalDate.parse(updateDTO.startDate());
+        }
+        if(updateDTO.endDate() != null) {
+            this.endDate = LocalDate.parse(updateDTO.endDate());
+        }
+        if(updateDTO.employmentType() != null) {
+            this.employmentType = EmploymentType.valueOf(updateDTO.employmentType());
+        }
+        if(updateDTO.position() != null) {
+            this.position = updateDTO.position();
+        }
+        if(updateDTO.duties() != null) {
+            this.duties = updateDTO.duties();
+        }
+        if(updateDTO.isRecognized() != null) {
+            this.isRecognized = updateDTO.isRecognized();
+        }
     }
+
 }

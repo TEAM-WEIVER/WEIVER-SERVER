@@ -35,10 +35,9 @@ public class Award extends BaseTimeEntity {
     @JoinColumn(name = "applicant_id", nullable = false)
     private Applicant applicant;
 
-    public void assignApplicant(Applicant applicant) {
-        this.applicant = applicant;
-    }
-
+    /**
+     * 편의 메소드
+     * */
     public void updateAward(AwardUpdateDetailDTO updateDTO){
         if(updateDTO.awardDate() != null) {
             this.awardDate = LocalDate.parse(updateDTO.awardDate());
