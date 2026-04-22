@@ -8,7 +8,7 @@ import jakarta.validation.Valid;
 
 import java.util.List;
 
-public record EducationDetailRequestDTO(
+public record EducationUpdateRequestDTO(
     @Valid
     @JsonProperty("EducationUpdateDTO")
     List<EducationUpdateDetailDTO> educationList){}
