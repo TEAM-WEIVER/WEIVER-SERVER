@@ -1,7 +1,6 @@
 package com.weiver.jobposting.domain;
 
 import com.weiver.company.domain.Company;
-import com.weiver.jobposting.dto.request.CompetencyRequestDTO;
 import com.weiver.jobposting.type.JobPostingStatus;
 import jakarta.persistence.*;
 import lombok.*;

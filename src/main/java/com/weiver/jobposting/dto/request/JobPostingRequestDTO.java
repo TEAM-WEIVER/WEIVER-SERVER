@@ -1,11 +1,9 @@
 package com.weiver.jobposting.dto.request;
 
-import com.weiver.company.domain.Company;
-import com.weiver.jobposting.domain.JobPosting;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
-import java.time.LocalDate;
+import java.util.List;
 
 public record JobPostingRequestDTO(
         @NotBlank String title,
@@ -17,19 +15,14 @@ public record JobPostingRequestDTO(
         String jobDescription,
         String qualifications,
         String requirements,
-        String preferredQualifications
-) {
-    public JobPosting toEntity(Company company){
-        return JobPosting.builder()
-                .title(this.title)
-                .deadline(LocalDate.parse(this.deadline))
-                .jobCategory(this.jobCategory)
-                .detailedJob(this.detailedJob)
-                .jobDescription(this.jobDescription)
-                .qualifications(this.qualifications)
-                .requirements(this.requirements)
-                .preferredQualifications(this.preferredQualifications)
-                .company(company)
-                .build();
-    }
-}
+        String preferredQualifications,
+
+        List<String> competencyPriorities,
+        List<String> requiredTechs,
+
+        List<String> traitPriorities,
+
+        @NotBlank String emailTitle,
+        @NotBlank String emailContent,
+        String emailBannerUrl
+) {}
