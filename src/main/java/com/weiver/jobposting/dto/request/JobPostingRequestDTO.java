@@ -16,6 +16,7 @@ public record JobPostingRequestDTO(
         String qualifications,
         String requirements,
         String preferredQualifications,
+        String status, // 공고 활성화 여부
 
         List<String> competencyPriorities,
         List<String> requiredTechs,
