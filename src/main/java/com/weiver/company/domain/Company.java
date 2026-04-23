@@ -1,6 +1,6 @@
 package com.weiver.company.domain;
 
-import com.weiver.company.type.CompanyType;
+import com.weiver.company.type.*;
 import com.weiver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -33,6 +33,9 @@ public class Company extends BaseTimeEntity {
     @Column(name = "employee_num", nullable = false)
     private Integer employeeNum;
 
+    @Column(name = "company_ceo_name", nullable = false)
+    private String companyCeoName;
+
     @Column(name = "founded_year", nullable = false)
     private LocalDate foundedYear;
 
@@ -54,17 +57,21 @@ public class Company extends BaseTimeEntity {
     @Column(name = "direction_description", nullable = false, columnDefinition = "TEXT")
     private String directionDescription;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "work_pace", nullable = false)
-    private String workPace;
+    private WorkPace workPace;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "decision_making", nullable = false)
-    private String decisionMaking;
+    private DecisionMaking decisionMaking;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "role_definition", nullable = false)
-    private String roleDefinition;
+    private RoleDefinition roleDefinition;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "operation_style", nullable = false)
-    private String operationStyle;
+    private OperationStyle operationStyle;
 
     @Column(name = "additional_work_style", nullable = true, columnDefinition = "TEXT")
     private String additionalWorkStyle;
