@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
 
-// userId는 JWT 토큰을 통해서 받아옴
+// applicantId JWT 토큰을 통해서 받아옴
 public record ApplicantInfoUpdateRequestDTO(
         @NotNull
         String profileImageUrl,

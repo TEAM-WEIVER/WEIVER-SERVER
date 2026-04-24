@@ -13,7 +13,7 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 
 public record EducationUpdateDetailDTO(
-    long educationId,
+    Long educationId,
     @NotBlank(message = "학력 유형은 필수 입력값입니다.")
     String degreeType,
     @NotBlank(message = "학교 이름은 필수 입력값입니다.")
