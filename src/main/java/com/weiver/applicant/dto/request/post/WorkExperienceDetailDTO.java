@@ -14,9 +14,9 @@ public record WorkExperienceDetailDTO (
     String companyName,
     @NotBlank(message = "입사 날짜는 필수 입력값입니다.")
     @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "입사 날짜는 YYYY-MM-DD 형식이어야 합니다.")
-    String startDate,
+    LocalDate startDate,
     @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "퇴사 날짜는 YYYY-MM-DD 형식이어야 합니다.")
-    String endDate,
+    LocalDate endDate,
     @NotBlank(message = "경력 형태는 필수 입력값입니다.")
     String employmentType,
     @NotBlank(message = "직급은 필수 입력값입니다.")
@@ -28,8 +28,8 @@ public record WorkExperienceDetailDTO (
     public WorkExperience toEntity(Applicant applicant){
         return WorkExperience.builder()
             .companyName(this.companyName())
-            .startDate(LocalDate.parse(this.startDate()))
-            .endDate(this.endDate() != null ? LocalDate.parse(this.endDate()) : null)
+            .startDate(this.startDate())
+            .endDate(this.endDate() != null ? this.endDate() : null)
             .employmentType(EmploymentType.valueOf(this.employmentType()))
             .position(this.position())
             .duties(this.duties())
