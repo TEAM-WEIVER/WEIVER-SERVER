@@ -3,7 +3,7 @@ package com.weiver.essay.dto.response;
 import com.weiver.essay.domain.EssayAnswer;
 
 public record EssayAnswerResponseDTO(
-        long answerId,
+        Long answerId,
         String answer
 ){
     public static EssayAnswerResponseDTO from(EssayAnswer essayAnswer){
