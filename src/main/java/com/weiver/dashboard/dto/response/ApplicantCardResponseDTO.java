@@ -1,4 +1,4 @@
-package com.weiver.analysis.dto.response;
+package com.weiver.dashboard.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

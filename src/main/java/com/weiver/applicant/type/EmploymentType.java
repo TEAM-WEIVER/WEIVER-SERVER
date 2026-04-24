@@ -1,5 +1,10 @@
 package com.weiver.applicant.type;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
+@Getter
+@RequiredArgsConstructor
 public enum EmploymentType {
     FULL_TIME("정규직"),
     INTERN("인턴"),
@@ -8,5 +13,5 @@ public enum EmploymentType {
     MILITARY_SERVICE_EXEMPTION("병역 특례"),
     PART_TIME("파트타임");
 
-    EmploymentType(String s) {}
+    private final String description;
 }
