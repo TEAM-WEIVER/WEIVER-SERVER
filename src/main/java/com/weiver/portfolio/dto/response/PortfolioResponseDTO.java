@@ -4,7 +4,7 @@ package com.weiver.portfolio.dto.response;
 import com.weiver.portfolio.domain.Portfolio;
 
 public record PortfolioResponseDTO(
-        long portfolioId,
+        Long portfolioId,
         String fileKey,
         String fileName,
         String fileType,

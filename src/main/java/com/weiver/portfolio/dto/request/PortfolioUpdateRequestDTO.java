@@ -3,7 +3,7 @@ package com.weiver.portfolio.dto.request;
 import org.hibernate.validator.constraints.URL;
 
 public record PortfolioUpdateRequestDTO(
-        long portfolioId,
+        Long portfolioId,
         String fileKey,
         String fileName,
         String fileType,
