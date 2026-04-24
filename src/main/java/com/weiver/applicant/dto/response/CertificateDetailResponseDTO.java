@@ -3,7 +3,7 @@ package com.weiver.applicant.dto.response;
 import com.weiver.applicant.domain.Certificate;
 
 public record CertificateDetailResponseDTO(
-        long certificateId,
+        Long certificateId,
         String certificateName,
         String acquisitionDate,
         String issuer

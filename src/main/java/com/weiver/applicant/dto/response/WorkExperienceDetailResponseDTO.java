@@ -3,7 +3,7 @@ package com.weiver.applicant.dto.response;
 import com.weiver.applicant.domain.WorkExperience;
 
 public record WorkExperienceDetailResponseDTO(
-        long experienceId,
+        Long experienceId,
         String companyName,
         String position,
         String startDate,

@@ -3,7 +3,7 @@ package com.weiver.applicant.dto.response;
 import com.weiver.applicant.domain.Education;
 
 public record EducationDetailResponseDTO(
-        long educationId,
+        Long educationId,
         String schoolName,
         String degree,
         String major,

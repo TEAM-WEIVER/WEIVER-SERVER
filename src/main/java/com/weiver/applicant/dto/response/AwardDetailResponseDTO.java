@@ -3,7 +3,7 @@ package com.weiver.applicant.dto.response;
 import com.weiver.applicant.domain.Award;
 
 public record AwardDetailResponseDTO(
-        long awardId,
+        Long awardId,
         String awardName,
         String awardDate,
         String issuer
