@@ -1,9 +1,9 @@
-package com.weiver.company.dto.response;
+package com.weiver.dashboard.dto.response;
 
 import com.weiver.company.domain.Company;
 
 public record CompanyDashboardResponseDTO(
-        long companyId,
+        Long companyId,
         String companyLogoUrl,
         String companyCeoName,
         String address,

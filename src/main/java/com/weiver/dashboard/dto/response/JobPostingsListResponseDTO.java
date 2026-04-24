@@ -1,14 +1,14 @@
-package com.weiver.company.dto.response;
+package com.weiver.dashboard.dto.response;
 
 import com.weiver.jobposting.domain.JobPosting;
 
 public record JobPostingsListResponseDTO(
-        long jbId,
+        Long jbId,
         String title,
         String status,
         String jobCategory,
         String detailedJob,
-        long newApplicantCount
+        Long newApplicantCount
 ) {
     public static JobPostingsListResponseDTO from(JobPosting jobPosting, long newApplicantCount){
         return new JobPostingsListResponseDTO(

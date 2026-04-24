@@ -1,4 +1,4 @@
-package com.weiver.company.dto.response;
+package com.weiver.dashboard.dto.response;
 
 public record WayOfWorkingDetail(
         String workPace,
