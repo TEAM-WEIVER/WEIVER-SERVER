@@ -1,7 +1,6 @@
-package com.weiver.company.domain;
+package com.weiver.jobposting.domain;
 
 import com.weiver.global.common.BaseTimeEntity;
-import com.weiver.jobposting.domain.JobPosting;
 import jakarta.persistence.*;
 import lombok.*;
 

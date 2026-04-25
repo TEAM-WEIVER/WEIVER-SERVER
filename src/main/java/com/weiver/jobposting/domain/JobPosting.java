@@ -4,8 +4,11 @@ import com.weiver.company.domain.Company;
 import com.weiver.jobposting.type.JobPostingStatus;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Entity
 @Getter
@@ -47,14 +50,17 @@ public class JobPosting {
     @Column(name = "preferred_qualifications", columnDefinition = "TEXT")
     private String preferredQualifications;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "competency_priorities", columnDefinition = "jsonb")
-    private String competencyPriorities; // 추후 구조 확정 시 전용 DTO 클래스를 만들어서 매핑 예정
+    private List<String> competencyPriorities;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "trait_priorities", columnDefinition = "jsonb")
-    private String traitPriorities; // 추후 구조 확정 시 전용 DTO 클래스를 만들어서 매핑 예정
+    private List<String> traitPriorities;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "required_tech", columnDefinition = "jsonb")
-    private String requiredTech; // 추후 구조 확정 시 전용 DTO 클래스를 만들어서 매핑 예정
+    private List<String> requiredTech;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
@@ -63,4 +69,22 @@ public class JobPosting {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
+
+    /**
+     * 편의 메소드
+     * */
+    public void addCompetencyTech(List<String> competencyPriorities, List<String> requiredTechs){
+        if (competencyPriorities != null && !competencyPriorities.isEmpty()) {
+            this.competencyPriorities = competencyPriorities;
+        }
+        if (requiredTechs != null && !requiredTechs.isEmpty()) {
+            this.requiredTech = requiredTechs;
+        }
+    }
+
+    public void addTraitPriorities(List<String> traitPriorities){
+        if(traitPriorities != null && !traitPriorities.isEmpty()){
+            this.traitPriorities = traitPriorities;
+        }
+    }
 }

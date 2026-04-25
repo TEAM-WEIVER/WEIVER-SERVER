@@ -39,4 +39,12 @@ public class Notification extends BaseTimeEntity {
     @JoinColumn(name = "match_id", nullable = false)
     private MatchResult matchResult;
 
+    @Builder.Default
+    @Column(name = "is_notified", nullable = false)
+    private Boolean isNotified = false; // 스케줄러가 알림을 생성했는지 여부를 추적
+
+    public void markAsNotified() {
+        this.isNotified = true;
+    }
+
 }

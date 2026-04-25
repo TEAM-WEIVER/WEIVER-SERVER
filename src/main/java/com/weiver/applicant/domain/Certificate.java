@@ -1,6 +1,7 @@
 package com.weiver.applicant.domain;
 
 
+import com.weiver.applicant.dto.request.put.CertificateUpdateDetailDTO;
 import com.weiver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -33,7 +34,18 @@ public class Certificate extends BaseTimeEntity {
     @JoinColumn(name = "applicant_id", nullable = false)
     private Applicant applicant;
 
-    public void assignApplicant(Applicant applicant) {
-        this.applicant = applicant;
+    /**
+     * 편의 메소드
+     * */
+    public void updateCertificate(CertificateUpdateDetailDTO updateDTO){
+        if(updateDTO.certificateName() != null) {
+            this.certificateName = updateDTO.certificateName();
+        }
+        if(updateDTO.issuer() != null) {
+            this.issuer = updateDTO.issuer();
+        }
+        if(updateDTO.acquisitionDate() != null) {
+            this.acquisitionDate = LocalDate.parse(updateDTO.acquisitionDate());
+        }
     }
 }

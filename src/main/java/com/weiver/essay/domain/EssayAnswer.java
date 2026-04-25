@@ -2,6 +2,7 @@ package com.weiver.essay.domain;
 
 
 import com.weiver.applicant.domain.Applicant;
+import com.weiver.essay.dto.request.EssayAnswerUpdateRequestDTO;
 import com.weiver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -27,7 +28,13 @@ public class EssayAnswer extends BaseTimeEntity {
     @ToString.Exclude
     private Applicant applicant;
 
-    public void assignApplicant(Applicant applicant) {
-        this.applicant = applicant;
+    /**
+     * 편의메소드
+     * */
+    public void updateAnswer(EssayAnswerUpdateRequestDTO requestDTO){
+        if(requestDTO.answer() != null) {
+            this.answer = requestDTO.answer();
+        }
     }
+
 }
