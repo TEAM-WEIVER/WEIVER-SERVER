@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
-public record ResumeSearchResponseDTO (
+public record ApplicantInfoResponseDTO (
         @JsonProperty("ApplicantDTO") ApplicantDetailResponseDTO applicant,
         @JsonProperty("EducationDTO") List<EducationDetailResponseDTO> education,
         @JsonProperty("AwardDTO") List<AwardDetailResponseDTO> award,

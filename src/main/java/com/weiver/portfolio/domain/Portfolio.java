@@ -53,24 +53,36 @@ public class Portfolio extends BaseTimeEntity {
     /**
      * 편의 메소드
      * */
-    public void updatePortfolio(PortfolioUpdateRequestDTO updateDTO){
-        if(updateDTO.urlGithub() != null) {
+    // 링크들만 업데이트
+    public void updateLinks(PortfolioUpdateRequestDTO updateDTO) {
+        if (updateDTO.urlGithub() != null) {
             this.urlGithub = updateDTO.urlGithub();
         }
-        if(updateDTO.urlTech() != null) {
+        if (updateDTO.urlTech() != null) {
             this.urlTech = updateDTO.urlTech();
         }
-        if(updateDTO.urlEtc() != null) {
+        if (updateDTO.urlEtc() != null) {
             this.urlEtc = updateDTO.urlEtc();
         }
-        if(updateDTO.fileKey() != null) {
-            this.fileKey = updateDTO.fileKey();
-        }
-        if(updateDTO.fileName() != null) {
-            this.fileName = updateDTO.fileName();
-        }
-        if(updateDTO.fileType() != null) {
-            this.fileType = updateDTO.fileType();
+        if (updateDTO.file() != null) {
+            this.fileName = updateDTO.file().getOriginalFilename();
+            this.fileType = updateDTO.file().getContentType();
+            this.fileSize = updateDTO.file().getSize();
         }
     }
+    
+    // 파일을 바꾸는건 S3 의존 되어있기에 메소드 분리
+    public void updateFile(
+            String fileKey,
+            String fileName,
+            String fileType,
+            Long fileSize) {
+        this.fileKey = fileKey;
+        this.fileName = fileName;
+        this.fileType = fileType;
+        this.fileSize = fileSize;
+        this.uploadedAt = LocalDateTime.now();
+    }
+
+
 }

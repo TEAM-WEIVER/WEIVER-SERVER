@@ -18,7 +18,7 @@ public record CompanyDashboardResponseDTO(
                 company.getCompanyCeoName(),
                 company.getAddress(),
                 company.getEmployeeNum(),
-                company.getFoundedYear() != null ? company.getFoundedYear().toString() : null,
+                company.getFoundedYear().toString(),
 
                 new WayOfWorkingDetail(
                         company.getWorkPace().getDescription(),

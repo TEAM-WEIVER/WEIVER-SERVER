@@ -5,7 +5,7 @@ import com.weiver.portfolio.domain.Portfolio;
 
 public record PortfolioResponseDTO(
         Long portfolioId,
-        String fileKey,
+        String downloadUrl,
         String fileName,
         String fileType,
         Long fileSize,
@@ -13,10 +13,10 @@ public record PortfolioResponseDTO(
         String urlTech,
         String urlEtc
 ) {
-    public static PortfolioResponseDTO from(Portfolio portfolio) {
+    public static PortfolioResponseDTO from(Portfolio portfolio, String downloadUrl) {
         return new PortfolioResponseDTO(
                 portfolio.getPortfolioId(),
-                portfolio.getFileKey(),
+                downloadUrl,
                 portfolio.getFileName(),
                 portfolio.getFileType(),
                 portfolio.getFileSize(),

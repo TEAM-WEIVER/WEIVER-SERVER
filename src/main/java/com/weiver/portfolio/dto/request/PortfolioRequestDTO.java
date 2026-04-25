@@ -3,11 +3,10 @@ package com.weiver.portfolio.dto.request;
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.portfolio.domain.Portfolio;
 import org.hibernate.validator.constraints.URL;
+import org.springframework.web.multipart.MultipartFile;
 
 public record PortfolioRequestDTO(
-        String fileKey,
-        String fileName,
-        String fileType,
+        MultipartFile file,
         @URL(message = "올바른 URL 형식이 아닙니다.")
         String urlGithub,
         @URL(message = "올바른 URL 형식이 아닙니다.")
@@ -15,11 +14,11 @@ public record PortfolioRequestDTO(
         @URL(message = "올바른 URL 형식이 아닙니다.")
         String urlEtc
 ) {
-    public Portfolio toEntity(Applicant applicant, Long fileSize){
+    public Portfolio toEntity(Applicant applicant, Long fileSize,
+                              String fileName, String fileType){
         return Portfolio.builder()
-                .fileKey(this.fileKey)
-                .fileName(this.fileName)
-                .fileType(this.fileType)
+                .fileName(fileName)
+                .fileType(fileType)
                 .fileSize(fileSize)
                 .urlGithub(this.urlGithub)
                 .urlTech(this.urlTech)

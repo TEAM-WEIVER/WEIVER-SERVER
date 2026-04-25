@@ -8,9 +8,9 @@ public record ProfileDetailDTO (
         String phoneNumber,
         String email,
         String photoUrl,
-        String position // 학력 (WorkExperiences)
+        String position // 직급 (WorkExperiences)
 ){
-    public static ProfileDetailDTO from(Applicant applicant, String position) {
+    public static ProfileDetailDTO of(Applicant applicant, String position) {
         return new ProfileDetailDTO(
                 applicant.getApplicantId(),
                 applicant.getName(),
