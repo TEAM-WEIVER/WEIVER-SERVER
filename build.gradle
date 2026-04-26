@@ -86,8 +86,7 @@ dependencies {
     // 4. Cache
     //----------------------------------------------------------------------
 
-    // Redis 추후 도입 예정
-    // implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
     // ----------------------------------------------------------------------
     // 5. Message Queue
