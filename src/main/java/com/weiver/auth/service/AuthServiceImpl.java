@@ -1,7 +1,5 @@
 package com.weiver.auth.service;
 
-import com.weiver.global.exception.BusinessException;
-import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.BlacklistTokenRepository;
 import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
