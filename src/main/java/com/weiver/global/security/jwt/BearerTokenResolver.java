@@ -1,7 +1,5 @@
 package com.weiver.global.security.jwt;
 
-import com.weiver.global.exception.BusinessException;
-import com.weiver.global.exception.ErrorCode;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
