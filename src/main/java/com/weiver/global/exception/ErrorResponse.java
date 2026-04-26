@@ -45,7 +45,7 @@ public class ErrorResponse {
                 .errorCode(errorCode.code)
                 .message(message)
                 .timestamp(LocalDateTime.now()
-                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:sss"))
+                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"))
                 )
                 .path(path)
                 .errors(errors)
