@@ -17,7 +17,7 @@ public class BearerTokenResolver {
         }
 
         if(!authorizationHeader.startsWith(BEARER_PREFIX)) {
-            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+            return null;
         }
 
         return authorizationHeader.substring(BEARER_PREFIX.length());
