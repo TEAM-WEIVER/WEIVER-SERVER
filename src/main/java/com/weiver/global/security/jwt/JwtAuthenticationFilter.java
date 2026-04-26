@@ -1,0 +1,60 @@
+package com.weiver.global.security.jwt;
+
+import com.weiver.global.exception.BusinessException;
+import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.security.handler.SecurityErrorResponseWriter;
+import com.weiver.global.security.jwt.repository.BlacklistTokenRepository;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.util.List;
+
+@Component
+@RequiredArgsConstructor
+public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private final JwtTokenProvider jwtTokenProvider;
+    private final BlacklistTokenRepository blacklistTokenRepository;
+    private final BearerTokenResolver bearerTokenResolver;
+    private final SecurityErrorResponseWriter securityErrorResponseWriter;
+
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+        try {
+            String accessToken = bearerTokenResolver.resolve(request);
+
+            if(accessToken == null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            if(blacklistTokenRepository.exists(accessToken)) {
+                securityErrorResponseWriter.write(response, request, ErrorCode.BLACKLISTED_TOKEN);
+                return;
+            }
+
+            Long userId = jwtTokenProvider.getUserId(accessToken);
+
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userId, null, List.of());
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            filterChain.doFilter(request, response);
+        } catch (BusinessException e) {
+            SecurityContextHolder.clearContext();
+            securityErrorResponseWriter.write(response, request, e.getCode());
+        }
+    }
+}
