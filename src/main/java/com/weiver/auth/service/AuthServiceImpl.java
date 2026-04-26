@@ -1,5 +1,6 @@
 package com.weiver.auth.service;
 
+import com.weiver.global.common.UserRole;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.BlacklistTokenRepository;
 import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
@@ -18,9 +19,10 @@ public class AuthServiceImpl implements AuthService {
     public void logout(String accessToken) {
 
         Long userId = jwtTokenProvider.getUserId(accessToken);
+        UserRole userRole = jwtTokenProvider.getRole(accessToken);
         long ttlMillis = jwtTokenProvider.getRemainingExpiration(accessToken);
 
         blacklistTokenRepository.save(accessToken, ttlMillis);
-        refreshTokenRepository.deleteByUserId(userId);
+        refreshTokenRepository.deleteByUserId(userRole, userId);
     }
 }

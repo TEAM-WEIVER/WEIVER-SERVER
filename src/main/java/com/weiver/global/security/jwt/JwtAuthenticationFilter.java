@@ -2,6 +2,7 @@ package com.weiver.global.security.jwt;
 
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.common.UserRole;
 import com.weiver.global.security.handler.SecurityErrorResponseWriter;
 import com.weiver.global.security.jwt.repository.BlacklistTokenRepository;
 import jakarta.servlet.FilterChain;
@@ -11,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -47,8 +49,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
 
             Long userId = jwtTokenProvider.getUserId(accessToken);
+            UserRole userRole = jwtTokenProvider.getRole(accessToken);
 
-            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userId, null, List.of());
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                    userId, null, List.of(new SimpleGrantedAuthority("ROLE_" + userRole.name())));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 

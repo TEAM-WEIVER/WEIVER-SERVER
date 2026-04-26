@@ -3,6 +3,7 @@ package com.weiver.domain.auth.service;
 import com.weiver.auth.service.AuthServiceImpl;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.common.UserRole;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.BlacklistTokenRepository;
 import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
@@ -14,6 +15,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,9 +37,11 @@ public class AuthServiceTest {
         // given
         String accessToken = "validAccessToken";
         Long userId = 1L;
+        UserRole userRole = UserRole.APPLICANT;
         long ttlMillis = 1000L * 60 * 10;
 
         when(jwtTokenProvider.getUserId(accessToken)).thenReturn(userId);
+        when(jwtTokenProvider.getRole(accessToken)).thenReturn(userRole);
         when(jwtTokenProvider.getRemainingExpiration(accessToken)).thenReturn(ttlMillis);
 
         // when
@@ -45,9 +49,10 @@ public class AuthServiceTest {
 
         // then
         verify(jwtTokenProvider).getUserId(accessToken);
+        verify(jwtTokenProvider).getRole(accessToken);
         verify(jwtTokenProvider).getRemainingExpiration(accessToken);
         verify(blacklistTokenRepository).save(accessToken, ttlMillis);
-        verify(refreshTokenRepository).deleteByUserId(userId);
+        verify(refreshTokenRepository).deleteByUserId(userRole, userId);
     }
 
     @Test
@@ -64,9 +69,10 @@ public class AuthServiceTest {
                 .hasMessage(ErrorCode.TOKEN_EXPIRED.defaultMessage);
 
         verify(jwtTokenProvider).getUserId(accessToken);
+        verify(jwtTokenProvider, never()).getRole(anyString());
         verify(jwtTokenProvider, never()).getRemainingExpiration(anyString());
         verify(blacklistTokenRepository, never()).save(anyString(), anyLong());
-        verify(refreshTokenRepository, never()).deleteByUserId(anyLong());
+        verify(refreshTokenRepository, never()).deleteByUserId(any(UserRole.class), anyLong());
     }
 
     @Test
@@ -83,8 +89,9 @@ public class AuthServiceTest {
                 .hasMessage(ErrorCode.INVALID_TOKEN.defaultMessage);
 
         verify(jwtTokenProvider).getUserId(accessToken);
+        verify(jwtTokenProvider, never()).getRole(anyString());
         verify(jwtTokenProvider, never()).getRemainingExpiration(anyString());
         verify(blacklistTokenRepository, never()).save(anyString(), anyLong());
-        verify(refreshTokenRepository, never()).deleteByUserId(anyLong());
+        verify(refreshTokenRepository, never()).deleteByUserId(any(UserRole.class), anyLong());
     }
 }

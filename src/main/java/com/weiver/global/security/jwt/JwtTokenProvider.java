@@ -2,6 +2,7 @@ package com.weiver.global.security.jwt;
 
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.common.UserRole;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -39,6 +40,10 @@ public class JwtTokenProvider {
 
     public Long getUserId(String token) {
         return Long.valueOf(getClaims(token).getSubject());
+    }
+
+    public UserRole getRole(String token) {
+        return UserRole.valueOf(getClaims(token).get("role", String.class));
     }
 
     private Claims getClaims(String token) {
