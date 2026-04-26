@@ -1,0 +1,138 @@
+# =============================================================================
+# application-local.yml - 로컬 개발 환경
+#
+# 전제: docker-compose.yml로 PostgreSQL, Redis, RabbitMQ 실행 중
+# 실행 명령: docker-compose up -d
+#
+# 활성화 방법:
+#   1. IDE: Run Configuration → Active Profiles: local
+#   2. CLI: ./gradlew bootRun --args='--spring.profiles.active=local'
+# =============================================================================
+
+server:
+  port: 8080
+  error:
+    include-stacktrace: always  # 로컬에서는 항상 스택트레이스 출력
+
+spring:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL - 로컬 Docker 컨테이너
+  # ---------------------------------------------------------------------------
+  datasource:
+    url: jdbc:postgresql://localhost:5432/weaver_db
+    username: weaver_user
+    password: weaver_password
+    driver-class-name: org.postgresql.Driver
+
+    # HikariCP 커넥션 풀 (로컬은 작게)
+    hikari:
+      pool-name: HikariPool-Local
+      maximum-pool-size: 10
+      minimum-idle: 3
+      idle-timeout: 300000        # 5분
+      connection-timeout: 30000   # 30초
+      max-lifetime: 1800000       # 30분
+      connection-test-query: SELECT 1
+
+  # ---------------------------------------------------------------------------
+  # JPA & Hibernate
+  # ---------------------------------------------------------------------------
+  jpa:
+    hibernate:
+      # 로컬 개발 초기엔 테이블 자동 생성을 위해 update 사용 (Flyway 도입 시 validate로 변경)
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        highlight_sql: true
+        default_batch_fetch_size: 100
+
+  # ---------------------------------------------------------------------------
+  # Redis - 로컬 Docker 컨테이너
+  # ---------------------------------------------------------------------------
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 2
+
+
+  # ---------------------------------------------------------------------------
+  # RabbitMQ - ⚠️ 현재 개발 단계에서는 사용하지 않으므로 주석 처리
+  # ---------------------------------------------------------------------------
+  # rabbitmq:
+  #   host: localhost
+  #   port: 5672
+  #   username: guest
+  #   password: guest
+  #   virtual-host: /
+
+
+  # ---------------------------------------------------------------------------
+  # AWS S3 - 로컬 개발 환경
+  # ---------------------------------------------------------------------------
+  cloud:
+    aws:
+      credentials:
+        profile-name: default
+      region:
+        static: ap-northeast-2
+
+aws:
+  s3:
+    bucket-name: weaver-dev-bucket  # 개발용 버킷 이름 수정
+
+# =============================================================================
+# FastAPI AI 서버
+# =============================================================================
+ai:
+  server:
+    url: http://localhost:8000
+
+# =============================================================================
+# JWT 설정
+# =============================================================================
+jwt:
+  secret: local-dev-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
+
+# =============================================================================
+# Swagger / SpringDoc 설정 (로컬 API 문서화)
+# =============================================================================
+springdoc:
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  swagger-ui:
+    path: /swagger-ui.html
+
+# =============================================================================
+# Actuator
+# =============================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# =============================================================================
+# 로깅 설정
+# =============================================================================
+logging:
+  level:
+    root: INFO
+    com.weiver: DEBUG                          # Weaver 프로젝트 패키지 디버그 활성화
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.amqp: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE         # 바인딩 파라미터 값 추적
+    reactor.netty.http.client: DEBUG
