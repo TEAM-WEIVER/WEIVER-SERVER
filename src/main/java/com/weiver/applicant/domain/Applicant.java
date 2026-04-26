@@ -68,7 +68,7 @@ public class Applicant extends BaseTimeEntity {
             this.address = updateDTO.address();
         }
         if(updateDTO.birthday() != null) {
-            this.birthday = LocalDate.parse(updateDTO.birthday());
+            this.birthday = updateDTO.birthday();
         }
     }
 }

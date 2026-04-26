@@ -40,7 +40,7 @@ public class Award extends BaseTimeEntity {
      * */
     public void updateAward(AwardUpdateDetailDTO updateDTO){
         if(updateDTO.awardDate() != null) {
-            this.awardDate = LocalDate.parse(updateDTO.awardDate());
+            this.awardDate = updateDTO.awardDate();
         }
         if(updateDTO.awardName() != null) {
             this.awardName = updateDTO.awardName();

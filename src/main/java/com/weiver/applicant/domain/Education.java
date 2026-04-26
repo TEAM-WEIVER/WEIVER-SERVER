@@ -68,10 +68,10 @@ public class Education extends BaseTimeEntity {
             this.gpa = new BigDecimal(updateDTO.gpa());
         }
         if(updateDTO.startDate() != null) {
-            this.startDate = YearMonth.parse(updateDTO.startDate());
+            this.startDate = updateDTO.startDate();
         }
         if(updateDTO.endDate() != null) {
-            this.endDate = YearMonth.parse(updateDTO.endDate());
+            this.endDate = updateDTO.endDate();
         }
         if(updateDTO.status() != null) {
             this.status = Status.valueOf(updateDTO.status());
