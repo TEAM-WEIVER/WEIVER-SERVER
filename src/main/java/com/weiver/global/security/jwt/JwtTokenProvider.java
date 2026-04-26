@@ -29,17 +29,18 @@ public class JwtTokenProvider {
 
     public long getRemainingExpiration(String token) {
         Date expiration = getClaims(token).getExpiration();
-        long remainingExpiration = expiration.getTime() - System.currentTimeMillis();
 
-        if(remainingExpiration <= 0){
-            throw new BusinessException(ErrorCode.TOKEN_EXPIRED);
-        }
-
-        return remainingExpiration;
+        return expiration.getTime() - System.currentTimeMillis();
     }
 
     public Long getUserId(String token) {
-        return Long.valueOf(getClaims(token).getSubject());
+        String subject = getClaims(token).getSubject();
+
+        if(subject == null || subject.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
+
+        return Long.valueOf(subject);
     }
 
     public UserRole getRole(String token) {
