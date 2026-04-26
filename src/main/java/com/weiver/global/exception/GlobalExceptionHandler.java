@@ -106,12 +106,19 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(
-            org.springframework.http.converter.HttpMessageNotReadableException ex,
+            HttpMessageNotReadableException ex,
             HttpHeaders headers,
             HttpStatusCode status,
             WebRequest request) {
 
-        return toResponseObject(ErrorCode.MALFORMED_JSON, getPath(request), List.of());
+        return ResponseEntity
+                .badRequest()
+                .body(ErrorResponse.of(
+                        ErrorCode.MALFORMED_JSON,
+                        "날짜 형식이 올바르지 않거나 존재하지 않는 날짜입니다.",
+                        getPath(request),
+                        List.of()
+                ));
     }
 
     @Override
@@ -192,11 +199,4 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return List.of();
     }
 
-    // 날짜 형식이 틀리거나(2021-99-33) JSON 파싱이 안 될 때 발생하는 예외 처리
-    @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<String> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
-        return ResponseEntity
-                .badRequest()
-                .body("날짜 형식이 올바르지 않거나 존재하지 않는 날짜입니다.");
-    }
 }
