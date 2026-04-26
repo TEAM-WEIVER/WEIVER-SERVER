@@ -57,10 +57,10 @@ public class WorkExperience extends BaseTimeEntity {
             this.companyName = updateDTO.companyName();
         }
         if(updateDTO.startDate() != null) {
-            this.startDate = LocalDate.parse(updateDTO.startDate());
+            this.startDate = updateDTO.startDate();
         }
         if(updateDTO.endDate() != null) {
-            this.endDate = LocalDate.parse(updateDTO.endDate());
+            this.endDate = updateDTO.endDate();
         }
         if(updateDTO.employmentType() != null) {
             this.employmentType = EmploymentType.valueOf(updateDTO.employmentType());

@@ -22,7 +22,6 @@ public record ApplicantInfoRequestDTO(
     @NotBlank(message = "주소는 필수 입력값입니다.")
     String address,
     @NotBlank(message = "생년월일은 필수 입력값입니다.")
-    @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "생년월일은 YYYY-MM-DD 형식이어야 합니다.")
     LocalDate birthday){
     public Applicant toEntity() {
 

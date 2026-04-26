@@ -8,9 +8,7 @@ import java.util.List;
 
 public record JobPostingRequestDTO(
         @NotBlank String title,
-        @NotBlank
-        @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$", message = "마감 기한은 YYYY-MM-DD 형식이어야 합니다.")
-        LocalDate deadline,
+        @NotBlank LocalDate deadline,
         @NotBlank String jobCategory,
         @NotBlank String detailedJob,
         String jobDescription,

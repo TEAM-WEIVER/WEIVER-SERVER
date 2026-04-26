@@ -6,7 +6,6 @@ import com.weiver.applicant.type.Degree;
 import com.weiver.applicant.type.Status;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,10 +22,8 @@ public record EducationDetailDTO (
     @NotNull(message = "학점은 필수 입력값입니다.")
     Double gpa,
     @NotBlank(message = "입학 날짜는 필수 입력값입니다.")
-    @Pattern(regexp = "^\\d{4}-\\d{2}$", message = "입학 날짜는 YYYY-MM 형식이어야 합니다.")
     YearMonth startDate,
     @NotBlank(message = "졸업 날짜는 필수 입력값입니다.")
-    @Pattern(regexp = "^\\d{4}-\\d{2}$", message = "졸업 날짜는 YYYY-MM 형식이어야 합니다.")
     YearMonth endDate,
     @NotBlank(message = "학력 상태는 필수 입력값입니다.")
     String status){

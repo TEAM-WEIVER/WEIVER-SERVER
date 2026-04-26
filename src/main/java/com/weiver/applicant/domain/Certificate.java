@@ -45,7 +45,7 @@ public class Certificate extends BaseTimeEntity {
             this.issuer = updateDTO.issuer();
         }
         if(updateDTO.acquisitionDate() != null) {
-            this.acquisitionDate = LocalDate.parse(updateDTO.acquisitionDate());
+            this.acquisitionDate = updateDTO.acquisitionDate();
         }
     }
 }
