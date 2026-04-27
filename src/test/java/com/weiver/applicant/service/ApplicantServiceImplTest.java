@@ -11,6 +11,7 @@ import com.weiver.applicant.dto.request.put.ApplicantInfoRequestDTO;
 import com.weiver.applicant.repository.*;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.s3.service.S3Service;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +20,7 @@ import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -27,8 +29,10 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class ApplicantServiceImplTest {
@@ -38,6 +42,7 @@ class ApplicantServiceImplTest {
     @Mock private AwardRepository awardRepository;
     @Mock private CertificateRepository certificateRepository;
     @Mock private WorkExperienceRepository workExperienceRepository;
+    @Mock private S3Service s3Service;
 
     @InjectMocks
     private ApplicantServiceImpl applicantService;
@@ -50,7 +55,7 @@ class ApplicantServiceImplTest {
     private ArgumentCaptor<List<Award>> awardListCaptor;
 
     @Test
-    @DisplayName("구직자 정보 업데이트 정상 수행")
+    @DisplayName("프로필 사진 없이 텍스트 정보만 업데이트 시 정상 수행되며 S3 통신은 발생 X.")
     void updateApplicantInfo_Success() {
         // Given
         long applicantId = 1L;
@@ -60,11 +65,12 @@ class ApplicantServiceImplTest {
                 .applicantId(applicantId)
                 .name("홍길동")
                 .phoneNumber("010-1234-1234")
+                .photoUrl("https://old-photo.url")
                 .build();
 
         // 실제 DTO 사용
         ApplicantInfoRequestDTO realRequestDTO = new ApplicantInfoRequestDTO(
-                "https://new-photo.url", "김철수", "new@email.com", "010-5678-1234", "서울시", LocalDate.of(1999, 1, 1)
+                "김철수", "new@email.com", "010-5678-1234", "서울시", LocalDate.of(1999, 1, 1)
         );
 
         given(applicantRepository.findByApplicantId(applicantId))
@@ -76,6 +82,12 @@ class ApplicantServiceImplTest {
         // Then
         assertThat(realApplicant.getName()).isEqualTo("김철수");
         assertThat(realApplicant.getPhoneNumber()).isEqualTo("010-5678-1234");
+        // 사진을 안 보냈으니 기존 사진 URL이 그대로 유지되었는지 확인
+        assertThat(realApplicant.getPhotoUrl()).isEqualTo("https://old-photo.url");
+
+        // 사진이 없으므로 S3 관련 메서드가 "절대 호출되지 않았음(never)"을 검증
+        verify(s3Service, never()).deleteFile(anyString());
+        verify(s3Service, never()).publicUpload(any(), anyString());
     }
     
     @Test
@@ -190,5 +202,44 @@ class ApplicantServiceImplTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(ErrorCode.APPLICANT_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("새로운 사진 업로드 시 기존 S3 파일 삭제 및 새 파일 업로드가 정상 수행된다.")
+    void updateApplicantInfo_WithNewImage_Success() {
+        // Given
+        long applicantId = 1L;
+        String oldPhotoUrl = "https://weiver-public-bucket/old-profile.jpg";
+        String newPhotoUrl = "https://weiver-public-bucket/new-profile.jpg";
+
+        Applicant realApplicant = Applicant.builder()
+                .applicantId(applicantId)
+                .name("홍길동")
+                .photoUrl(oldPhotoUrl)
+                .build();
+
+        ApplicantInfoRequestDTO realRequestDTO = new ApplicantInfoRequestDTO(
+                "김철수", "new@email.com", "010-5678-1234", "서울시", LocalDate.of(1999, 1, 1)
+        );
+
+        // 가짜(Mock) 첨부파일 생성
+        MultipartFile mockFile = mock(MultipartFile.class);
+        given(mockFile.isEmpty()).willReturn(false); // 파일이 비어있지 않음
+
+        given(applicantRepository.findByApplicantId(applicantId))
+                .willReturn(Optional.of(realApplicant));
+
+        // s3Service.publicUpload 호출되면 가짜 URL을 반환
+        given(s3Service.publicUpload(mockFile, "profiles")).willReturn(newPhotoUrl);
+
+        // When
+        applicantService.updateApplicantInfo(applicantId, realRequestDTO, mockFile);
+
+        // Then
+        verify(s3Service, times(1)).deleteFile(oldPhotoUrl);
+        verify(s3Service, times(1)).publicUpload(mockFile, "profiles");
+
+        assertThat(realApplicant.getPhotoUrl()).isEqualTo(newPhotoUrl);
+        assertThat(realApplicant.getName()).isEqualTo("김철수");
     }
 }
