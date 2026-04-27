@@ -4,7 +4,7 @@ import com.weiver.applicant.dto.request.post.AwardRequestDTO;
 import com.weiver.applicant.dto.request.post.CertificateRequestDTO;
 import com.weiver.applicant.dto.request.post.EducationRequestDTO;
 import com.weiver.applicant.dto.request.post.WorkExperienceRequestDTO;
-import com.weiver.applicant.dto.request.put.ApplicantInfoRequestDTO;
+import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.service.ApplicantService;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
@@ -73,6 +73,42 @@ public class ApplicantController {
 
         return ResponseEntity.ok(ApiResponse.success("경력 저장에 성공했습니다."));
     }
+
+
+    @PutMapping("/award")
+    public ResponseEntity<ApiResponse<Void>> updateAwardInfo(@RequestBody @Valid AwardUpdateRequestDTO requestDTO,
+                                                             Principal principal){
+        Long applicantId = extractedId(principal);
+        applicantService.updateAwardInfo(applicantId, requestDTO);
+        return ResponseEntity.ok(ApiResponse.success("수상목록 업데이트 성공했습니다."));
+    }
+
+    @PutMapping("/certificate")
+    public ResponseEntity<ApiResponse<Void>> updateCertificateInfo(@RequestBody @Valid CertificateUpdateRequestDTO requestDTO,
+                                                             Principal principal){
+        Long applicantId = extractedId(principal);
+        applicantService.updateCertificateInfo(applicantId, requestDTO);
+        return ResponseEntity.ok(ApiResponse.success("자격증 목록 업데이트 성공했습니다."));
+    }
+
+    @PutMapping("/education")
+    public ResponseEntity<ApiResponse<Void>> updateEducationInfo(@RequestBody @Valid EducationUpdateRequestDTO requestDTO,
+                                                             Principal principal){
+        Long applicantId = extractedId(principal);
+        applicantService.updateEducationInfo(applicantId, requestDTO);
+        return ResponseEntity.ok(ApiResponse.success("학력 업데이트 성공했습니다."));
+    }
+
+    @PutMapping("/experience")
+    public ResponseEntity<ApiResponse<Void>> updateExperienceInfo(@RequestBody @Valid WorkExperienceUpdateRequestDTO requestDTO,
+                                                             Principal principal){
+        Long applicantId = extractedId(principal);
+        applicantService.updateWorkExperienceInfo(applicantId, requestDTO);
+        return ResponseEntity.ok(ApiResponse.success("경력 업데이트 성공했습니다."));
+    }
+
+
+
 
     /**
      * 편의 메소드
