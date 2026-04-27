@@ -4,7 +4,7 @@ import com.weiver.applicant.dto.request.post.AwardRequestDTO;
 import com.weiver.applicant.dto.request.post.CertificateRequestDTO;
 import com.weiver.applicant.dto.request.post.EducationRequestDTO;
 import com.weiver.applicant.dto.request.post.WorkExperienceRequestDTO;
-import com.weiver.applicant.dto.request.put.ApplicantInfoRequestDTO;
+import com.weiver.applicant.dto.request.put.*;
 
 
 public interface ApplicantService {
@@ -13,4 +13,9 @@ public interface ApplicantService {
     void saveAwardInfo(long applicantId, AwardRequestDTO requestDTO);
     void saveCertificateInfo(long applicantId, CertificateRequestDTO requestDTO);
     void saveWorkExperienceInfo(long applicantId, WorkExperienceRequestDTO requestDTO);
+
+    void updateEducationInfo(long applicantId, EducationUpdateRequestDTO requestDTO);
+    void updateAwardInfo(long applicantId, AwardUpdateRequestDTO requestDTO);
+    void updateCertificateInfo(long applicantId, CertificateUpdateRequestDTO requestDTO);
+    void updateWorkExperienceInfo(long applicantId, WorkExperienceUpdateRequestDTO requestDTO);
 }
