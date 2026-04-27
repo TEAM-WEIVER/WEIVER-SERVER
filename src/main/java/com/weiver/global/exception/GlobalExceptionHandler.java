@@ -115,7 +115,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .badRequest()
                 .body(ErrorResponse.of(
                         ErrorCode.MALFORMED_JSON,
-                        "날짜 형식이 올바르지 않거나 존재하지 않는 날짜입니다.",
                         getPath(request),
                         List.of()
                 ));
