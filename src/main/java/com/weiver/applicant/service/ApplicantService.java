@@ -5,10 +5,11 @@ import com.weiver.applicant.dto.request.post.CertificateRequestDTO;
 import com.weiver.applicant.dto.request.post.EducationRequestDTO;
 import com.weiver.applicant.dto.request.post.WorkExperienceRequestDTO;
 import com.weiver.applicant.dto.request.put.*;
+import org.springframework.web.multipart.MultipartFile;
 
 
 public interface ApplicantService {
-    void updateApplicantInfo(long applicantId, ApplicantInfoRequestDTO requestDTO);
+    void updateApplicantInfo(long applicantId, ApplicantInfoRequestDTO requestDTO, MultipartFile profileImage);
     void saveEducationInfo(long applicantId, EducationRequestDTO requestDTO);
     void saveAwardInfo(long applicantId, AwardRequestDTO requestDTO);
     void saveCertificateInfo(long applicantId, CertificateRequestDTO requestDTO);

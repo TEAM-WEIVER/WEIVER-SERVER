@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
 
@@ -25,11 +26,12 @@ public class ApplicantController {
     private final ApplicantService applicantService;
 
     @PutMapping("/info")
-    public ResponseEntity<ApiResponse<Void>> updateApplicantInfo(@RequestBody @Valid ApplicantInfoRequestDTO requestDTO,
+    public ResponseEntity<ApiResponse<Void>> updateApplicantInfo(@RequestPart(value = "requestDTO") @Valid ApplicantInfoRequestDTO requestDTO,
+                                                                 @RequestPart(value = "profileImage", required = false) MultipartFile profileImage,
                                                                Principal principal){
         Long applicantId = extractedId(principal);
 
-        applicantService.updateApplicantInfo(applicantId, requestDTO);
+        applicantService.updateApplicantInfo(applicantId, requestDTO, profileImage);
 
         return ResponseEntity.ok(ApiResponse.success("개인정보 저장에 성공했습니다."));
     }

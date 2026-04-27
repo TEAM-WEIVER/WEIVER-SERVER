@@ -71,7 +71,7 @@ class ApplicantServiceImplTest {
                 .willReturn(Optional.of(realApplicant));
 
         // When
-        applicantService.updateApplicantInfo(applicantId, realRequestDTO);
+        applicantService.updateApplicantInfo(applicantId, realRequestDTO, null);
 
         // Then
         assertThat(realApplicant.getName()).isEqualTo("김철수");
@@ -180,13 +180,13 @@ class ApplicantServiceImplTest {
         // Given
         long invalidApplicantId = 999L;
 
-        ApplicantInfoRequestDTO emptyRequestDTO = new ApplicantInfoRequestDTO(null, null, null, null, null, null);
+        ApplicantInfoRequestDTO emptyRequestDTO = new ApplicantInfoRequestDTO(null, null, null, null, null);
 
         given(applicantRepository.findByApplicantId(invalidApplicantId))
                 .willReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> applicantService.updateApplicantInfo(invalidApplicantId, emptyRequestDTO))
+        assertThatThrownBy(() -> applicantService.updateApplicantInfo(invalidApplicantId, emptyRequestDTO,null))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(ErrorCode.APPLICANT_NOT_FOUND);

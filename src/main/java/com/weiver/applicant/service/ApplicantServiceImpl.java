@@ -12,6 +12,7 @@ import com.weiver.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,7 +33,8 @@ public class ApplicantServiceImpl implements  ApplicantService {
     private final WorkExperienceRepository workExperienceRepository;
 
     @Override
-    public void updateApplicantInfo(long applicantId, ApplicantInfoRequestDTO requestDTO) {
+    public void updateApplicantInfo(long applicantId, ApplicantInfoRequestDTO requestDTO, MultipartFile profileImage) {
+
 
         Applicant applicant = getApplicant(applicantId);
 
