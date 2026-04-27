@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -105,12 +106,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @Override
     protected ResponseEntity<Object> handleHttpMessageNotReadable(
-            org.springframework.http.converter.HttpMessageNotReadableException ex,
+            HttpMessageNotReadableException ex,
             HttpHeaders headers,
             HttpStatusCode status,
             WebRequest request) {
 
-        return toResponseObject(ErrorCode.MALFORMED_JSON, getPath(request), List.of());
+        return toResponseObject(ErrorCode.MALFORMED_JSON,getPath(request), List.of());
     }
 
     @Override
@@ -190,4 +191,5 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         }
         return List.of();
     }
+
 }

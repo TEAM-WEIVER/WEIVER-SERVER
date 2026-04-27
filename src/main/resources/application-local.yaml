@@ -1,0 +1,119 @@
+# =============================================================================
+# application-local.yml - 로컬 개발 환경
+#
+# 실행 명령: docker-compose up -d
+# 활성화 방법: IDE Run Configuration → Active Profiles: local
+# =============================================================================
+
+server:
+  port: 8080
+  error:
+    include-stacktrace: always
+
+spring:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL - 로컬 Docker 컨테이너
+  # ---------------------------------------------------------------------------
+  datasource:
+    url: jdbc:postgresql://localhost:5432/weiver_db
+    username: ${LOCAL_DB_USER}
+    password: ${LOCAL_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      pool-name: HikariPool-Local
+      maximum-pool-size: 10
+      minimum-idle: 3
+      idle-timeout: 300000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+
+  # ---------------------------------------------------------------------------
+  # JPA & Hibernate
+  # ---------------------------------------------------------------------------
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        highlight_sql: true
+        default_batch_fetch_size: 100
+
+  # ---------------------------------------------------------------------------
+  # Redis - 로컬 Docker 컨테이너
+  # ---------------------------------------------------------------------------
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      # 도커에 비밀번호 설정이 없으므로 password 필드는 비워둡니다.
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 2
+
+  # ---------------------------------------------------------------------------
+  # AWS S3 - 로컬 개발 환경
+  # ---------------------------------------------------------------------------
+  cloud:
+    aws:
+      credentials:
+        profile-name: default
+      region:
+        static: ap-northeast-2
+
+aws:
+  s3:
+    bucket-name: weaver-local-bucket
+
+# =============================================================================
+# FastAPI AI 서버
+# =============================================================================
+ai:
+  server:
+    url: http://localhost:8000
+
+# =============================================================================
+# JWT 설정
+# =============================================================================
+jwt:
+  secret: local-dev-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
+
+# =============================================================================
+# Swagger / SpringDoc 설정
+# =============================================================================
+springdoc:
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  swagger-ui:
+    path: /swagger-ui.html
+
+# =============================================================================
+# Actuator
+# =============================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# =============================================================================
+# 로깅 설정
+# =============================================================================
+logging:
+  level:
+    root: INFO
+    com.weiver: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE

@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  weiver-db:
+    image: postgres:15-alpine
+    container_name: weiver-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ${LOCAL_DB_USER}
+      POSTGRES_PASSWORD: ${LOCAL_DB_PASSWORD}
+      POSTGRES_DB: weiver_db
+    volumes:
+      - weiver-postgres-data:/var/lib/postgresql/data
+    networks:
+      - weiver-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LOCAL_DB_USER} -d weiver_db"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+
+  weiver-redis:
+    image: redis:alpine
+    container_name: weiver-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - weiver-net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      retries: 5
+
+volumes:
+  weiver-postgres-data:
+
+
+
+
+networks:
+  weiver-net:
+    driver: bridge
