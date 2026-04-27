@@ -2,11 +2,14 @@ package com.weiver.portfolio.controller;
 
 import com.weiver.applicant.dto.request.put.ApplicantInfoRequestDTO;
 import com.weiver.global.common.ApiResponse;
+import com.weiver.global.exception.BusinessException;
+import com.weiver.global.exception.ErrorCode;
 import com.weiver.portfolio.dto.request.PortfolioRequestDTO;
 import com.weiver.portfolio.service.PortfolioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,11 +23,27 @@ import java.security.Principal;
 public class PortfolioController {
     private final PortfolioService portfolioService;
 
+    @PostMapping()
     public ResponseEntity<ApiResponse<Void>> savePortfolio(
             @RequestPart(value = "requestDTO") @Valid PortfolioRequestDTO requestDTO,
             @RequestPart(value = "portfolio", required = false) MultipartFile portfolio,
             Principal principal){
-        
+        Long applicantId = extractedId(principal);
+
+        portfolioService.savePortfolio(requestDTO, portfolio, applicantId);
+
+        return ResponseEntity.ok(ApiResponse.success("포트폴리오 저장 완료됐습니다."));
     }
 
+
+    /**
+     * 편의 메소드
+     * */
+    private static Long extractedId(Principal principal) {
+        if(principal == null){
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        return Long.parseLong(principal.getName());
+    }
 }
