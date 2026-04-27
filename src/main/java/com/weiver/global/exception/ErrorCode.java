@@ -46,8 +46,8 @@ public enum ErrorCode {
     EXPERIENCE_NOT_FOUND("EXPERIENCE_NOT_FOUND", HttpStatus.NOT_FOUND, "경력 정보를 찾을 수 없습니다."),
     PORTFOLIO_NOT_FOUND("PORTFOLIO_NOT_FOUND", HttpStatus.NOT_FOUND, "포트폴리오를 찾을 수 없습니다."),
 
-    // ===================== COVER_LETTER =====================
-    COVER_LETTER_NOT_FOUND("COVER_LETTER_NOT_FOUND", HttpStatus.NOT_FOUND, "자기소개서를 찾을 수 없습니다."),
+    // ===================== ESSAY-ANSWER =====================
+    ESSAY_ANSWER_NOT_FOUND("ESSAY_ANSWER_NOT_FOUND", HttpStatus.NOT_FOUND, "자기소개서를 찾을 수 없습니다."),
 
     // ===================== JOB_POSTING =====================
     JOB_POSTING_NOT_FOUND("JOB_POSTING_NOT_FOUND", HttpStatus.NOT_FOUND, "존재하지 않는 공고입니다."),
