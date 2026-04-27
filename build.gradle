@@ -100,7 +100,7 @@ dependencies {
     // ----------------------------------------------------------------------
 
     // Spring Cloud AWS S3 (추후 S3 연동 시 도입 예정)
-    // implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3'
+    implementation 'org.springframework.cloud:spring-cloud-starter-aws:2.2.6.RELEASE'
 
     // ----------------------------------------------------------------------
     // 7. Monitoring

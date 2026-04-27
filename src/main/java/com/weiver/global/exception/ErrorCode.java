@@ -61,8 +61,10 @@ public enum ErrorCode {
 
     // ===================== SERVER =====================
     BAD_REQUEST("BAD_REQUEST", HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
-    INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
+    INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
 
+    // ===================== SERVER =====================
+    FAIL_DELETE_FILE("FAIL_DELETE_FILE", HttpStatus.INTERNAL_SERVER_ERROR, "S3 파일 삭제 실패");
     public final String code;
     public final HttpStatus httpStatus;
     public final String defaultMessage;
