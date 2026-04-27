@@ -9,9 +9,11 @@ import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.repository.*;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.s3.service.S3Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
@@ -31,14 +33,25 @@ public class ApplicantServiceImpl implements  ApplicantService {
     private final AwardRepository awardRepository;
     private final CertificateRepository certificateRepository;
     private final WorkExperienceRepository workExperienceRepository;
+    private final S3Service s3Service;
 
     @Override
     public void updateApplicantInfo(long applicantId, ApplicantInfoRequestDTO requestDTO, MultipartFile profileImage) {
 
-
         Applicant applicant = getApplicant(applicantId);
 
-        applicant.updateInfo(requestDTO);
+        String photoUrl = applicant.getPhotoUrl();
+
+        // 만약 새로운 이미지라면
+        if(profileImage != null && !profileImage.isEmpty()) {
+            if(StringUtils.hasText(photoUrl)){
+                s3Service.deleteFile(photoUrl);
+            }
+
+            photoUrl = s3Service.publicUpload(profileImage, "profiles");
+        }
+
+        applicant.updateInfo(requestDTO, photoUrl);
     }
 
     @Override

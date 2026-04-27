@@ -57,10 +57,8 @@ public class Applicant extends BaseTimeEntity {
     /**
      * 정보 업데이트 편의메소드
      * */
-    public void updateInfo(ApplicantInfoRequestDTO updateDTO){
-        if(updateDTO.profileImageUrl() != null) {
-            this.photoUrl = updateDTO.profileImageUrl();
-        }
+    public void updateInfo(ApplicantInfoRequestDTO updateDTO, String photoUrl){
+        this.photoUrl = photoUrl;
         if(updateDTO.name() != null) {
             this.name = updateDTO.name();
         }
