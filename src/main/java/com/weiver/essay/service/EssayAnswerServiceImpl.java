@@ -52,7 +52,7 @@ public class EssayAnswerServiceImpl implements EssayAnswerService {
         Applicant applicant = getApplicant(applicantId);
 
         EssayAnswer essayAnswer = essayAnswerRepository.findByApplicant(applicant)
-                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.ESSAY_ANSWER_NOT_FOUND));
 
         EssayAnswerResponseDTO responseDTO = EssayAnswerResponseDTO.from(essayAnswer);
         return responseDTO;
