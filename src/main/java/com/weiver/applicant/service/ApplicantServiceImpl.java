@@ -293,7 +293,7 @@ public class ApplicantServiceImpl implements  ApplicantService {
     }
 
     private Applicant getApplicant(long applicantId) {
-        Applicant applicant = applicantRepository.findByApplicantId(applicantId)
+        Applicant applicant = applicantRepository.findById(applicantId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
         return applicant;
     }
