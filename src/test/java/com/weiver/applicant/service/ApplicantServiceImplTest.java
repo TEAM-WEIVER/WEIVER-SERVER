@@ -76,7 +76,7 @@ class ApplicantServiceImplTest {
                 "김철수", "new@email.com", "010-5678-1234", "서울시", LocalDate.of(1999, 1, 1)
         );
 
-        given(applicantRepository.findByApplicantId(applicantId))
+        given(applicantRepository.findById(applicantId))
                 .willReturn(Optional.of(realApplicant));
 
         // When
@@ -104,7 +104,7 @@ class ApplicantServiceImplTest {
         AwardDetailDTO awardDetailDTO = new AwardDetailDTO(LocalDate.of(2021, 2, 1), "대상", "한양대학교");
         AwardRequestDTO awardRequestDTO = new AwardRequestDTO(List.of(awardDetailDTO));
 
-        given(applicantRepository.findByApplicantId(applicantId))
+        given(applicantRepository.findById(applicantId))
                 .willReturn(Optional.of(realApplicant));
 
         // When
@@ -134,7 +134,7 @@ class ApplicantServiceImplTest {
         );
         EducationRequestDTO realRequestDTO = new EducationRequestDTO(List.of(detailDTO));
 
-        given(applicantRepository.findByApplicantId(applicantId))
+        given(applicantRepository.findById(applicantId))
                 .willReturn(Optional.of(realApplicant));
 
         // When
@@ -169,7 +169,7 @@ class ApplicantServiceImplTest {
 
         EducationRequestDTO realRequestDTO = new EducationRequestDTO(List.of(highSchoolDTO, universityDTO));
 
-        given(applicantRepository.findByApplicantId(applicantId))
+        given(applicantRepository.findById(applicantId))
                 .willReturn(Optional.of(realApplicant));
 
         // When
@@ -197,7 +197,7 @@ class ApplicantServiceImplTest {
 
         ApplicantInfoRequestDTO emptyRequestDTO = new ApplicantInfoRequestDTO(null, null, null, null, null);
 
-        given(applicantRepository.findByApplicantId(invalidApplicantId))
+        given(applicantRepository.findById(invalidApplicantId))
                 .willReturn(Optional.empty());
 
         // When & Then
@@ -229,7 +229,7 @@ class ApplicantServiceImplTest {
         MultipartFile mockFile = mock(MultipartFile.class);
         given(mockFile.isEmpty()).willReturn(false); // 파일이 비어있지 않음
 
-        given(applicantRepository.findByApplicantId(applicantId))
+        given(applicantRepository.findById(applicantId))
                 .willReturn(Optional.of(realApplicant));
 
         // s3Service.publicUpload 호출되면 가짜 URL을 반환
@@ -292,8 +292,7 @@ class ApplicantServiceImplTest {
                 .applicant(realApplicant)
                 .build();
 
-        // 3. Mock 레포지토리들의 행동(Behavior) 정의
-        given(applicantRepository.findByApplicantId(applicantId))
+        given(applicantRepository.findById(applicantId))
                 .willReturn(Optional.of(realApplicant));
 
         // 부모 엔티티를 넘겨줬을 때, 미리 만들어둔 자식 리스트를 반환하도록 세팅
