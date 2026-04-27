@@ -7,6 +7,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface PortfolioService {
     void savePortfolio(PortfolioRequestDTO requestDTO, MultipartFile file, long applicantId);
-    void updatePortfolio(PortfolioUpdateRequestDTO requestDTO, long applicantId, long portfolioId);
+    void updatePortfolio(PortfolioUpdateRequestDTO requestDTO, MultipartFile file,
+                         long applicantId, long portfolioId);
     PortfolioResponseDTO searchPortfolio(long applicantId);
 }

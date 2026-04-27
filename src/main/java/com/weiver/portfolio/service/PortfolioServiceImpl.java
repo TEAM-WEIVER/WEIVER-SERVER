@@ -13,6 +13,7 @@ import com.weiver.portfolio.repository.PortfolioRepository;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 @Service
@@ -41,8 +42,32 @@ public class PortfolioServiceImpl implements PortfolioService {
 
 
     @Override
-    public void updatePortfolio(PortfolioUpdateRequestDTO requestDTO, long applicantId, long portfolioId) {
+    public void updatePortfolio(PortfolioUpdateRequestDTO requestDTO, MultipartFile file,
+                                long applicantId, long portfolioId) {
+        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PORTFOLIO_NOT_FOUND));
 
+        String fileKey = portfolio.getFileKey();
+
+        if(!portfolio.getApplicant().getApplicantId().equals(applicantId)){
+            throw new BusinessException(ErrorCode.PORTFOLIO_NOT_FOUND);
+        }
+
+        if(file != null && !file.isEmpty()){
+
+            if(StringUtils.hasText(fileKey)){
+                s3Service.deleteFile(fileKey);
+            }
+
+            String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "";
+            Long fileSize = file.getSize();
+            String fileType = org.springframework.util.StringUtils.getFilenameExtension(fileName);
+            fileKey = s3Service.privateUpload(file, "portfolios");
+
+            portfolio.updateFile(fileKey, fileName, fileType, fileSize);
+        }
+
+        portfolio.updateLinks(requestDTO);
     }
 
     @Override

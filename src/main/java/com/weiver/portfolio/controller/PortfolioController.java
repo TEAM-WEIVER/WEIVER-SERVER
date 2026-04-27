@@ -5,14 +5,12 @@ import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.portfolio.dto.request.PortfolioRequestDTO;
+import com.weiver.portfolio.dto.request.PortfolioUpdateRequestDTO;
 import com.weiver.portfolio.service.PortfolioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
@@ -23,7 +21,7 @@ import java.security.Principal;
 public class PortfolioController {
     private final PortfolioService portfolioService;
 
-    @PostMapping()
+    @PostMapping
     public ResponseEntity<ApiResponse<Void>> savePortfolio(
             @RequestPart(value = "requestDTO") @Valid PortfolioRequestDTO requestDTO,
             @RequestPart(value = "portfolio", required = false) MultipartFile portfolio,
@@ -35,6 +33,18 @@ public class PortfolioController {
         return ResponseEntity.ok(ApiResponse.success("포트폴리오 저장 완료됐습니다."));
     }
 
+    @PatchMapping("/{portfolioId}")
+    public ResponseEntity<ApiResponse<Void>> updatePortfolio(
+            @RequestPart(value = "requestDTO") @Valid PortfolioUpdateRequestDTO requestDTO,
+            @RequestPart(value = "portfolio", required = false) MultipartFile portfolio,
+            @PathVariable Long portfolioId,
+            Principal principal){
+        Long applicantId = extractedId(principal);
+
+        portfolioService.updatePortfolio(requestDTO, portfolio, applicantId, portfolioId);
+        
+        return ResponseEntity.ok(ApiResponse.success("포트폴리오 수정 완료됐습니다."));
+    }
 
     /**
      * 편의 메소드
