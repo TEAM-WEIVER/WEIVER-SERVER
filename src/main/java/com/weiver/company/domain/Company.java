@@ -2,6 +2,7 @@ package com.weiver.company.domain;
 
 import com.weiver.company.type.*;
 import com.weiver.global.common.BaseTimeEntity;
+import com.weiver.global.common.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -25,6 +26,11 @@ public class Company extends BaseTimeEntity {
 
     @Column(name = "password", length = 255, nullable = false)
     private String password;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
+    private UserRole role = UserRole.COMPANY;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "company_type", nullable = false)

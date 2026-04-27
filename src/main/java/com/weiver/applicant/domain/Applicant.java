@@ -2,6 +2,7 @@ package com.weiver.applicant.domain;
 
 import com.weiver.applicant.dto.request.put.ApplicantInfoUpdateRequestDTO;
 import com.weiver.global.common.BaseTimeEntity;
+import com.weiver.global.common.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,6 +27,11 @@ public class Applicant extends BaseTimeEntity {
 
     @Column(name = "password", nullable = false)
     private String password;    // 비밀번호
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role", nullable = false)
+    private UserRole role = UserRole.APPLICANT;
 
     @Column(name = "name", nullable = false)
     private String name;    // 사용자 이름
