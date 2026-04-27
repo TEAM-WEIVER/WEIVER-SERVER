@@ -59,7 +59,7 @@ public class EssayAnswerServiceImpl implements EssayAnswerService {
     }
 
     private Applicant getApplicant(long applicantId) {
-        Applicant applicant = applicantRepository.findByApplicantId(applicantId)
+        Applicant applicant = applicantRepository.findById(applicantId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
         return applicant;
     }
