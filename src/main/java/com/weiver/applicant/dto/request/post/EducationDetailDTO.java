@@ -1,5 +1,6 @@
 package com.weiver.applicant.dto.request.post;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.domain.Education;
 import com.weiver.applicant.type.Degree;
@@ -21,9 +22,11 @@ public record EducationDetailDTO (
     String major,
     @NotNull(message = "학점은 필수 입력값입니다.")
     Double gpa,
-    @NotBlank(message = "입학 날짜는 필수 입력값입니다.")
+    @NotNull(message = "입학 날짜는 필수 입력값입니다.")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM", timezone = "Asia/Seoul")
     YearMonth startDate,
-    @NotBlank(message = "졸업 날짜는 필수 입력값입니다.")
+    @NotNull(message = "졸업 날짜는 필수 입력값입니다.")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM", timezone = "Asia/Seoul")
     YearMonth endDate,
     @NotBlank(message = "학력 상태는 필수 입력값입니다.")
     String status){
