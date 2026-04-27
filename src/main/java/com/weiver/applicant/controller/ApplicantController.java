@@ -5,6 +5,7 @@ import com.weiver.applicant.dto.request.post.CertificateRequestDTO;
 import com.weiver.applicant.dto.request.post.EducationRequestDTO;
 import com.weiver.applicant.dto.request.post.WorkExperienceRequestDTO;
 import com.weiver.applicant.dto.request.put.*;
+import com.weiver.applicant.dto.response.ApplicantInfoResponseDTO;
 import com.weiver.applicant.service.ApplicantService;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
@@ -24,6 +25,15 @@ import java.security.Principal;
 public class ApplicantController {
 
     private final ApplicantService applicantService;
+
+    @GetMapping("")
+    public ResponseEntity<ApiResponse<ApplicantInfoResponseDTO>> searchApplicant(Principal principal){
+        Long applicantId = extractedId(principal);
+        ApplicantInfoResponseDTO responseDTO = applicantService.searchApplicant(applicantId);
+
+        return ResponseEntity.ok(ApiResponse.success(responseDTO));
+
+    }
 
     @PutMapping("/info")
     public ResponseEntity<ApiResponse<Void>> updateApplicantInfo(@RequestPart(value = "requestDTO") @Valid ApplicantInfoRequestDTO requestDTO,
