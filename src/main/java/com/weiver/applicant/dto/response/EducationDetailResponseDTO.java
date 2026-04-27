@@ -18,9 +18,9 @@ public record EducationDetailResponseDTO(
                 education.getSchoolName(),
                 education.getDegree().name(),
                 education.getMajor(),
-                education.getGpa().doubleValue(),
+                education.getGpa() != null ? education.getGpa().doubleValue() : null,
                 education.getStartDate().toString(),
-                education.getEndDate().toString(),
+                education.getEndDate() != null ? education.getEndDate().toString() : null,
                 education.getStatus().name()
         );
     }

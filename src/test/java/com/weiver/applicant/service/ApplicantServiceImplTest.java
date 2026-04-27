@@ -1,14 +1,16 @@
 package com.weiver.applicant.service;
 
-import com.weiver.applicant.domain.Applicant;
-import com.weiver.applicant.domain.Award;
-import com.weiver.applicant.domain.Education;
+import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.request.post.AwardDetailDTO;
 import com.weiver.applicant.dto.request.post.AwardRequestDTO;
 import com.weiver.applicant.dto.request.post.EducationDetailDTO;
 import com.weiver.applicant.dto.request.post.EducationRequestDTO;
 import com.weiver.applicant.dto.request.put.ApplicantInfoRequestDTO;
+import com.weiver.applicant.dto.response.ApplicantInfoResponseDTO;
 import com.weiver.applicant.repository.*;
+import com.weiver.applicant.type.Degree;
+import com.weiver.applicant.type.EmploymentType;
+import com.weiver.applicant.type.Status;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.s3.service.S3Service;
@@ -23,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.time.Year;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
@@ -241,5 +244,89 @@ class ApplicantServiceImplTest {
 
         assertThat(realApplicant.getPhotoUrl()).isEqualTo(newPhotoUrl);
         assertThat(realApplicant.getName()).isEqualTo("김철수");
+    }
+
+    @Test
+    @DisplayName("구직자 정보 전체 조회 시, 연관된 모든 레포지토리를 호출하여 DTO로 변환해 반환한다.")
+    void searchApplicant_Success() {
+        // Given
+        long applicantId = 1L;
+
+        Applicant realApplicant = Applicant.builder()
+                .applicantId(applicantId)
+                .name("이현우")
+                .email("test@example.com")
+                .phoneNumber("010-1234-5678")
+                .birthday(LocalDate.of(2000, 1, 1))
+                .photoUrl("https://s3/profile.jpg")
+                .build();
+
+        Education education = Education.builder()
+                .schoolName("한양대학교 에리카")
+                .degree(Degree.valueOf("BACHELOR"))
+                .major("ICT융합학부")
+                .startDate(YearMonth.of(2021, 3))
+                .status(Status.ACTIVE)
+                .applicant(realApplicant)
+                .build();
+
+        Award award = Award.builder()
+                .awardName("한국인터넷진흥원장상")
+                .awardDate(LocalDate.of(2025, 11, 1))
+                .applicant(realApplicant)
+                .build();
+
+        WorkExperience workExperience = WorkExperience.builder()
+                .companyName("에이블리")
+                .startDate(LocalDate.of(2026, 2, 1))
+                .employmentType(EmploymentType.INTERN)
+                .position("부장")
+                .isRecognized(true)
+                .applicant(realApplicant)
+                .build();
+
+        Certificate certificate = Certificate.builder()
+                .certificateName("정보처리기사")
+                .issuer("대한민국")
+                .acquisitionDate(LocalDate.of(2025, 3, 1))
+                .applicant(realApplicant)
+                .build();
+
+        // 3. Mock 레포지토리들의 행동(Behavior) 정의
+        given(applicantRepository.findByApplicantId(applicantId))
+                .willReturn(Optional.of(realApplicant));
+
+        // 부모 엔티티를 넘겨줬을 때, 미리 만들어둔 자식 리스트를 반환하도록 세팅
+        given(educationRepository.findAllByApplicant(realApplicant))
+                .willReturn(List.of(education));
+        given(awardRepository.findAllByApplicant(realApplicant))
+                .willReturn(List.of(award));
+        given(workExperienceRepository.findAllByApplicant(realApplicant))
+                .willReturn(List.of(workExperience));
+        given(certificateRepository.findAllByApplicant(realApplicant))
+                .willReturn(List.of(certificate));
+
+        // When
+        ApplicantInfoResponseDTO responseDTO = applicantService.searchApplicant(applicantId);
+
+        // Then
+        
+        // N+1 발생 여부 확인
+        verify(educationRepository, times(1)).findAllByApplicant(realApplicant);
+        verify(awardRepository, times(1)).findAllByApplicant(realApplicant);
+        verify(workExperienceRepository, times(1)).findAllByApplicant(realApplicant);
+        verify(certificateRepository, times(1)).findAllByApplicant(realApplicant);
+
+        // 부모 DTO 변환 검증
+        assertThat(responseDTO.applicant().name()).isEqualTo("이현우");
+        assertThat(responseDTO.applicant().email()).isEqualTo("test@example.com");
+
+        // 3. 자식 리스트 DTO 변환 검증
+        assertThat(responseDTO.education()).hasSize(1);
+         assertThat(responseDTO.education().getFirst().schoolName()).isEqualTo("한양대학교 에리카");
+
+        assertThat(responseDTO.award()).hasSize(1);
+        assertThat(responseDTO.workExperience()).hasSize(1);
+        assertThat(responseDTO.certificate()).hasSize(1);
     }
 }
