@@ -1,6 +1,5 @@
-package com.weiver.applicant.dto.request.post;
+package com.weiver.applicant.dto.request.put;
 
-import com.weiver.applicant.domain.Applicant;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -22,16 +21,4 @@ public record ApplicantInfoRequestDTO(
     @NotBlank(message = "주소는 필수 입력값입니다.")
     String address,
     @NotBlank(message = "생년월일은 필수 입력값입니다.")
-    LocalDate birthday){
-    public Applicant toEntity() {
-
-        return Applicant.builder()
-            .photoUrl(this.profileImageUrl())
-            .name(this.name())
-            .email(this.email())
-            .phoneNumber(this.phoneNumber())
-            .address(this.address())
-            .birthday(this.birthday)
-            .build();
-    }
-}
+    LocalDate birthday){}
