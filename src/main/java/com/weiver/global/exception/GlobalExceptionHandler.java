@@ -111,13 +111,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode status,
             WebRequest request) {
 
-        return ResponseEntity
-                .badRequest()
-                .body(ErrorResponse.of(
-                        ErrorCode.MALFORMED_JSON,
-                        getPath(request),
-                        List.of()
-                ));
+        return toResponseObject(ErrorCode.MALFORMED_JSON,getPath(request), List.of());
     }
 
     @Override
