@@ -1,6 +1,8 @@
 package com.weiver.global.s3.service;
 
+import com.amazonaws.HttpMethod;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.weiver.global.exception.BusinessException;
@@ -17,6 +19,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
 import java.util.UUID;
 
 @Slf4j
@@ -40,6 +43,37 @@ public class S3ServiceImpl implements S3Service {
     @Override
     public String privateUpload(MultipartFile file, String dirName) {
         return uploadToS3(file, dirName, privateBucket);
+    }
+
+    @Override
+    public String getPresignedUrl(String fileUrl) {
+        if (!StringUtils.hasText(fileUrl)) {
+            return null;
+        }
+
+        try {
+            String targetBucket = fileUrl.contains(privateBucket) ? privateBucket : publicBucket;
+            String objectKey = extractObjectKey(fileUrl);
+
+            Date expiration = new Date();
+            long expTimeMillis = expiration.getTime();
+            expTimeMillis += 1000 * 60 * 30; // 30분
+            expiration.setTime(expTimeMillis);
+
+            // 임시 접근 권한이 담긴 URL 생성 요청
+            GeneratePresignedUrlRequest generatePresignedUrlRequest =
+                    new GeneratePresignedUrlRequest(targetBucket, objectKey)
+                            .withMethod(HttpMethod.GET)
+                            .withExpiration(expiration);
+
+            // 생성된 URL 반환
+            URL url = amazonS3.generatePresignedUrl(generatePresignedUrlRequest);
+            return url.toString();
+
+        } catch (Exception e) {
+            log.error("Presigned URL 생성 실패 (URL: {}): {}", fileUrl, e.getMessage(), e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "다운로드 URL 생성에 실패했습니다.");
+        }
     }
 
     private String uploadToS3(MultipartFile file, String dirName, String targetBucket) {
@@ -84,5 +118,11 @@ public class S3ServiceImpl implements S3Service {
             log.error("S3 파일 삭제 실패 (URL: {}): {}", fileUrl, e.getMessage(), e);
             throw new BusinessException(ErrorCode.FAIL_DELETE_FILE);
         }
+    }
+
+    private String extractObjectKey(String fileUrl) throws Exception {
+        URL url = new URL(fileUrl);
+        String objectKey = url.getPath().substring(1);
+        return URLDecoder.decode(objectKey, StandardCharsets.UTF_8);
     }
 }

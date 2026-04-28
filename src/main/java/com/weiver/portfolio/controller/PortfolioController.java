@@ -1,15 +1,16 @@
 package com.weiver.portfolio.controller;
 
-import com.weiver.applicant.dto.request.put.ApplicantInfoRequestDTO;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.portfolio.dto.request.PortfolioRequestDTO;
 import com.weiver.portfolio.dto.request.PortfolioUpdateRequestDTO;
+import com.weiver.portfolio.dto.response.PortfolioResponseDTO;
 import com.weiver.portfolio.service.PortfolioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -19,6 +20,7 @@ import java.security.Principal;
 @RequestMapping("/portfolios")
 @RequiredArgsConstructor
 public class PortfolioController {
+
     private final PortfolioService portfolioService;
 
     @PostMapping
@@ -45,6 +47,17 @@ public class PortfolioController {
         
         return ResponseEntity.ok(ApiResponse.success("포트폴리오 수정 완료됐습니다."));
     }
+
+    @GetMapping
+    @Transactional(readOnly = true)
+    public ResponseEntity<ApiResponse<PortfolioResponseDTO>> searchPortfolio(Principal principal){
+        Long applicantId = extractedId(principal);
+
+        PortfolioResponseDTO responseDTO = portfolioService.searchPortfolio(applicantId);
+
+        return ResponseEntity.ok(ApiResponse.success(responseDTO));
+    }
+
 
     /**
      * 편의 메소드

@@ -5,5 +5,6 @@ import org.springframework.web.multipart.MultipartFile;
 public interface S3Service {
     String publicUpload(MultipartFile file, String dirName);
     String privateUpload(MultipartFile file, String dirName);
+    String getPresignedUrl(String fileUrl);
     void deleteFile(String fileUrl);
 }

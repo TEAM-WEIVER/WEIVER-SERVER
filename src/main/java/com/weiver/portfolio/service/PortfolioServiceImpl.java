@@ -73,7 +73,15 @@ public class PortfolioServiceImpl implements PortfolioService {
     @Override
     @Transactional(readOnly = true)
     public PortfolioResponseDTO searchPortfolio(long applicantId) {
-        return null;
+        Applicant applicant = getApplicant(applicantId);
+
+        Portfolio portfolio = portfolioRepository.findByApplicant(applicant)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PORTFOLIO_NOT_FOUND));
+
+        String presignedUrl = s3Service.getPresignedUrl(portfolio.getFileKey());
+        PortfolioResponseDTO responseDTO = PortfolioResponseDTO.from(portfolio, presignedUrl);
+
+        return responseDTO;
     }
 
     private Applicant getApplicant(long applicantId) {
