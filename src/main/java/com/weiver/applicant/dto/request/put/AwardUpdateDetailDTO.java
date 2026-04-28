@@ -2,26 +2,30 @@ package com.weiver.applicant.dto.request.put;
 
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.domain.Award;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 
-
-/**
- * 수정 시 스냅샷 느낌으로 DTO 사용.
- * 즉, 화면에 보여줄 데이터는 전부 필수값으로 받고, 수정 시에도 전부 업데이트 하는 방식.
- * */
+@Schema(description = "수상 이력 수정 상세 정보 DTO")
 public record AwardUpdateDetailDTO(
-    Long awardId,
-    @NotBlank(message = "취득 날짜는 필수 입력값입니다.")
-    LocalDate awardDate,
-    @NotBlank(message = "수상 이름은 필수 입력값입니다.")
-    String awardName,
-    @NotBlank(message = "발급 기관은 필수 입력값입니다.")
-    String issuer){
-    /**
-     * Award 추가 시 사용 할 메소드
-     * */
+
+        @Schema(description = "수상 이력 고유 ID (기존 데이터 수정 시 필수, 신규 추가 시 null)", example = "1")
+        Long awardId,
+
+        @Schema(description = "수상 날짜", example = "2025-11-25", type = "string")
+        @NotNull(message = "취득 날짜는 필수 입력값입니다.")
+        LocalDate awardDate,
+
+        @Schema(description = "수상 이름", example = "소개딩 최우수상")
+        @NotBlank(message = "수상 이름은 필수 입력값입니다.")
+        String awardName,
+
+        @Schema(description = "발급 기관 및 주최측", example = "한국인터넷진흥원")
+        @NotBlank(message = "발급 기관은 필수 입력값입니다.")
+        String issuer){
+
     public Award toEntity(Applicant applicant) {
         return Award.builder()
                 .awardDate(this.awardDate())
