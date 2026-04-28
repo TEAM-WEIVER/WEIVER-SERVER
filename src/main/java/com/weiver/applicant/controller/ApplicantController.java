@@ -6,7 +6,7 @@ import com.weiver.applicant.dto.request.post.EducationRequestDTO;
 import com.weiver.applicant.dto.request.post.WorkExperienceRequestDTO;
 import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.dto.response.ApplicantInfoResponseDTO;
-import com.weiver.applicant.service.ApplicantService;
+import com.weiver.applicant.service.*;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -35,6 +35,10 @@ import java.security.Principal;
 public class ApplicantController {
 
     private final ApplicantService applicantService;
+    private final AwardService awardService;
+    private final CertificateService certificateService;
+    private final EducationService educationService;
+    private final WorkExperienceService workExperienceService;
 
     @Operation(
             summary = "구직자 전체 정보 조회 ",
@@ -78,7 +82,7 @@ public class ApplicantController {
             @RequestBody @Valid EducationRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
         Long applicantId = extractedId(principal);
-        applicantService.saveEducationInfo(applicantId, requestDTO);
+        educationService.saveEducationInfo(applicantId, requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("학력 저장에 성공했습니다."));
     }
@@ -93,7 +97,7 @@ public class ApplicantController {
             @RequestBody @Valid EducationUpdateRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
         Long applicantId = extractedId(principal);
-        applicantService.updateEducationInfo(applicantId, requestDTO);
+        educationService.updateEducationInfo(applicantId, requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("학력 업데이트 성공했습니다."));
     }
@@ -107,7 +111,7 @@ public class ApplicantController {
             @RequestBody @Valid AwardRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
         Long applicantId = extractedId(principal);
-        applicantService.saveAwardInfo(applicantId, requestDTO);
+        awardService.saveAwardInfo(applicantId, requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("수상이력 저장에 성공했습니다."));
     }
@@ -122,7 +126,7 @@ public class ApplicantController {
             @RequestBody @Valid AwardUpdateRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
         Long applicantId = extractedId(principal);
-        applicantService.updateAwardInfo(applicantId, requestDTO);
+        awardService.updateAwardInfo(applicantId, requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("수상목록 업데이트 성공했습니다."));
     }
@@ -136,7 +140,7 @@ public class ApplicantController {
             @RequestBody @Valid CertificateRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
         Long applicantId = extractedId(principal);
-        applicantService.saveCertificateInfo(applicantId, requestDTO);
+        certificateService.saveCertificateInfo(applicantId, requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("자격증 저장에 성공했습니다."));
     }
@@ -151,7 +155,7 @@ public class ApplicantController {
             @RequestBody @Valid CertificateUpdateRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
         Long applicantId = extractedId(principal);
-        applicantService.updateCertificateInfo(applicantId, requestDTO);
+        certificateService.updateCertificateInfo(applicantId, requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("자격증 목록 업데이트 성공했습니다."));
     }
@@ -165,7 +169,7 @@ public class ApplicantController {
             @RequestBody @Valid WorkExperienceRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
         Long applicantId = extractedId(principal);
-        applicantService.saveWorkExperienceInfo(applicantId, requestDTO);
+        workExperienceService.saveWorkExperienceInfo(applicantId, requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("경력 저장에 성공했습니다."));
     }
@@ -180,7 +184,7 @@ public class ApplicantController {
             @RequestBody @Valid WorkExperienceUpdateRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
         Long applicantId = extractedId(principal);
-        applicantService.updateWorkExperienceInfo(applicantId, requestDTO);
+        workExperienceService.updateWorkExperienceInfo(applicantId, requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("경력 업데이트 성공했습니다."));
     }

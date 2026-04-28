@@ -25,7 +25,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
-import java.time.Year;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
@@ -48,7 +47,7 @@ class ApplicantServiceImplTest {
     @Mock private S3Service s3Service;
 
     @InjectMocks
-    private ApplicantServiceImpl applicantService;
+    private ApplicantService applicantService;
 
     // 레포지토리에 전달된 '진짜 리스트 데이터'를 낚아채서 검사하기 위한 도구
     @Captor
