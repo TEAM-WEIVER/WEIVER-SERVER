@@ -49,6 +49,18 @@ class ApplicantServiceImplTest {
     @InjectMocks
     private ApplicantService applicantService;
 
+    @InjectMocks
+    private AwardService awardService;
+
+    @InjectMocks
+    private CertificateService certificateService;
+
+    @InjectMocks
+    private EducationService educationService;
+
+    @InjectMocks
+    private WorkExperienceService workExperienceService;
+
     // 레포지토리에 전달된 '진짜 리스트 데이터'를 낚아채서 검사하기 위한 도구
     @Captor
     private ArgumentCaptor<List<Education>> educationListCaptor;
@@ -107,7 +119,7 @@ class ApplicantServiceImplTest {
                 .willReturn(Optional.of(realApplicant));
 
         // When
-        applicantService.saveAwardInfo(applicantId, awardRequestDTO);
+        awardService.saveAwardInfo(applicantId, awardRequestDTO);
 
         // Then
 
@@ -137,7 +149,7 @@ class ApplicantServiceImplTest {
                 .willReturn(Optional.of(realApplicant));
 
         // When
-        applicantService.saveEducationInfo(applicantId, realRequestDTO);
+        educationService.saveEducationInfo(applicantId, realRequestDTO);
 
         // Then
         // saveAll이 호출될 때 넘어간 진짜 파라미터(List)를 캡처(Capture)
@@ -172,7 +184,7 @@ class ApplicantServiceImplTest {
                 .willReturn(Optional.of(realApplicant));
 
         // When
-        applicantService.saveEducationInfo(applicantId, realRequestDTO);
+        educationService.saveEducationInfo(applicantId, realRequestDTO);
 
         // Then
         // saveAll이 호출될 때 넘어간 진짜 파라미터(List)를 캡처(Capture)
