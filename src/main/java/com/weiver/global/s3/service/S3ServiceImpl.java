@@ -29,10 +29,10 @@ public class S3ServiceImpl implements S3Service {
 
     private final AmazonS3 amazonS3;
 
-    @Value("${spring.cloud.aws.s3.buckets.public}")
+    @Value("${spring.cloud.aws.s3.bucket.public}")
     private String publicBucket;
 
-    @Value("${spring.cloud.aws.s3.buckets.private}")
+    @Value("${spring.cloud.aws.s3.bucket.private}")
     private String privateBucket;
 
     @Override
