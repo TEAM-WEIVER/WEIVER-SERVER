@@ -259,44 +259,41 @@ class ApplicantControllerTest {
                 .andExpect(jsonPath("$.status").value("error"));
     }
 
-    /**
-     * 서비스 단에서 에외 던지는 검증 로직 추가해야됨.
-     * */
-//    @Test
-//    @DisplayName("엣지 케이스 : 악성 스크립트 파일(.sh) 업로드 시도 -> 400 에러 발생")
-//    void updateApplicantInfo_WithInvalidFileExtension_ThrowsBadRequest() throws Exception {
-//        // Given
-//        Long applicantId = 1L;
-//
-//        ApplicantInfoRequestDTO requestDTO = new ApplicantInfoRequestDTO(
-//                "이현우", "test@example.com", "010-1234-5678", "안산시", LocalDate.of(2000, 1, 1)
-//        );
-//        String requestDtoJson = objectMapper.writeValueAsString(requestDTO);
-//
-//        MockMultipartFile requestDtoPart = new MockMultipartFile(
-//                "requestDTO", "", "application/json", requestDtoJson.getBytes(StandardCharsets.UTF_8)
-//        );
-//
-//        // 이미지 파일인 척하는 악성 쉘 스크립트 파일
-//        MockMultipartFile maliciousFilePart = new MockMultipartFile(
-//                "profileImage", "hack.sh", "application/x-sh", "rm -rf /".getBytes()
-//        );
-//
-//
-//        doThrow(new BusinessException(ErrorCode.BAD_REQUEST, "지원하지 않는 파일 형식입니다."))
-//                .when(applicantService).updateApplicantInfo(eq(applicantId), any(), any());
-//
-//        // When & Then
-//        mockMvc.perform(MockMvcRequestBuilders.multipart("/applicants/info")
-//                        .file(requestDtoPart)
-//                        .file(maliciousFilePart) // 악성 파일 첨부
-//                        .with(request -> {
-//                            request.setMethod(HttpMethod.PUT.name());
-//                            return request;
-//                        })
-//                        .principal(() -> "1"))
-//                .andDo(print())
-//                .andExpect(status().isBadRequest())
-//                .andExpect(jsonPath("$.message").value("지원하지 않는 파일 형식입니다."));
-//    }
+    @Test
+    @DisplayName("엣지 케이스 : 악성 스크립트 파일(.sh) 업로드 시도 -> 400 에러 발생")
+    void updateApplicantInfo_WithInvalidFileExtension_ThrowsBadRequest() throws Exception {
+        // given
+        Long applicantId = 1L;
+
+        ApplicantInfoRequestDTO requestDTO = new ApplicantInfoRequestDTO(
+                "이현우", "test@example.com", "010-1234-5678", "안산시", LocalDate.of(2000, 1, 1)
+        );
+        String requestDtoJson = objectMapper.writeValueAsString(requestDTO);
+
+        MockMultipartFile requestDtoPart = new MockMultipartFile(
+                "requestDTO", "", "application/json", requestDtoJson.getBytes(StandardCharsets.UTF_8)
+        );
+
+        // 이미지 파일인 척하는 악성 쉘 스크립트 파일
+        MockMultipartFile maliciousFilePart = new MockMultipartFile(
+                "profileImage", "hack.sh", "application/x-sh", "rm -rf /".getBytes()
+        );
+
+
+        doThrow(new BusinessException(ErrorCode.BAD_REQUEST, "지원하지 않는 파일 형식입니다."))
+                .when(applicantService).updateApplicantInfo(eq(applicantId), any(), any());
+
+        // when, then
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/applicants/info")
+                        .file(requestDtoPart)
+                        .file(maliciousFilePart) // 악성 파일 첨부
+                        .with(request -> {
+                            request.setMethod(HttpMethod.PUT.name());
+                            return request;
+                        })
+                        .principal(() -> "1"))
+                .andDo(print())
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("지원하지 않는 파일 형식입니다."));
+    }
 }

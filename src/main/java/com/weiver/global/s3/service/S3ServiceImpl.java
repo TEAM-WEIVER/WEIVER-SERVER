@@ -134,7 +134,7 @@ public class S3ServiceImpl implements S3Service {
         if (extension == null || !ALLOWED_EXTENSIONS.contains(extension.toLowerCase())) {
             log.warn("허용되지 않은 파일 업로드 시도: {}", originalFilename);
             throw new BusinessException(ErrorCode.BAD_REQUEST,
-                    "지원하지 않는 파일 형식입니다. (허용: " + String.join(", ", ALLOWED_EXTENSIONS) + ")");
+                    "지원하지 않는 파일 형식입니다.");
         }
     }
 }
