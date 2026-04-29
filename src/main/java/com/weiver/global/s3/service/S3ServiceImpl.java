@@ -17,6 +17,8 @@ import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 
 @Slf4j
@@ -31,6 +33,17 @@ public class S3ServiceImpl implements S3Service {
 
     @Value("${spring.cloud.aws.s3.bucket.private}")
     private String privateBucket;
+
+    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList(
+
+            "jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "tif", "tiff",
+
+            "pdf", "txt", "csv", "rtf",
+
+            "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+
+            "hwp", "hwpx"
+    );
 
     @Override
     public String publicUpload(MultipartFile file, String dirName) {
@@ -68,6 +81,9 @@ public class S3ServiceImpl implements S3Service {
         }
 
         String originalFilename = file.getOriginalFilename();
+
+        validateFileExtension(originalFilename);
+
         String extension = StringUtils.getFilenameExtension(originalFilename);
         String uniqueFileName = dirName + "/" + UUID.randomUUID() + "." + extension;
 
@@ -106,5 +122,19 @@ public class S3ServiceImpl implements S3Service {
         URL url = new URL(fileUrl);
         String objectKey = url.getPath().substring(1);
         return URLDecoder.decode(objectKey, StandardCharsets.UTF_8);
+    }
+
+    private void validateFileExtension(String originalFilename) {
+        if (!StringUtils.hasText(originalFilename)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "잘못된 파일 이름입니다.");
+        }
+
+        String extension = StringUtils.getFilenameExtension(originalFilename);
+
+        if (extension == null || !ALLOWED_EXTENSIONS.contains(extension.toLowerCase())) {
+            log.warn("허용되지 않은 파일 업로드 시도: {}", originalFilename);
+            throw new BusinessException(ErrorCode.BAD_REQUEST,
+                    "지원하지 않는 파일 형식입니다. (허용: " + String.join(", ", ALLOWED_EXTENSIONS) + ")");
+        }
     }
 }
