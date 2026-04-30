@@ -33,26 +33,32 @@ public class Applicant extends BaseTimeEntity {
     @Column(name = "role", nullable = false)
     private UserRole role = UserRole.APPLICANT;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", nullable = true)
     private String name;    // 사용자 이름
 
-    @Column(name = "phone_number", nullable = false)
+    @Column(name = "phone_number", nullable = true)
     private String phoneNumber; // 연락처
 
-    @Column(name = "birthday", columnDefinition = "DATE", nullable = false)
+    @Column(name = "birthday", columnDefinition = "DATE", nullable = true)
     private LocalDate birthday; // 생년월일
 
-    @Column(name = "photo_url", columnDefinition = "TEXT")
+    @Column(name = "photo_url", columnDefinition = "TEXT", nullable = true)
     private String photoUrl;    // s3 프로필 이미지 경로
 
-    @Column(name = "last_screening_at")
+    @Column(name = "last_screening_at", nullable = true)
     private LocalDateTime lastScreeningAt;  // 마지막 분석
 
-    @Column(name = "next_available_screening_at")
+    @Column(name = "next_available_screening_at", nullable = true)
     private LocalDateTime nextAvailableScreeningAt; // 다음 분석 가능 시점
 
-    @Column(name = "address", nullable = false)
+    @Column(name = "address", nullable = true)
     private String address;  // 주소
+
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean deleted = false;
+
+    private LocalDateTime deletedAt;
 
     /**
      * 정보 업데이트 편의메소드
@@ -74,5 +80,10 @@ public class Applicant extends BaseTimeEntity {
         if(updateDTO.birthday() != null) {
             this.birthday = updateDTO.birthday();
         }
+    }
+
+    public void withdraw() {
+        this.deleted = true;
+        this.deletedAt = LocalDateTime.now();
     }
 }
