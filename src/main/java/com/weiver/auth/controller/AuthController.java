@@ -1,11 +1,15 @@
 package com.weiver.auth.controller;
 
+import com.weiver.auth.dto.response.ReissueResponseDTO;
 import com.weiver.auth.service.AuthService;
+import com.weiver.auth.service.dto.TokenReissueResult;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.cookie.CookieProvider;
+import com.weiver.global.security.cookie.RefreshTokenCookieResolver;
 import com.weiver.global.security.jwt.BearerTokenResolver;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -24,6 +28,7 @@ public class AuthController {
     private final AuthService authService;
     private final CookieProvider cookieProvider;
     private final BearerTokenResolver bearerTokenResolver;
+    private final RefreshTokenCookieResolver refreshTokenCookieResolver;
 
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
@@ -48,5 +53,31 @@ public class AuthController {
         );
 
         return ResponseEntity.ok(ApiResponse.success("로그아웃에 성공했습니다."));
+    }
+
+    @PostMapping("/reissue")
+    public ResponseEntity<ApiResponse<ReissueResponseDTO>> reissue(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        String refreshToken = refreshTokenCookieResolver.resolve(request);
+
+        if(refreshToken == null) {
+            throw new BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
+        }
+
+        TokenReissueResult tokenReissueResult = authService.reissueToken(refreshToken);
+
+        ResponseCookie refreshTokenCookie = cookieProvider.createRefreshTokenCookie(tokenReissueResult.refreshToken());
+
+        response.addHeader(
+                HttpHeaders.SET_COOKIE,
+                refreshTokenCookie.toString()
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(
+                200,
+                new ReissueResponseDTO(tokenReissueResult.accessToken()),
+                "토큰 재발급에 성공했습니다." ));
     }
 }
