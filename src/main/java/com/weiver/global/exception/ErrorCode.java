@@ -8,7 +8,7 @@ public enum ErrorCode {
     UNAUTHORIZED("UNAUTHORIZED", HttpStatus.UNAUTHORIZED, "인증이 필요합니다."),
     FORBIDDEN("FORBIDDEN", HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     MISSING_COOKIE("MISSING_COOKIE", HttpStatus.BAD_REQUEST, "필수 쿠키가 누락되었습니다."),
-    USER_NOT_FOUND("USER_NOT_FOUNT", HttpStatus.NOT_FOUND, "존재하지 않는 사용자입니다."),
+    USER_NOT_FOUND("USER_NOT_FOUND", HttpStatus.NOT_FOUND, "존재하지 않는 사용자입니다."),
 
     // ===================== TOKEN =====================
     TOKEN_EXPIRED("TOKEN_EXPIRED", HttpStatus.UNAUTHORIZED, "액세스 토큰이 만료되었습니다."),
