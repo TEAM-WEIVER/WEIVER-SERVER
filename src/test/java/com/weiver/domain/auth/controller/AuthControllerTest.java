@@ -5,6 +5,7 @@ import com.weiver.auth.service.AuthService;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.cookie.CookieProvider;
+import com.weiver.global.security.cookie.RefreshTokenCookieResolver;
 import com.weiver.global.security.jwt.BearerTokenResolver;
 import com.weiver.global.security.jwt.JwtAuthenticationFilter;
 import org.junit.jupiter.api.DisplayName;
@@ -40,6 +41,8 @@ public class AuthControllerTest {
     private BearerTokenResolver bearerTokenResolver;
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+    @MockitoBean
+    private RefreshTokenCookieResolver refreshTokenCookieResolver;
 
     @Test
     @DisplayName("로그아웃 성공 시 AuthService를 호출하고 RefreshToken 쿠키를 만료한다.")
