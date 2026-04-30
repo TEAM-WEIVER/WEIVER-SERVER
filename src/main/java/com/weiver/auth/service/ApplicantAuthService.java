@@ -31,6 +31,7 @@ public class ApplicantAuthService {
 
     private static final Duration EMAIL_CODE_TTL = Duration.ofMinutes(5);
     private static final Duration VERIFICATION_TOKEN_TTL = Duration.ofMinutes(30);
+    private static final int MAX_VERIFICATION_ATTEMPTS = 5;
 
     private final ApplicantRepository applicantRepository;
     private final ApplicantAgreementRepository applicantAgreementRepository;
@@ -50,6 +51,7 @@ public class ApplicantAuthService {
 
         String code = codeGenerator.generateCode();
 
+        emailVerificationRepository.deleteAttemptCount(email);
         emailVerificationRepository.saveCode(email, code, EMAIL_CODE_TTL);
 
         try {
@@ -67,17 +69,30 @@ public class ApplicantAuthService {
     public ApplicantEmailVerifyResponseDTO verifyEmailCode(ApplicantEmailVerifyRequestDTO request) {
         String email = request.email();
 
-        // 인증 코드를 atomic하게 조회 + 삭제 (한 번만 사용 가능)
-        String savedCode = emailVerificationRepository.findAndDeleteCode(email)
+        // 1) 코드 존재 여부만 확인 (소비하지 않음 - 시도 횟수 한도 내에선 재시도 허용)
+        String savedCode = emailVerificationRepository.findCodeByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VERIFICATION_CODE_EXPIRED));
 
-        if(!savedCode.equals(request.code())) {
+        // 2) 시도 횟수 증가 (TTL은 코드와 동일하게 부여)
+        long attemptCount = emailVerificationRepository.incrementAttemptCount(email, EMAIL_CODE_TTL);
+
+        // 3) 한도 초과 시 코드/카운터 모두 소각하고 차단
+        if (attemptCount > MAX_VERIFICATION_ATTEMPTS) {
+            emailVerificationRepository.deleteCode(email);
+            emailVerificationRepository.deleteAttemptCount(email);
+            throw new BusinessException(ErrorCode.TOO_MANY_VERIFICATION_ATTEMPTS);
+        }
+
+        // 4) 코드 불일치 - 카운터는 살린 채 거절 (사용자가 한도 내에서 재시도 가능)
+        if (!savedCode.equals(request.code())) {
             throw new BusinessException(ErrorCode.INVALID_VERIFICATION_CODE);
         }
 
+        // 5) 일치 - 코드/카운터 정리 + verificationToken 발급
         String verificationToken = UUID.randomUUID().toString();
-
         emailVerificationRepository.saveVerifiedToken(verificationToken, email, VERIFICATION_TOKEN_TTL);
+        emailVerificationRepository.deleteCode(email);
+        emailVerificationRepository.deleteAttemptCount(email);
 
         return new ApplicantEmailVerifyResponseDTO(verificationToken);
     }

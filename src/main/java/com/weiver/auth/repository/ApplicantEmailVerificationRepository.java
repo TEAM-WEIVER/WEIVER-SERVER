@@ -13,6 +13,7 @@ public class ApplicantEmailVerificationRepository {
 
     private static final String CODE_PREFIX = "applicant:email:code:";
     private static final String VERIFIED_TOKEN_PREFIX = "applicant:email:verified:";
+    private static final String ATTEMPT_PREFIX = "applicant:email:attempts:";
 
     private final RedisTemplate<String, String> redisTemplate;
 
@@ -30,14 +31,21 @@ public class ApplicantEmailVerificationRepository {
         );
     }
 
-    public Optional<String> findAndDeleteCode(String email) {
-        return Optional.ofNullable(
-                redisTemplate.opsForValue().getAndDelete(generateCodeKey(email))
-        );
-    }
-
     public void deleteCode(String email) {
         redisTemplate.delete(generateCodeKey(email));
+    }
+
+    public long incrementAttemptCount(String email, Duration ttl) {
+        String key = generateAttemptKey(email);
+        Long count = redisTemplate.opsForValue().increment(key);
+        if (count != null && count == 1L) {
+            redisTemplate.expire(key, ttl);
+        }
+        return count == null ? 0L : count;
+    }
+
+    public void deleteAttemptCount(String email) {
+        redisTemplate.delete(generateAttemptKey(email));
     }
 
     public void saveVerifiedToken(String verificationToken, String email, Duration ttl) {
@@ -48,20 +56,10 @@ public class ApplicantEmailVerificationRepository {
         );
     }
 
-    public Optional<String> findEmailByVerifiedToken(String verifiedToken) {
-        return Optional.ofNullable(
-                redisTemplate.opsForValue().get(generateVerifiedTokenKey(verifiedToken))
-        );
-    }
-
     public Optional<String> findAndDeleteVerifiedToken(String verifiedToken) {
         return Optional.ofNullable(
                 redisTemplate.opsForValue().getAndDelete(generateVerifiedTokenKey(verifiedToken))
         );
-    }
-
-    public void deleteVerifiedToken(String verifiedToken) {
-        redisTemplate.delete(generateVerifiedTokenKey(verifiedToken));
     }
 
     private String generateCodeKey(String email) {
@@ -70,5 +68,9 @@ public class ApplicantEmailVerificationRepository {
 
     private String generateVerifiedTokenKey(String verifiedToken) {
         return VERIFIED_TOKEN_PREFIX + verifiedToken;
+    }
+
+    private String generateAttemptKey(String email) {
+        return ATTEMPT_PREFIX + email;
     }
 }
