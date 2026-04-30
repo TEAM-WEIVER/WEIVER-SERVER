@@ -35,7 +35,7 @@ class EssayAnswerServiceImplTest {
     private ApplicantRepository applicantRepository;
 
     @InjectMocks
-    private EssayAnswerServiceImpl essayAnswerService;
+    private EssayAnswerService essayAnswerService;
 
     @Test
     @DisplayName("자기소개서 저장 정상 수행")

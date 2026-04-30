@@ -36,7 +36,7 @@ class PortfolioServiceImplTest {
     private S3Service s3Service;
 
     @InjectMocks
-    private PortfolioServiceImpl portfolioService;
+    private PortfolioService portfolioService;
 
     @Test
     @DisplayName("포트폴리오 조회 시 S3 Presigned URL을 발급받아 정상적으로 DTO를 반환한다.")
