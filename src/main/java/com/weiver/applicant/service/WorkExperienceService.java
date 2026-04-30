@@ -1,0 +1,83 @@
+package com.weiver.applicant.service;
+
+import com.weiver.applicant.domain.Applicant;
+import com.weiver.applicant.domain.WorkExperience;
+import com.weiver.applicant.dto.request.post.WorkExperienceRequestDTO;
+import com.weiver.applicant.dto.request.put.WorkExperienceUpdateDetailDTO;
+import com.weiver.applicant.dto.request.put.WorkExperienceUpdateRequestDTO;
+import com.weiver.applicant.repository.ApplicantRepository;
+import com.weiver.applicant.repository.WorkExperienceRepository;
+import com.weiver.global.exception.BusinessException;
+import com.weiver.global.exception.ErrorCode;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@Service
+@Transactional
+@RequiredArgsConstructor
+public class WorkExperienceService {
+
+    private final WorkExperienceRepository workExperienceRepository;
+    private final ApplicantRepository applicantRepository;
+
+
+    public void saveWorkExperienceInfo(long applicantId, WorkExperienceRequestDTO requestDTO) {
+        Applicant applicant = getApplicant(applicantId);
+
+        List<WorkExperience> experienceList = requestDTO.toEntityList(applicant);
+
+        workExperienceRepository.saveAll(experienceList);
+    }
+
+    public void updateWorkExperienceInfo(long applicantId, WorkExperienceUpdateRequestDTO requestDTO) {
+        Applicant applicant = getApplicant(applicantId);
+
+        List<WorkExperience> existingExperiences = workExperienceRepository.findAllByApplicant(applicant);
+
+        Set<Long> requestExperienceIds = requestDTO.workExperienceList().stream()
+                .map(WorkExperienceUpdateDetailDTO::workExperienceId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        List<WorkExperience> toDelete = existingExperiences.stream()
+                .filter(we -> !requestExperienceIds.contains(we.getExperienceId()))
+                .toList();
+        workExperienceRepository.deleteAll(toDelete);
+
+        List<WorkExperience> toSave = new ArrayList<>();
+        for(WorkExperienceUpdateDetailDTO detailDTO : requestDTO.workExperienceList()) {
+            if(detailDTO.workExperienceId() == null) {
+                toSave.add(detailDTO.toEntity(applicant));
+            } else {
+                WorkExperience existingExperience = existingExperiences.stream()
+                        .filter(we -> we.getExperienceId().equals(detailDTO.workExperienceId()))
+                        .findFirst()
+                        .orElseThrow(() -> new BusinessException(ErrorCode.EXPERIENCE_NOT_FOUND));
+
+                if(!existingExperience.getApplicant().getApplicantId().equals(applicantId)) {
+                    throw new BusinessException(ErrorCode.FORBIDDEN);
+                }
+
+                existingExperience.updateWorkExperience(detailDTO);
+            }
+        }
+
+        if (!toSave.isEmpty()) {
+            workExperienceRepository.saveAll(toSave);
+        }
+    }
+
+
+    private Applicant getApplicant(long applicantId) {
+        Applicant applicant = applicantRepository.findById(applicantId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+        return applicant;
+    }
+}

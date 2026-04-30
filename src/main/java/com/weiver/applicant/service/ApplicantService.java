@@ -1,0 +1,90 @@
+package com.weiver.applicant.service;
+
+import com.weiver.applicant.domain.*;
+import com.weiver.applicant.dto.request.put.*;
+import com.weiver.applicant.dto.response.*;
+import com.weiver.applicant.repository.*;
+import com.weiver.global.exception.BusinessException;
+import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.s3.service.S3Service;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+
+
+@Service
+@Transactional
+@RequiredArgsConstructor
+public class ApplicantService {
+
+    private final ApplicantRepository applicantRepository;
+    private final EducationRepository educationRepository;
+    private final AwardRepository awardRepository;
+    private final CertificateRepository certificateRepository;
+    private final WorkExperienceRepository workExperienceRepository;
+    private final S3Service s3Service;
+
+    public void updateApplicantInfo(long applicantId, ApplicantInfoRequestDTO requestDTO, MultipartFile profileImage) {
+
+        Applicant applicant = getApplicant(applicantId);
+
+        String photoUrl = applicant.getPhotoUrl();
+
+        // 만약 새로운 이미지라면
+        if(profileImage != null && !profileImage.isEmpty()) {
+            if(StringUtils.hasText(photoUrl)){
+                s3Service.deleteFile(photoUrl);
+            }
+
+            photoUrl = s3Service.publicUpload(profileImage, "profiles");
+        }
+
+        applicant.updateInfo(requestDTO, photoUrl);
+    }
+
+    @Transactional(readOnly = true)
+    public ApplicantInfoResponseDTO searchApplicant(long applicantId) {
+        Applicant applicant = getApplicant(applicantId);
+
+        List<Education> educations = educationRepository.findAllByApplicant(applicant);
+        List<Award> awards = awardRepository.findAllByApplicant(applicant);
+        List<WorkExperience> workExperiences = workExperienceRepository.findAllByApplicant(applicant);
+        List<Certificate> certificates = certificateRepository.findAllByApplicant(applicant);
+
+        ApplicantDetailResponseDTO applicantDTO = ApplicantDetailResponseDTO.from(applicant);
+
+        List<EducationDetailResponseDTO> educationDTOs = educations.stream()
+                .map(EducationDetailResponseDTO::from)
+                .toList();
+
+        List<AwardDetailResponseDTO> awardDTOs = awards.stream()
+                .map(AwardDetailResponseDTO::from)
+                .toList();
+
+        List<WorkExperienceDetailResponseDTO> workExperienceDTOs = workExperiences.stream()
+                .map(WorkExperienceDetailResponseDTO::from)
+                .toList();
+
+        List<CertificateDetailResponseDTO> certificateDTOs = certificates.stream()
+                .map(CertificateDetailResponseDTO::from)
+                .toList();
+
+        return new ApplicantInfoResponseDTO(
+                applicantDTO,
+                educationDTOs,
+                awardDTOs,
+                workExperienceDTOs,
+                certificateDTOs
+        );
+    }
+
+    private Applicant getApplicant(long applicantId) {
+        Applicant applicant = applicantRepository.findById(applicantId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+        return applicant;
+    }
+}

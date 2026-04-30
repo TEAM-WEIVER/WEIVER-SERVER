@@ -64,11 +64,6 @@ public class Portfolio extends BaseTimeEntity {
         if (updateDTO.urlEtc() != null) {
             this.urlEtc = updateDTO.urlEtc();
         }
-        if (updateDTO.file() != null) {
-            this.fileName = updateDTO.file().getOriginalFilename();
-            this.fileType = updateDTO.file().getContentType();
-            this.fileSize = updateDTO.file().getSize();
-        }
     }
     
     // 파일을 바꾸는건 S3 의존 되어있기에 메소드 분리

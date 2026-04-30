@@ -99,8 +99,10 @@ dependencies {
     // 6. AWS
     // ----------------------------------------------------------------------
 
-    // Spring Cloud AWS S3 (추후 S3 연동 시 도입 예정)
-    // implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3'
+    // Spring Cloud AWS S3
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3'
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter-sqs'
+    implementation platform("io.awspring.cloud:spring-cloud-aws-dependencies:${springCloudAwsVersion}")
 
     // ----------------------------------------------------------------------
     // 7. Monitoring
@@ -144,20 +146,14 @@ dependencies {
     developmentOnly "org.testcontainers:jdbc"
     developmentOnly "org.testcontainers:postgresql"
 
+    implementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
+
     testImplementation "org.testcontainers:junit-jupiter"
     testImplementation "org.testcontainers:postgresql"
     testImplementation "org.testcontainers:rabbitmq"
 
     // JUnit Platform Launcher
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-}
-
-// BOM
-dependencyManagement {
-    imports {
-        mavenBom "io.awspring.cloud:spring-cloud-aws-dependencies:${springCloudAwsVersion}"
-        mavenBom "org.testcontainers:testcontainers-bom:${testcontainersVersion}"
-    }
 }
 
 // QueryDSL Q 클래스 생성 경로 설정

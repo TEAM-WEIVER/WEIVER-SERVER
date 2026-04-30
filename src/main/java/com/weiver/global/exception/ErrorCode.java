@@ -46,8 +46,8 @@ public enum ErrorCode {
     EXPERIENCE_NOT_FOUND("EXPERIENCE_NOT_FOUND", HttpStatus.NOT_FOUND, "경력 정보를 찾을 수 없습니다."),
     PORTFOLIO_NOT_FOUND("PORTFOLIO_NOT_FOUND", HttpStatus.NOT_FOUND, "포트폴리오를 찾을 수 없습니다."),
 
-    // ===================== COVER_LETTER =====================
-    COVER_LETTER_NOT_FOUND("COVER_LETTER_NOT_FOUND", HttpStatus.NOT_FOUND, "자기소개서를 찾을 수 없습니다."),
+    // ===================== ESSAY-ANSWER =====================
+    ESSAY_ANSWER_NOT_FOUND("ESSAY_ANSWER_NOT_FOUND", HttpStatus.NOT_FOUND, "자기소개서를 찾을 수 없습니다."),
 
     // ===================== JOB_POSTING =====================
     JOB_POSTING_NOT_FOUND("JOB_POSTING_NOT_FOUND", HttpStatus.NOT_FOUND, "존재하지 않는 공고입니다."),
@@ -61,8 +61,10 @@ public enum ErrorCode {
 
     // ===================== SERVER =====================
     BAD_REQUEST("BAD_REQUEST", HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
-    INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다.");
+    INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
 
+    // ===================== SERVER =====================
+    FAIL_DELETE_FILE("FAIL_DELETE_FILE", HttpStatus.INTERNAL_SERVER_ERROR, "S3 파일 삭제 실패");
     public final String code;
     public final HttpStatus httpStatus;
     public final String defaultMessage;
