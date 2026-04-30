@@ -5,7 +5,6 @@ import com.weiver.global.security.jwt.type.RefreshTokenRotationResult;
 import com.weiver.global.security.util.TokenHashUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;

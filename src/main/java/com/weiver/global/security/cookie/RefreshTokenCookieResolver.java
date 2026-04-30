@@ -5,8 +5,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
-
 @Component
 @RequiredArgsConstructor
 public class RefreshTokenCookieResolver {
