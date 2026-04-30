@@ -13,7 +13,6 @@ import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.cookie.CookieProvider;
-import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
