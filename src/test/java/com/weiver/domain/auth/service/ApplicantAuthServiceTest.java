@@ -62,7 +62,7 @@ public class ApplicantAuthServiceTest {
     @Mock private RefreshTokenRepository refreshTokenRepository;
 
     @Test
-    @DisplayName("이메일 인증번호 전송 성공 시 코드를 Redis에 저장하고 메일을 발송한다.")
+    @DisplayName("이메일 인증번호 전송 성공 시 시도 카운터 초기화 후 코드 저장 + 메일 발송")
     public void sendEmailCode_success() {
         // given
         String email = "user@test.com";
@@ -76,6 +76,7 @@ public class ApplicantAuthServiceTest {
         applicantAuthService.sendEmailCode(request);
 
         // then
+        verify(emailVerificationRepository).deleteAttemptCount(email);
         verify(emailVerificationRepository).saveCode(eq(email), eq(code), any(Duration.class));
         verify(mailSender).send(any(MailMessage.class));
         verify(emailVerificationRepository, never()).deleteCode(anyString());
@@ -117,62 +118,92 @@ public class ApplicantAuthServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.EMAIL_SEND_FAILED.defaultMessage);
 
+        verify(emailVerificationRepository).deleteAttemptCount(email);
         verify(emailVerificationRepository).saveCode(eq(email), eq(code), any(Duration.class));
         verify(emailVerificationRepository).deleteCode(email);
     }
 
     @Test
-    @DisplayName("이메일 인증번호 검증 성공 시 코드를 atomic하게 소비하고 verificationToken을 발급한다.")
+    @DisplayName("이메일 인증번호 검증 성공 시 코드/카운터를 정리하고 verificationToken을 발급한다.")
     public void verifyEmailCode_success() {
         // given
         String email = "user@test.com";
         String code = "123456";
         ApplicantEmailVerifyRequestDTO request = new ApplicantEmailVerifyRequestDTO(email, code);
 
-        when(emailVerificationRepository.findAndDeleteCode(email)).thenReturn(Optional.of(code));
+        when(emailVerificationRepository.findCodeByEmail(email)).thenReturn(Optional.of(code));
+        when(emailVerificationRepository.incrementAttemptCount(eq(email), any(Duration.class))).thenReturn(1L);
 
         // when
         ApplicantEmailVerifyResponseDTO response = applicantAuthService.verifyEmailCode(request);
 
         // then
         assertThat(response.verificationToken()).isNotBlank();
-        verify(emailVerificationRepository).findAndDeleteCode(email);
+        verify(emailVerificationRepository).findCodeByEmail(email);
+        verify(emailVerificationRepository).incrementAttemptCount(eq(email), any(Duration.class));
         verify(emailVerificationRepository).saveVerifiedToken(eq(response.verificationToken()), eq(email), any(Duration.class));
-        verify(emailVerificationRepository, never()).deleteCode(anyString());
+        verify(emailVerificationRepository).deleteCode(email);
+        verify(emailVerificationRepository).deleteAttemptCount(email);
     }
 
     @Test
-    @DisplayName("저장된 코드가 없으면 VERIFICATION_CODE_EXPIRED 예외 발생")
+    @DisplayName("저장된 코드가 없으면 VERIFICATION_CODE_EXPIRED 예외 (카운터 증가 없음)")
     public void verifyEmailCode_expired() {
         // given
         String email = "user@test.com";
         ApplicantEmailVerifyRequestDTO request = new ApplicantEmailVerifyRequestDTO(email, "123456");
 
-        when(emailVerificationRepository.findAndDeleteCode(email)).thenReturn(Optional.empty());
+        when(emailVerificationRepository.findCodeByEmail(email)).thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> applicantAuthService.verifyEmailCode(request))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.VERIFICATION_CODE_EXPIRED.defaultMessage);
 
+        verify(emailVerificationRepository, never()).incrementAttemptCount(anyString(), any(Duration.class));
         verify(emailVerificationRepository, never()).saveVerifiedToken(anyString(), anyString(), any(Duration.class));
     }
 
     @Test
-    @DisplayName("입력 코드가 저장된 코드와 다르면 INVALID_VERIFICATION_CODE 예외 발생 (코드는 이미 burn 됨)")
+    @DisplayName("코드 불일치 시 INVALID_VERIFICATION_CODE 예외 (코드/카운터는 살아있음)")
     public void verifyEmailCode_invalidCode() {
         // given
         String email = "user@test.com";
         ApplicantEmailVerifyRequestDTO request = new ApplicantEmailVerifyRequestDTO(email, "111111");
 
-        when(emailVerificationRepository.findAndDeleteCode(email)).thenReturn(Optional.of("999999"));
+        when(emailVerificationRepository.findCodeByEmail(email)).thenReturn(Optional.of("999999"));
+        when(emailVerificationRepository.incrementAttemptCount(eq(email), any(Duration.class))).thenReturn(2L);
 
         // when & then
         assertThatThrownBy(() -> applicantAuthService.verifyEmailCode(request))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.INVALID_VERIFICATION_CODE.defaultMessage);
 
-        verify(emailVerificationRepository).findAndDeleteCode(email);
+        verify(emailVerificationRepository).findCodeByEmail(email);
+        verify(emailVerificationRepository).incrementAttemptCount(eq(email), any(Duration.class));
+        verify(emailVerificationRepository, never()).deleteCode(anyString());
+        verify(emailVerificationRepository, never()).deleteAttemptCount(anyString());
+        verify(emailVerificationRepository, never()).saveVerifiedToken(anyString(), anyString(), any(Duration.class));
+    }
+
+    @Test
+    @DisplayName("시도 횟수 한도 초과 시 코드/카운터 소각 후 TOO_MANY_VERIFICATION_ATTEMPTS 예외")
+    public void verifyEmailCode_tooManyAttempts() {
+        // given
+        String email = "user@test.com";
+        ApplicantEmailVerifyRequestDTO request = new ApplicantEmailVerifyRequestDTO(email, "111111");
+
+        when(emailVerificationRepository.findCodeByEmail(email)).thenReturn(Optional.of("999999"));
+        // 최대 5회 -> 6번째 시도부터 차단
+        when(emailVerificationRepository.incrementAttemptCount(eq(email), any(Duration.class))).thenReturn(6L);
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.verifyEmailCode(request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.TOO_MANY_VERIFICATION_ATTEMPTS.defaultMessage);
+
+        verify(emailVerificationRepository).deleteCode(email);
+        verify(emailVerificationRepository).deleteAttemptCount(email);
         verify(emailVerificationRepository, never()).saveVerifiedToken(anyString(), anyString(), any(Duration.class));
     }
 
