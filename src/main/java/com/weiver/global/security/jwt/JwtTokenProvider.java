@@ -19,12 +19,33 @@ import java.util.Date;
 @EnableConfigurationProperties(JwtProperties.class)
 public class JwtTokenProvider {
 
+    private final JwtProperties jwtProperties;
     private final SecretKey secretKey;
 
     public JwtTokenProvider(JwtProperties jwtProperties) {
+        this.jwtProperties = jwtProperties;
         this.secretKey = Keys.hmacShaKeyFor(
                 jwtProperties.secret().getBytes(StandardCharsets.UTF_8)
         );
+    }
+
+    public String createAccessToken(Long userId, UserRole role) {
+        return createToken(userId, role, jwtProperties.accessTokenExpiration());
+    }
+
+    public String createRefreshToken(Long userId, UserRole role) {
+        return createToken(userId, role, jwtProperties.refreshTokenExpiration());
+    }
+
+    public void validateRefreshToken(String token) {
+        try {
+            getClaims(token);
+        } catch (BusinessException e) {
+            if(e.getCode() == ErrorCode.TOKEN_EXPIRED) {
+                throw new BusinessException(ErrorCode.REFRESH_TOKEN_EXPIRED);
+            }
+            throw e;
+        }
     }
 
     public long getRemainingExpiration(String token) {
@@ -45,6 +66,19 @@ public class JwtTokenProvider {
 
     public UserRole getRole(String token) {
         return UserRole.valueOf(getClaims(token).get("role", String.class));
+    }
+
+    private String createToken(Long userId, UserRole role, long expirationMillis) {
+        Date now = new Date();
+        Date expiration = new Date(now.getTime() + expirationMillis);
+
+        return Jwts.builder()
+                .subject(String.valueOf(userId))
+                .claim("role", role.name())
+                .issuedAt(now)
+                .expiration(expiration)
+                .signWith(secretKey)
+                .compact();
     }
 
     private Claims getClaims(String token) {
