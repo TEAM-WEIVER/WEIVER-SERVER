@@ -11,6 +11,9 @@ server:
     include-stacktrace: always
 
 spring:
+  config:
+    activate:
+      on-profile: local
   # ---------------------------------------------------------------------------
   # PostgreSQL - 로컬 Docker 컨테이너
   # ---------------------------------------------------------------------------
@@ -34,7 +37,7 @@ spring:
   # ---------------------------------------------------------------------------
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: create-drop
     show-sql: true
     open-in-view: false
     properties:
@@ -92,6 +95,20 @@ ai:
 # =============================================================================
 jwt:
   secret: local-dev-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
+  access-token-expiration: 3600000 # 1 hour
+  refresh-token-expiration: 1209600000 # 14 days
+
+# =============================================================================
+# COOKIE 설정
+# =============================================================================
+cookie:
+  refresh-token:
+    name: refreshToken
+    path: /
+    http-only: true
+    secure: false
+    same-site: Lax
+    max-age: 1209600 # 14 days
 
 # =============================================================================
 # Swagger / SpringDoc 설정

@@ -62,7 +62,7 @@ public class AuthControllerTest {
         when(cookieProvider.createExpiredRefreshTokenCookie()).thenReturn(expiredCookie);
 
         // when & then
-        mockMvc.perform(post("/auth/logout")
+        mockMvc.perform(post("/api/auth/logout")
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -83,7 +83,7 @@ public class AuthControllerTest {
                 .thenThrow(new BusinessException(ErrorCode.INVALID_TOKEN));
 
         // when & then
-        mockMvc.perform(post("/auth/logout")
+        mockMvc.perform(post("/api/auth/logout")
                 .header(HttpHeaders.AUTHORIZATION, "invalidToken")
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isUnauthorized())
