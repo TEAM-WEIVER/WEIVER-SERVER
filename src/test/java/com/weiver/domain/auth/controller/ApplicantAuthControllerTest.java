@@ -1,0 +1,258 @@
+package com.weiver.domain.auth.controller;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.weiver.auth.controller.ApplicantAuthController;
+import com.weiver.auth.dto.request.ApplicantAgreementRequestDTO;
+import com.weiver.auth.dto.request.ApplicantEmailSendRequestDTO;
+import com.weiver.auth.dto.request.ApplicantEmailVerifyRequestDTO;
+import com.weiver.auth.dto.request.ApplicantLoginRequestDTO;
+import com.weiver.auth.dto.request.ApplicantSignupRequestDTO;
+import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
+import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
+import com.weiver.auth.service.ApplicantAuthService;
+import com.weiver.auth.service.dto.ApplicantLoginResult;
+import com.weiver.global.common.UserRole;
+import com.weiver.global.exception.BusinessException;
+import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.security.cookie.CookieProvider;
+import com.weiver.global.security.cookie.RefreshTokenCookieResolver;
+import com.weiver.global.security.jwt.BearerTokenResolver;
+import com.weiver.global.security.jwt.JwtAuthenticationFilter;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseCookie;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.hamcrest.Matchers.containsString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@WebMvcTest(ApplicantAuthController.class)
+@AutoConfigureMockMvc(addFilters = false)
+public class ApplicantAuthControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockitoBean private ApplicantAuthService applicantAuthService;
+    @MockitoBean private CookieProvider cookieProvider;
+    @MockitoBean private BearerTokenResolver bearerTokenResolver;
+    @MockitoBean private RefreshTokenCookieResolver refreshTokenCookieResolver;
+    @MockitoBean private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Test
+    @DisplayName("이메일 인증번호 전송 성공 시 200 응답")
+    public void sendEmailCode_success() throws Exception {
+        // given
+        ApplicantEmailSendRequestDTO request = new ApplicantEmailSendRequestDTO("user@test.com");
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/email/send")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("success"))
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.message").value("이메일 인증번호 전송에 성공했습니다."));
+
+        verify(applicantAuthService).sendEmailCode(any(ApplicantEmailSendRequestDTO.class));
+    }
+
+    @Test
+    @DisplayName("엣지 케이스: 이메일 형식 오류 -> 400 Bad Request")
+    public void sendEmailCode_invalidEmail() throws Exception {
+        // given
+        ApplicantEmailSendRequestDTO request = new ApplicantEmailSendRequestDTO("not-email");
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/email/send")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("이메일 인증번호 확인 성공 시 verificationToken 반환")
+    public void verifyEmailCode_success() throws Exception {
+        // given
+        ApplicantEmailVerifyRequestDTO request = new ApplicantEmailVerifyRequestDTO("user@test.com", "123456");
+        when(applicantAuthService.verifyEmailCode(any()))
+                .thenReturn(new ApplicantEmailVerifyResponseDTO("verification-token"));
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.verificationToken").value("verification-token"))
+                .andExpect(jsonPath("$.message").value("이메일 인증번호 확인에 성공했습니다."));
+    }
+
+    @Test
+    @DisplayName("엣지 케이스: 인증번호 만료 시 400 VERIFICATION_CODE_EXPIRED")
+    public void verifyEmailCode_expired() throws Exception {
+        // given
+        ApplicantEmailVerifyRequestDTO request = new ApplicantEmailVerifyRequestDTO("user@test.com", "123456");
+        when(applicantAuthService.verifyEmailCode(any()))
+                .thenThrow(new BusinessException(ErrorCode.VERIFICATION_CODE_EXPIRED));
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("VERIFICATION_CODE_EXPIRED"));
+    }
+
+    @Test
+    @DisplayName("엣지 케이스: 인증번호가 6자리 숫자가 아니면 400 Bad Request")
+    public void verifyEmailCode_invalidCodeFormat() throws Exception {
+        // given
+        ApplicantEmailVerifyRequestDTO request = new ApplicantEmailVerifyRequestDTO("user@test.com", "12ab56");
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/email/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("회원가입 성공 시 201 응답과 ApplicantSignupResponseDTO 반환")
+    public void signup_success() throws Exception {
+        // given
+        ApplicantSignupRequestDTO request = new ApplicantSignupRequestDTO(
+                "new@test.com", "Pass1234!", "Pass1234!", "verification-token", allTrueAgreements()
+        );
+        when(applicantAuthService.signup(any()))
+                .thenReturn(new ApplicantSignupResponseDTO(1L, "new@test.com", UserRole.APPLICANT));
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk()) // ResponseEntity.ok()로 감쌈
+                .andExpect(jsonPath("$.code").value(201))
+                .andExpect(jsonPath("$.data.applicantId").value(1))
+                .andExpect(jsonPath("$.data.email").value("new@test.com"))
+                .andExpect(jsonPath("$.data.role").value("APPLICANT"))
+                .andExpect(jsonPath("$.message").value("회원가입에 성공했습니다."));
+    }
+
+    @Test
+    @DisplayName("엣지 케이스: 비밀번호 복잡도 미달 -> 400 Bad Request")
+    public void signup_weakPassword() throws Exception {
+        // given - 영문만, 숫자/특수문자 없음
+        ApplicantSignupRequestDTO request = new ApplicantSignupRequestDTO(
+                "new@test.com", "onlyletters", "onlyletters", "token", allTrueAgreements()
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("엣지 케이스: 이미 가입된 이메일이면 409 EMAIL_ALREADY_EXISTS")
+    public void signup_emailAlreadyExists() throws Exception {
+        // given
+        ApplicantSignupRequestDTO request = new ApplicantSignupRequestDTO(
+                "exists@test.com", "Pass1234!", "Pass1234!", "token", allTrueAgreements()
+        );
+        when(applicantAuthService.signup(any()))
+                .thenThrow(new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS));
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/signup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("EMAIL_ALREADY_EXISTS"));
+    }
+
+    @Test
+    @DisplayName("로그인 성공 시 accessToken 반환 + RefreshToken 쿠키 설정")
+    public void login_success() throws Exception {
+        // given
+        ApplicantLoginRequestDTO request = new ApplicantLoginRequestDTO("user@test.com", "Pass1234!");
+        when(applicantAuthService.login(any()))
+                .thenReturn(new ApplicantLoginResult("access", "refresh", UserRole.APPLICANT));
+
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "refresh")
+                .path("/").httpOnly(true).secure(false).sameSite("Lax").maxAge(1209600).build();
+        when(cookieProvider.createRefreshTokenCookie("refresh")).thenReturn(refreshCookie);
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("refreshToken=refresh")))
+                .andExpect(jsonPath("$.data.accessToken").value("access"))
+                .andExpect(jsonPath("$.data.role").value("APPLICANT"))
+                .andExpect(jsonPath("$.message").value("로그인에 성공했습니다."));
+    }
+
+    @Test
+    @DisplayName("엣지 케이스: 비밀번호 불일치 시 401 INVALID_PASSWORD")
+    public void login_invalidPassword() throws Exception {
+        // given
+        ApplicantLoginRequestDTO request = new ApplicantLoginRequestDTO("user@test.com", "wrong");
+        when(applicantAuthService.login(any()))
+                .thenThrow(new BusinessException(ErrorCode.INVALID_PASSWORD));
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_PASSWORD"));
+    }
+
+    @Test
+    @DisplayName("회원탈퇴 성공 시 200 응답 + RefreshToken 쿠키 만료")
+    public void withdraw_success() throws Exception {
+        // given
+        ResponseCookie expiredCookie = ResponseCookie.from("refreshToken", "")
+                .path("/").httpOnly(true).secure(false).sameSite("Lax").maxAge(0).build();
+        when(cookieProvider.createExpiredRefreshTokenCookie()).thenReturn(expiredCookie);
+
+        // when & then
+        mockMvc.perform(delete("/api/auth/applicants/me")
+                        .principal(() -> "1"))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("refreshToken=")))
+                .andExpect(jsonPath("$.message").value("회원탈퇴에 성공했습니다."));
+
+        verify(applicantAuthService).withdraw(1L);
+    }
+
+    @Test
+    @DisplayName("엣지 케이스: Principal이 없으면 401 UNAUTHORIZED")
+    public void withdraw_unauthorized() throws Exception {
+        mockMvc.perform(delete("/api/auth/applicants/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
+    }
+
+    private static ApplicantAgreementRequestDTO allTrueAgreements() {
+        return new ApplicantAgreementRequestDTO(true, true, true, true, true, true);
+    }
+}
