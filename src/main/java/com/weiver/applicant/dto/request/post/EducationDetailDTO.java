@@ -44,7 +44,7 @@ public record EducationDetailDTO (
         YearMonth endDate,
 
         @Schema(description = "학력", example = "ACTIVE",
-                allowableValues = {"GRADUATED", "LEAVE_OF_ABSENCE", "GRADUATION_POSTPONED", "ACTIVE"})
+                allowableValues = {"DRAFT", "ACTIVE", "CLOSED"})
         @NotBlank(message = "학력 상태는 필수 입력값입니다.")
         String status){
     public Education toEntity(Applicant applicant){
