@@ -53,27 +53,13 @@ public class WorkExperience extends BaseTimeEntity {
      * 편의 메소드
      * */
     public void updateWorkExperience(WorkExperienceUpdateDetailDTO updateDTO){
-        if(updateDTO.companyName() != null) {
-            this.companyName = updateDTO.companyName();
-        }
-        if(updateDTO.startDate() != null) {
-            this.startDate = updateDTO.startDate();
-        }
-        if(updateDTO.endDate() != null) {
-            this.endDate = updateDTO.endDate();
-        }
-        if(updateDTO.employmentType() != null) {
-            this.employmentType = EmploymentType.valueOf(updateDTO.employmentType());
-        }
-        if(updateDTO.position() != null) {
-            this.position = updateDTO.position();
-        }
-        if(updateDTO.duties() != null) {
-            this.duties = updateDTO.duties();
-        }
-        if(updateDTO.isRecognized() != null) {
-            this.isRecognized = updateDTO.isRecognized();
-        }
+        this.companyName = updateDTO.companyName();
+        this.startDate = updateDTO.startDate();
+        this.endDate = updateDTO.endDate();
+        this.employmentType = EmploymentType.valueOf(updateDTO.employmentType());
+        this.position = updateDTO.position();
+        this.duties = updateDTO.duties();
+        this.isRecognized = updateDTO.isRecognized();
     }
 
 }
