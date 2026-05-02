@@ -1,8 +1,8 @@
-package com.weiver.dashboard.dto.response;
+package com.weiver.jobposting.dto.response;
 
 import com.weiver.jobposting.domain.JobPosting;
 
-public record JobPostingsListResponseDTO(
+public record JobPostingsDetails(
         Long jdId,
         String title,
         String status,
@@ -10,8 +10,8 @@ public record JobPostingsListResponseDTO(
         String detailedJob,
         Long newApplicantCount
 ) {
-    public static JobPostingsListResponseDTO of(JobPosting jobPosting, long newApplicantCount){
-        return new JobPostingsListResponseDTO(
+    public static JobPostingsDetails of(JobPosting jobPosting, long newApplicantCount){
+        return new JobPostingsDetails(
                 jobPosting.getJdId(),
                 jobPosting.getTitle(),
                 jobPosting.getStatus().getDescription(),

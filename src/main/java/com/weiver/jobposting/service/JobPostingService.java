@@ -9,13 +9,25 @@ import com.weiver.jobposting.domain.EmailTemplate;
 import com.weiver.jobposting.domain.JobPosting;
 import com.weiver.jobposting.dto.request.JobPostingRequestDTO;
 import com.weiver.jobposting.dto.request.JobPostingUpdateDTO;
+import com.weiver.jobposting.dto.response.JobPostingPageResponseDTO;
+import com.weiver.jobposting.dto.response.JobPostingsDetails;
 import com.weiver.jobposting.repository.EmailTemplateRepository;
 import com.weiver.jobposting.repository.JobPostingRepository;
+import com.weiver.jobposting.type.JobPostingStatus;
+import com.weiver.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -23,8 +35,9 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class JobPostingService {
 
-    private final JobPostingRepository jobPostingRepository;
     private final EmailTemplateRepository emailTemplateRepository;
+    private final NotificationRepository notificationRepository;
+    private final JobPostingRepository jobPostingRepository;
     private final CompanyRepository companyRepository;
     private final S3Service s3Service;
 
@@ -83,6 +96,47 @@ public class JobPostingService {
 
         jobPosting.updateJobPosting(updateDTO);
         emailTemplate.updateEmailTemplate(updateDTO, finalBannerUrl);
+    }
+    
+    /**
+     * 기업 공고 조회 API
+     * */
+    @Transactional(readOnly = true)
+    public JobPostingPageResponseDTO searchJobPostings(Long companyId, JobPostingStatus status, int page, int size){
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        Page<JobPosting> jobPostingPage;
+        if (status != null) {
+            jobPostingPage = jobPostingRepository.findByCompany_CompanyIdAndStatus(companyId, status, pageable);
+        } else {
+            jobPostingPage = jobPostingRepository.findByCompany_CompanyId(companyId, pageable);
+        }
+
+        List<Long> jdIds = jobPostingPage.getContent().stream()
+                .map(JobPosting::getJdId)
+                .toList();
+
+        Map<Long, Long> newApplicantCountMap;
+
+        if (!jdIds.isEmpty()) {
+            List<Object[]> counts = notificationRepository.countNewApplicantsByJdIds(jdIds);
+            newApplicantCountMap = counts.stream()
+                    .collect(Collectors.toMap(
+                            row -> ((Number) row[0]).longValue(),
+                            row -> ((Number) row[1]).longValue()
+                    ));
+        } else {
+            newApplicantCountMap = Map.of();
+        }
+
+        List<JobPostingsDetails> detailsList = jobPostingPage.getContent().stream()
+                .map(jobPosting -> {
+                    long newApplicantCount = newApplicantCountMap.getOrDefault(jobPosting.getJdId(), 0L); // 새로운 지원자가 없으면 0
+                    return JobPostingsDetails.of(jobPosting, newApplicantCount);
+                })
+                .toList();
+
+        return JobPostingPageResponseDTO.of(jobPostingPage, detailsList);
     }
 
 }

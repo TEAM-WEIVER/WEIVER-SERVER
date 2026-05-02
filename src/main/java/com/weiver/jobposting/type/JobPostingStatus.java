@@ -9,8 +9,7 @@ public enum JobPostingStatus {
 
     DRAFT("작성중"),
     ACTIVE("공개중"),
-    CLOSED("마감"),
-    ON_HOLD("보류");
+    CLOSED("마감");
 
     private final String description;
 

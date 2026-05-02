@@ -5,7 +5,9 @@ import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.jobposting.dto.request.JobPostingRequestDTO;
 import com.weiver.jobposting.dto.request.JobPostingUpdateDTO;
+import com.weiver.jobposting.dto.response.JobPostingPageResponseDTO;
 import com.weiver.jobposting.service.JobPostingService;
+import com.weiver.jobposting.type.JobPostingStatus;
 import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +47,20 @@ public class JobPostingController {
         jobPostingService.updateJobPosting(jdId, companyId, updateDTO, emailBannerImage);
 
         return ResponseEntity.ok(ApiResponse.success("채용 공고가 성공적으로 수정되었습니다."));
+    }
+
+    @GetMapping
+    public ResponseEntity<ApiResponse<JobPostingPageResponseDTO>> getJobPostings(
+            @RequestParam(required = false) JobPostingStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "3") int size,
+            @Parameter(hidden = true) Principal principal
+    ) {
+        Long companyId = extractedId(principal);
+
+        JobPostingPageResponseDTO responseDTO = jobPostingService.searchJobPostings(companyId, status, page, size);
+
+        return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
 
     private static Long extractedId(Principal principal) {
