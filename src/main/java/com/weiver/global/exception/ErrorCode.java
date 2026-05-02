@@ -19,6 +19,7 @@ public enum ErrorCode {
     TOKEN_REUSE_DETECTED("TOKEN_REUSE_DETECTED", HttpStatus.UNAUTHORIZED, "리프레시 토큰 재사용이 감지되었습니다. 다시 로그인해 주세요."),
 
     // ===================== EMAIL =====================
+    EMAIL_NOT_FOUND("EMAIL_NOT_FOUND", HttpStatus.NOT_FOUND, "이메일 템플릿이 없습니다."),
     EMAIL_ALREADY_EXISTS("EMAIL_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     EMAIL_SEND_FAILED("EMAIL_SEND_FAILED", HttpStatus.INTERNAL_SERVER_ERROR, "이메일 인증번호 전송에 실패했습니다."),
     INVALID_VERIFICATION_CODE("INVALID_VERIFICATION_CODE", HttpStatus.BAD_REQUEST, "이메일 인증번호가 올바르지 않습니다."),
