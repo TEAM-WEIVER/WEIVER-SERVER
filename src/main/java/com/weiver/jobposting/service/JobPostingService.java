@@ -10,6 +10,7 @@ import com.weiver.jobposting.domain.JobPosting;
 import com.weiver.jobposting.dto.request.JobPostingRequestDTO;
 import com.weiver.jobposting.dto.request.JobPostingUpdateDTO;
 import com.weiver.jobposting.dto.response.JobPostingPageResponseDTO;
+import com.weiver.jobposting.dto.response.JobPostingResponseDTO;
 import com.weiver.jobposting.dto.response.JobPostingsDetails;
 import com.weiver.jobposting.repository.EmailTemplateRepository;
 import com.weiver.jobposting.repository.JobPostingRepository;
@@ -68,15 +69,15 @@ public class JobPostingService {
      * */
     public void updateJobPosting(Long jdId, Long companyId, JobPostingUpdateDTO updateDTO,
                                  MultipartFile bannerImage){
-        JobPosting jobPosting = jobPostingRepository.findById(jdId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.JOB_POSTING_NOT_FOUND));
+        EmailTemplate emailTemplate = emailTemplateRepository.findWithJobPostingByJdId(jdId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_NOT_FOUND));
+
+        JobPosting jobPosting = emailTemplate.getJobPosting();
 
         if (!jobPosting.getCompany().getCompanyId().equals(companyId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "공고 수정 권한이 없습니다.");
         }
 
-        EmailTemplate emailTemplate = emailTemplateRepository.findByJobPosting(jobPosting)
-                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_NOT_FOUND));
 
         String finalBannerUrl = emailTemplate.getEmailBannerUrl();
 
@@ -102,7 +103,7 @@ public class JobPostingService {
      * 기업 공고 조회 API
      * */
     @Transactional(readOnly = true)
-    public JobPostingPageResponseDTO searchJobPostings(Long companyId, JobPostingStatus status, int page, int size){
+    public JobPostingPageResponseDTO searchJobPostingsList(Long companyId, JobPostingStatus status, int page, int size){
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         Page<JobPosting> jobPostingPage;
@@ -137,6 +138,20 @@ public class JobPostingService {
                 .toList();
 
         return JobPostingPageResponseDTO.of(jobPostingPage, detailsList);
+    }
+
+    @Transactional(readOnly = true)
+    public JobPostingResponseDTO searchJobPosting(Long companyId, Long jdId){
+        EmailTemplate emailTemplate = emailTemplateRepository.findWithJobPostingByJdId(jdId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_NOT_FOUND));
+
+        JobPosting jobPosting = emailTemplate.getJobPosting();
+
+        if (!jobPosting.getCompany().getCompanyId().equals(companyId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "해당 공고를 열람할 권한이 없습니다.");
+        }
+
+        return JobPostingResponseDTO.of(jobPosting, emailTemplate);
     }
 
 }

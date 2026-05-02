@@ -6,6 +6,7 @@ import com.weiver.global.exception.ErrorCode;
 import com.weiver.jobposting.dto.request.JobPostingRequestDTO;
 import com.weiver.jobposting.dto.request.JobPostingUpdateDTO;
 import com.weiver.jobposting.dto.response.JobPostingPageResponseDTO;
+import com.weiver.jobposting.dto.response.JobPostingResponseDTO;
 import com.weiver.jobposting.service.JobPostingService;
 import com.weiver.jobposting.type.JobPostingStatus;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -50,15 +51,25 @@ public class JobPostingController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<JobPostingPageResponseDTO>> getJobPostings(
+    public ResponseEntity<ApiResponse<JobPostingPageResponseDTO>> getJobPostingsList(
             @RequestParam(required = false) JobPostingStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "3") int size,
-            @Parameter(hidden = true) Principal principal
-    ) {
+            @Parameter(hidden = true) Principal principal) {
         Long companyId = extractedId(principal);
 
-        JobPostingPageResponseDTO responseDTO = jobPostingService.searchJobPostings(companyId, status, page, size);
+        JobPostingPageResponseDTO responseDTO = jobPostingService.searchJobPostingsList(companyId, status, page, size);
+
+        return ResponseEntity.ok(ApiResponse.success(responseDTO));
+    }
+
+    @GetMapping("/{jdId}")
+    public ResponseEntity<ApiResponse<JobPostingResponseDTO>> getJobPosting(
+            @Parameter(hidden = true) Principal principal,
+            @PathVariable Long jdId){
+        Long companyId = extractedId(principal);
+
+        JobPostingResponseDTO responseDTO = jobPostingService.searchJobPosting(companyId, jdId);
 
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
