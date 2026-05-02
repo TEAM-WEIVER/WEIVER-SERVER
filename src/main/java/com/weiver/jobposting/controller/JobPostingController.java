@@ -35,7 +35,8 @@ public class JobPostingController {
             description = "채용 공고 기본 정보와 합격/불합격 이메일 템플릿을 한 번에 생성합니다.<br>" +
                     "**[주의] Content-Type은 multipart/form-data로 전송해야 합니다.**<br>" +
                     "1. `requestDTO`: application/json 타입의 Blob 객체로 변환하여 전송<br>" +
-                    "2. `emailBannerImage`: 이미지 파일 객체 전송 (선택 사항)"
+                    "2. `emailBannerImage`: 이미지 파일 객체 전송 (선택 사항)<br>" +
+                    "3. `isTemp`: 임시저장 여부 (기본값: false)"
     )
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<Void>> saveJobPosting(
@@ -45,10 +46,13 @@ public class JobPostingController {
             @Parameter(description = "이메일 상단 배너 이미지 파일 (선택)", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE))
             @RequestPart(value = "emailBannerImage", required = false) MultipartFile emailBannerImage,
 
+            @Parameter(description = "임시 저장 여부 (기본값 : false) ")
+            @RequestParam(value = "isTemp", defaultValue = "false") boolean isTemp,
+
             @Parameter(hidden = true) Principal principal) {
 
         Long companyId = extractedId(principal);
-        jobPostingService.saveJobPosting(companyId, requestDTO, emailBannerImage);
+        jobPostingService.saveJobPosting(isTemp, companyId, requestDTO, emailBannerImage);
         return ResponseEntity.ok(ApiResponse.success("채용 공고가 성공적으로 등록되었습니다."));
     }
 

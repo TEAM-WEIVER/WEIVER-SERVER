@@ -45,7 +45,7 @@ public class JobPostingService {
     /**
      * 기업 공고 통합 생성 API
      * */
-    public void saveJobPosting(Long companyId, JobPostingRequestDTO requestDTO,
+    public void saveJobPosting(Boolean isTemp, Long companyId, JobPostingRequestDTO requestDTO,
                                MultipartFile bannerImage){
 
         String bannerImageUrl = null;
@@ -56,7 +56,11 @@ public class JobPostingService {
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMPANY_NOT_FOUND));
 
-        JobPosting jobPosting = requestDTO.toJobPosting(company);
+        JobPostingStatus status = JobPostingStatus.ACTIVE;
+        if(isTemp){
+            status = JobPostingStatus.DRAFT;
+        }
+        JobPosting jobPosting = requestDTO.toJobPosting(company, status);
 
         JobPosting savedJobPosting = jobPostingRepository.save(jobPosting);
 

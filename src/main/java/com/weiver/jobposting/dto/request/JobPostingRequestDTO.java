@@ -53,12 +53,12 @@ public record JobPostingRequestDTO(
         @NotBlank String emailContent
 
 ) {
-    public JobPosting toJobPosting(Company company){
+    public JobPosting toJobPosting(Company company, JobPostingStatus status){
         return JobPosting.builder()
                 .title(this.title)
+                .status(status)
                 .jobCategory(this.jobCategory)
                 .deadline(this.deadline)
-                .status(JobPostingStatus.ACTIVE)
                 .jobDescription(this.jobDescription)
                 .qualifications(this.qualifications)
                 .requirements(this.requirements)
@@ -66,6 +66,7 @@ public record JobPostingRequestDTO(
                 .competencyPriorities(this.competencyPriorities)
                 .requiredTech(this.requiredTechs)
                 .traitPriorities(this.traitPriorities)
+                .company(company)
                 .build();
     }
 
