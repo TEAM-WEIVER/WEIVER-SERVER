@@ -20,7 +20,8 @@ public class WhiteListConfig {
     // 인증 없이 접근 가능한 공통 Auth API
     public static List<String> authWhitelist() {
         return List.of(
-                "/api/auth/reissue"
+                "/api/auth/reissue",
+                "/api/auth/csrf"
         );
     }
 
