@@ -39,10 +39,6 @@ public class AuthController {
     ) {
         String accessToken = bearerTokenResolver.resolve(authorizationHeader);
 
-        if(accessToken == null) {
-            throw new BusinessException(ErrorCode.INVALID_TOKEN);
-        }
-
         authService.logout(accessToken);
 
         ResponseCookie expiredRefreshTokenCookie = cookieProvider.createExpiredRefreshTokenCookie();
@@ -61,11 +57,6 @@ public class AuthController {
             HttpServletResponse response
     ) {
         String refreshToken = refreshTokenCookieResolver.resolve(request);
-
-        if(refreshToken == null) {
-            throw new BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
-        }
-
         TokenReissueResult tokenReissueResult = authService.reissueToken(refreshToken);
 
         ResponseCookie refreshTokenCookie = cookieProvider.createRefreshTokenCookie(tokenReissueResult.refreshToken());
