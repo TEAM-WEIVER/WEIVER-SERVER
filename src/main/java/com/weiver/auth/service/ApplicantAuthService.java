@@ -16,6 +16,7 @@ import com.weiver.global.mail.MailMessage;
 import com.weiver.global.mail.MailSender;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
+import com.weiver.global.security.jwt.repository.TokenVersionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,6 +37,7 @@ public class ApplicantAuthService {
     private final ApplicantRepository applicantRepository;
     private final ApplicantAgreementRepository applicantAgreementRepository;
     private final ApplicantEmailVerificationRepository emailVerificationRepository;
+    private final TokenVersionRepository tokenVersionRepository;
     private final ApplicantVerificationCodeGenerator codeGenerator;
     private final MailSender mailSender;
     private final PasswordEncoder passwordEncoder;
@@ -148,13 +150,18 @@ public class ApplicantAuthService {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
         }
 
-        String accessToken = jwtTokenProvider.createAccessToken(applicant.getApplicantId(), applicant.getRole());
-        String refreshToken = jwtTokenProvider.createRefreshToken(applicant.getApplicantId(), applicant.getRole());
-        long refreshTokenTtlMillis = jwtTokenProvider.getRemainingExpiration(refreshToken);
+        Long applicantId = applicant.getApplicantId();
+        UserRole userRole = applicant.getRole();
+
+        long tokenVersion = tokenVersionRepository.getCurrentVersion(applicantId, userRole);
+
+        String accessToken = jwtTokenProvider.createAccessToken(applicantId, userRole, tokenVersion);
+        String refreshToken = jwtTokenProvider.createRefreshToken(applicantId, userRole, tokenVersion);
+        long refreshTokenTtlMillis = jwtTokenProvider.getRefreshTokenExpirationMillis();
 
         refreshTokenRepository.save(
-                applicant.getApplicantId(),
-                applicant.getRole(),
+                applicantId,
+                userRole,
                 refreshToken,
                 refreshTokenTtlMillis
         );
@@ -162,7 +169,7 @@ public class ApplicantAuthService {
         return new ApplicantLoginResult(
                 accessToken,
                 refreshToken,
-                applicant.getRole()
+                userRole
         );
     }
 

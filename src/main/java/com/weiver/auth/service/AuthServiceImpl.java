@@ -8,6 +8,7 @@ import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.BlacklistTokenRepository;
 import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
+import com.weiver.global.security.jwt.repository.TokenVersionRepository;
 import com.weiver.global.security.jwt.type.RefreshTokenRotationResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtTokenProvider jwtTokenProvider;
     private final BlacklistTokenRepository blacklistTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final TokenVersionRepository tokenVersionRepository;
     private final AuthUserValidator authUserValidator;
 
     @Override
@@ -49,8 +51,10 @@ public class AuthServiceImpl implements AuthService {
 
         authUserValidator.validateExist(userId, userRole);
 
-        String newAccessToken = jwtTokenProvider.createAccessToken(userId, userRole);
-        String newRefreshToken = jwtTokenProvider.createRefreshToken(userId, userRole);
+        long tokenVersion = tokenVersionRepository.getCurrentVersion(userId, userRole);
+
+        String newAccessToken = jwtTokenProvider.createAccessToken(userId, userRole, tokenVersion);
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(userId, userRole, tokenVersion);
         long refreshTokenTtlMillis = jwtTokenProvider.getRefreshTokenExpirationMillis();
 
         RefreshTokenRotationResult rotationResult = refreshTokenRepository.rotateIfMatches(
@@ -66,6 +70,7 @@ public class AuthServiceImpl implements AuthService {
             case NOT_FOUND -> throw new BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
             case MISMATCH, CONCURRENT_MODIFIED -> {
                 refreshTokenRepository.deleteByUserId(userId, userRole);
+                tokenVersionRepository.increaseVersion(userId, userRole);
                 throw new BusinessException(ErrorCode.TOKEN_REUSE_DETECTED);
             }
         };
