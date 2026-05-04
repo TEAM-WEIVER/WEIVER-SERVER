@@ -1,10 +1,14 @@
 package com.weiver.global.exception;
 
+import com.weiver.global.security.cookie.CookieProvider;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolationException;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -23,17 +27,27 @@ import java.util.List;
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    private final CookieProvider cookieProvider;
 
     // ===================== 우리가 만든 예외 =====================
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(
             BusinessException ex,
-            HttpServletRequest request) {
+            HttpServletRequest request,
+            HttpServletResponse response) {
 
         log.warn("[BusinessException] errorCode={}, message={}, path={}",
                 ex.getCode().code, ex.getMessage(), request.getRequestURI());
+
+        // 토큰 재사용 감지 시 리프레시 토큰 쿠키 만료
+        if(ex.getCode() == ErrorCode.TOKEN_REUSE_DETECTED) {
+            ResponseCookie expiredRefreshTokenCookie = cookieProvider.createExpiredRefreshTokenCookie();
+            response.addHeader(HttpHeaders.SET_COOKIE, expiredRefreshTokenCookie.toString());
+        }
 
         return ResponseEntity
                 .status(ex.getCode().httpStatus)
