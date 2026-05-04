@@ -54,6 +54,10 @@ public class JwtTokenProvider {
         return expiration.getTime() - System.currentTimeMillis();
     }
 
+    public long getRefreshTokenExpirationMillis() {
+        return jwtProperties.refreshTokenExpiration();
+    }
+
     public Long getUserId(String token) {
         String subject = getClaims(token).getSubject();
 

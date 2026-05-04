@@ -24,6 +24,10 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public void logout(String accessToken) {
 
+        if(accessToken == null || accessToken.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
+
         Long userId = jwtTokenProvider.getUserId(accessToken);
         UserRole userRole = jwtTokenProvider.getRole(accessToken);
         long ttlMillis = jwtTokenProvider.getRemainingExpiration(accessToken);
@@ -47,7 +51,7 @@ public class AuthServiceImpl implements AuthService {
 
         String newAccessToken = jwtTokenProvider.createAccessToken(userId, userRole);
         String newRefreshToken = jwtTokenProvider.createRefreshToken(userId, userRole);
-        long refreshTokenTtlMillis = jwtTokenProvider.getRemainingExpiration(refreshToken);
+        long refreshTokenTtlMillis = jwtTokenProvider.getRefreshTokenExpirationMillis();
 
         RefreshTokenRotationResult rotationResult = refreshTokenRepository.rotateIfMatches(
                 userId,
