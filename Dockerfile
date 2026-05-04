@@ -1,9 +1,11 @@
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jdk-jammy
 
 WORKDIR /app
 
-COPY build/libs/*SNAPSHOT.jar app.jar
-
 ENV TZ=Asia/Seoul
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ARG JAR_FILE=build/libs/*.jar
+COPY ${JAR_FILE} app.jar
+
+ENTRYPOINT ["java", "-jar", "-Duser.timezone=Asia/Seoul", "app.jar"]
