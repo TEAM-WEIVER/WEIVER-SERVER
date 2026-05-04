@@ -15,6 +15,7 @@ import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
 import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.ApplicantVerificationCodeGenerator;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
+import com.weiver.global.auth.ApplicantProvider;
 import com.weiver.global.common.UserRole;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -62,6 +63,7 @@ public class ApplicantAuthServiceTest {
     @Mock private JwtTokenProvider jwtTokenProvider;
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private TokenVersionRepository tokenVersionRepository;
+    @Mock private ApplicantProvider applicantProvider;
 
     @Test
     @DisplayName("이메일 인증번호 전송 성공 시 시도 카운터 초기화 후 코드 저장 + 메일 발송")
@@ -353,12 +355,14 @@ public class ApplicantAuthServiceTest {
         // given
         String email = "user@test.com";
         String rawPassword = "Pass1234!";
+        String publicId = "uuid-applicant-7";
         ApplicantLoginRequestDTO request = new ApplicantLoginRequestDTO(email, rawPassword);
 
         Applicant applicant = Applicant.builder()
                 .email(email)
                 .password("encoded")
                 .role(UserRole.APPLICANT)
+                .publicId(publicId)
                 .build();
         ReflectionTestUtils.setField(applicant, "applicantId", 7L);
 
@@ -367,9 +371,9 @@ public class ApplicantAuthServiceTest {
 
         when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.of(applicant));
         when(passwordEncoder.matches(rawPassword, "encoded")).thenReturn(true);
-        when(tokenVersionRepository.getCurrentVersion(7L, UserRole.APPLICANT)).thenReturn(tokenVersion);
-        when(jwtTokenProvider.createAccessToken(7L, UserRole.APPLICANT, tokenVersion)).thenReturn("access");
-        when(jwtTokenProvider.createRefreshToken(7L, UserRole.APPLICANT, tokenVersion)).thenReturn("refresh");
+        when(tokenVersionRepository.getCurrentVersion(publicId, UserRole.APPLICANT)).thenReturn(tokenVersion);
+        when(jwtTokenProvider.createAccessToken(publicId, UserRole.APPLICANT, tokenVersion)).thenReturn("access");
+        when(jwtTokenProvider.createRefreshToken(publicId, UserRole.APPLICANT, tokenVersion)).thenReturn("refresh");
         when(jwtTokenProvider.getRefreshTokenExpirationMillis()).thenReturn(ttlMillis);
 
         // when
@@ -379,8 +383,8 @@ public class ApplicantAuthServiceTest {
         assertThat(result.accessToken()).isEqualTo("access");
         assertThat(result.refreshToken()).isEqualTo("refresh");
         assertThat(result.role()).isEqualTo(UserRole.APPLICANT);
-        verify(refreshTokenRepository).save(7L, UserRole.APPLICANT, "refresh", ttlMillis);
-        verify(tokenVersionRepository, never()).increaseVersion(anyLong(), any(UserRole.class));
+        verify(refreshTokenRepository).save(publicId, UserRole.APPLICANT, "refresh", ttlMillis);
+        verify(tokenVersionRepository, never()).increaseVersion(anyString(), any(UserRole.class));
     }
 
     @Test
@@ -395,8 +399,8 @@ public class ApplicantAuthServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.APPLICANT_NOT_FOUND.defaultMessage);
 
-        verify(jwtTokenProvider, never()).createAccessToken(anyLong(), any(UserRole.class), anyLong());
-        verify(refreshTokenRepository, never()).save(anyLong(), any(UserRole.class), anyString(), anyLong());
+        verify(jwtTokenProvider, never()).createAccessToken(anyString(), any(UserRole.class), anyLong());
+        verify(refreshTokenRepository, never()).save(anyString(), any(UserRole.class), anyString(), anyLong());
     }
 
     @Test
@@ -419,30 +423,30 @@ public class ApplicantAuthServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.INVALID_PASSWORD.defaultMessage);
 
-        verify(jwtTokenProvider, never()).createAccessToken(anyLong(), any(UserRole.class), anyLong());
-        verify(refreshTokenRepository, never()).save(anyLong(), any(UserRole.class), anyString(), anyLong());
+        verify(jwtTokenProvider, never()).createAccessToken(anyString(), any(UserRole.class), anyLong());
+        verify(refreshTokenRepository, never()).save(anyString(), any(UserRole.class), anyString(), anyLong());
     }
 
     @Test
     @DisplayName("회원탈퇴 성공 시 RefreshToken 삭제 후 Applicant를 soft-delete 처리한다.")
     public void withdraw_success() {
         // given
-        Long applicantId = 5L;
+        String publicId = "uuid-applicant-5";
         Applicant applicant = Applicant.builder()
                 .email("user@test.com")
                 .password("encoded")
                 .role(UserRole.APPLICANT)
+                .publicId(publicId)
                 .build();
-        ReflectionTestUtils.setField(applicant, "applicantId", applicantId);
+        ReflectionTestUtils.setField(applicant, "applicantId", 5L);
 
-        when(applicantRepository.findByApplicantIdAndDeletedFalse(applicantId))
-                .thenReturn(Optional.of(applicant));
+        when(applicantProvider.findByPublicId(publicId)).thenReturn(applicant);
 
         // when
-        applicantAuthService.withdraw(applicantId);
+        applicantAuthService.withdraw(publicId);
 
         // then
-        verify(refreshTokenRepository).deleteByUserId(applicantId, UserRole.APPLICANT);
+        verify(refreshTokenRepository).deleteByPublicId(publicId, UserRole.APPLICANT);
         assertThat(applicant.isDeleted()).isTrue();
         assertThat(applicant.getDeletedAt()).isNotNull();
     }
@@ -451,14 +455,16 @@ public class ApplicantAuthServiceTest {
     @DisplayName("탈퇴 대상 사용자가 없으면 APPLICANT_NOT_FOUND 예외")
     public void withdraw_applicantNotFound() {
         // given
-        when(applicantRepository.findByApplicantIdAndDeletedFalse(99L)).thenReturn(Optional.empty());
+        String publicId = "uuid-missing";
+        when(applicantProvider.findByPublicId(publicId))
+                .thenThrow(new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
 
         // when & then
-        assertThatThrownBy(() -> applicantAuthService.withdraw(99L))
+        assertThatThrownBy(() -> applicantAuthService.withdraw(publicId))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.APPLICANT_NOT_FOUND.defaultMessage);
 
-        verify(refreshTokenRepository, never()).deleteByUserId(anyLong(), any(UserRole.class));
+        verify(refreshTokenRepository, never()).deleteByPublicId(anyString(), any(UserRole.class));
     }
 
     private static ApplicantAgreementRequestDTO allTrueAgreements() {

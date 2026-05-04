@@ -35,18 +35,18 @@ public class JwtTokenProviderTest {
     // ===================== createToken =====================
 
     @Test
-    @DisplayName("createAccessToken: subject/role/tokenVersion claim과 ACCESS_TOKEN_EXPIRATION 만료시각으로 발급")
+    @DisplayName("createAccessToken: subject(publicId)/role/tokenVersion claim과 ACCESS_TOKEN_EXPIRATION 만료시각으로 발급")
     public void createAccessToken_success() {
         // given
-        Long userId = 1L;
+        String publicId = "uuid-applicant-1";
         UserRole role = UserRole.APPLICANT;
         long tokenVersion = 3L;
 
         // when
-        String token = jwtTokenProvider.createAccessToken(userId, role, tokenVersion);
+        String token = jwtTokenProvider.createAccessToken(publicId, role, tokenVersion);
 
         // then
-        assertThat(jwtTokenProvider.getUserId(token)).isEqualTo(userId);
+        assertThat(jwtTokenProvider.getPublicId(token)).isEqualTo(publicId);
         assertThat(jwtTokenProvider.getRole(token)).isEqualTo(role);
         assertThat(jwtTokenProvider.getTokenVersion(token)).isEqualTo(tokenVersion);
 
@@ -61,15 +61,15 @@ public class JwtTokenProviderTest {
     @DisplayName("createRefreshToken: REFRESH_TOKEN_EXPIRATION 만료시각으로 발급")
     public void createRefreshToken_success() {
         // given
-        Long userId = 7L;
+        String publicId = "uuid-company-7";
         UserRole role = UserRole.COMPANY;
         long tokenVersion = 0L;
 
         // when
-        String token = jwtTokenProvider.createRefreshToken(userId, role, tokenVersion);
+        String token = jwtTokenProvider.createRefreshToken(publicId, role, tokenVersion);
 
         // then
-        assertThat(jwtTokenProvider.getUserId(token)).isEqualTo(userId);
+        assertThat(jwtTokenProvider.getPublicId(token)).isEqualTo(publicId);
         assertThat(jwtTokenProvider.getRole(token)).isEqualTo(role);
         assertThat(jwtTokenProvider.getTokenVersion(token)).isEqualTo(tokenVersion);
         assertThat(jwtTokenProvider.getRemainingExpiration(token))
@@ -83,7 +83,7 @@ public class JwtTokenProviderTest {
     @DisplayName("validateRefreshToken: 유효한 토큰이면 예외 없이 통과")
     public void validateRefreshToken_valid() {
         // given
-        String token = jwtTokenProvider.createRefreshToken(1L, UserRole.APPLICANT, 0L);
+        String token = jwtTokenProvider.createRefreshToken("uuid-applicant-1", UserRole.APPLICANT, 0L);
 
         // when & then
         jwtTokenProvider.validateRefreshToken(token);
@@ -93,7 +93,7 @@ public class JwtTokenProviderTest {
     @DisplayName("validateRefreshToken: 만료된 토큰이면 REFRESH_TOKEN_EXPIRED 예외")
     public void validateRefreshToken_expired() {
         // given
-        String expiredToken = buildExpiredToken(1L, UserRole.APPLICANT, 0L);
+        String expiredToken = buildExpiredToken("uuid-applicant-1", UserRole.APPLICANT, 0L);
 
         // when & then
         assertThatThrownBy(() -> jwtTokenProvider.validateRefreshToken(expiredToken))
@@ -116,7 +116,7 @@ public class JwtTokenProviderTest {
     @DisplayName("getRemainingExpiration: 발급 직후 access 토큰의 남은 시간은 ACCESS_TOKEN_EXPIRATION 이하")
     public void getRemainingExpiration_freshToken() {
         // given
-        String token = jwtTokenProvider.createAccessToken(1L, UserRole.APPLICANT, 0L);
+        String token = jwtTokenProvider.createAccessToken("uuid-applicant-1", UserRole.APPLICANT, 0L);
 
         // when
         long remaining = jwtTokenProvider.getRemainingExpiration(token);
@@ -137,21 +137,22 @@ public class JwtTokenProviderTest {
         assertThat(value).isEqualTo(REFRESH_TOKEN_EXPIRATION);
     }
 
-    // ===================== getUserId =====================
+    // ===================== getPublicId =====================
 
     @Test
-    @DisplayName("getUserId: 토큰의 subject를 Long으로 반환")
-    public void getUserId_success() {
+    @DisplayName("getPublicId: 토큰의 subject(publicId)를 반환")
+    public void getPublicId_success() {
         // given
-        String token = jwtTokenProvider.createAccessToken(42L, UserRole.APPLICANT, 0L);
+        String publicId = "uuid-applicant-42";
+        String token = jwtTokenProvider.createAccessToken(publicId, UserRole.APPLICANT, 0L);
 
         // when & then
-        assertThat(jwtTokenProvider.getUserId(token)).isEqualTo(42L);
+        assertThat(jwtTokenProvider.getPublicId(token)).isEqualTo(publicId);
     }
 
     @Test
-    @DisplayName("getUserId: subject가 비어 있으면 INVALID_TOKEN 예외")
-    public void getUserId_blankSubject() {
+    @DisplayName("getPublicId: subject가 비어 있으면 INVALID_TOKEN 예외")
+    public void getPublicId_blankSubject() {
         // given
         String token = Jwts.builder()
                 .subject("")
@@ -163,19 +164,19 @@ public class JwtTokenProviderTest {
                 .compact();
 
         // when & then
-        assertThatThrownBy(() -> jwtTokenProvider.getUserId(token))
+        assertThatThrownBy(() -> jwtTokenProvider.getPublicId(token))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.INVALID_TOKEN.defaultMessage);
     }
 
     @Test
-    @DisplayName("getUserId: 만료된 토큰이면 TOKEN_EXPIRED 예외")
-    public void getUserId_expired() {
+    @DisplayName("getPublicId: 만료된 토큰이면 TOKEN_EXPIRED 예외")
+    public void getPublicId_expired() {
         // given
-        String expiredToken = buildExpiredToken(1L, UserRole.APPLICANT, 0L);
+        String expiredToken = buildExpiredToken("uuid-applicant-1", UserRole.APPLICANT, 0L);
 
         // when & then
-        assertThatThrownBy(() -> jwtTokenProvider.getUserId(expiredToken))
+        assertThatThrownBy(() -> jwtTokenProvider.getPublicId(expiredToken))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.TOKEN_EXPIRED.defaultMessage);
     }
@@ -186,7 +187,7 @@ public class JwtTokenProviderTest {
     @DisplayName("getRole: claim에 저장된 role을 UserRole enum으로 반환")
     public void getRole_success() {
         // given
-        String token = jwtTokenProvider.createAccessToken(1L, UserRole.COMPANY, 0L);
+        String token = jwtTokenProvider.createAccessToken("uuid-company-1", UserRole.COMPANY, 0L);
 
         // when & then
         assertThat(jwtTokenProvider.getRole(token)).isEqualTo(UserRole.COMPANY);
@@ -198,7 +199,7 @@ public class JwtTokenProviderTest {
     @DisplayName("getTokenVersion: claim의 tokenVersion 값을 long으로 반환")
     public void getTokenVersion_success() {
         // given
-        String token = jwtTokenProvider.createAccessToken(1L, UserRole.APPLICANT, 5L);
+        String token = jwtTokenProvider.createAccessToken("uuid-applicant-1", UserRole.APPLICANT, 5L);
 
         // when & then
         assertThat(jwtTokenProvider.getTokenVersion(token)).isEqualTo(5L);
@@ -209,7 +210,7 @@ public class JwtTokenProviderTest {
     public void getTokenVersion_missingClaim() {
         // given
         String tokenWithoutVersion = Jwts.builder()
-                .subject("1")
+                .subject("uuid-applicant-1")
                 .claim("role", UserRole.APPLICANT.name())
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION))
@@ -232,7 +233,7 @@ public class JwtTokenProviderTest {
                 "other-secret-key-different-from-the-real-one-1234567890".getBytes(StandardCharsets.UTF_8)
         );
         String forgedToken = Jwts.builder()
-                .subject("1")
+                .subject("uuid-applicant-1")
                 .claim("role", UserRole.APPLICANT.name())
                 .claim("tokenVersion", 0L)
                 .issuedAt(new Date())
@@ -241,17 +242,17 @@ public class JwtTokenProviderTest {
                 .compact();
 
         // when & then
-        assertThatThrownBy(() -> jwtTokenProvider.getUserId(forgedToken))
+        assertThatThrownBy(() -> jwtTokenProvider.getPublicId(forgedToken))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.INVALID_TOKEN.defaultMessage);
     }
 
     // ===================== helpers =====================
 
-    private String buildExpiredToken(Long userId, UserRole role, long tokenVersion) {
+    private String buildExpiredToken(String publicId, UserRole role, long tokenVersion) {
         Date past = new Date(System.currentTimeMillis() - 60_000);
         return Jwts.builder()
-                .subject(String.valueOf(userId))
+                .subject(publicId)
                 .claim("role", role.name())
                 .claim("tokenVersion", tokenVersion)
                 .issuedAt(new Date(past.getTime() - 1000))

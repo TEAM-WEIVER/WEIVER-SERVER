@@ -43,6 +43,6 @@ public class JwtAuthenticationFilterTest {
         // then
         verify(securityErrorResponseWriter).write(response, request, ErrorCode.BLACKLISTED_TOKEN);
         verify(blacklistTokenRepository).exists(accessToken);
-        verify(jwtTokenProvider, never()).getUserId(anyString());
+        verify(jwtTokenProvider, never()).getPublicId(anyString());
     }
 }

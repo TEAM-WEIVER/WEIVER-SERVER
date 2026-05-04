@@ -36,9 +36,9 @@ public class RefreshTokenRepositoryTest {
     @Mock
     private ValueOperations<String, String> valueOperations;
 
-    private static final Long USER_ID = 1L;
+    private static final String PUBLIC_ID = "uuid-applicant-1";
     private static final UserRole USER_ROLE = UserRole.APPLICANT;
-    private static final String KEY = "refresh:applicant:1";
+    private static final String KEY = "refresh:applicant:" + PUBLIC_ID;
     private static final String OLD_TOKEN = "old_refresh_token";
     private static final String NEW_TOKEN = "new_refresh_token";
     private static final long TTL_MILLIS = 1000L * 60 * 60 * 24 * 7;
@@ -60,7 +60,7 @@ public class RefreshTokenRepositoryTest {
 
         // when
         RefreshTokenRotationResult result = refreshTokenRepository.rotateIfMatches(
-                USER_ID, USER_ROLE, OLD_TOKEN, NEW_TOKEN, TTL_MILLIS);
+                PUBLIC_ID, USER_ROLE, OLD_TOKEN, NEW_TOKEN, TTL_MILLIS);
 
         // then
         assertThat(result).isEqualTo(RefreshTokenRotationResult.NOT_FOUND);
@@ -74,7 +74,7 @@ public class RefreshTokenRepositoryTest {
 
         // when
         RefreshTokenRotationResult result = refreshTokenRepository.rotateIfMatches(
-                USER_ID, USER_ROLE, OLD_TOKEN, NEW_TOKEN, TTL_MILLIS);
+                PUBLIC_ID, USER_ROLE, OLD_TOKEN, NEW_TOKEN, TTL_MILLIS);
 
         // then
         assertThat(result).isEqualTo(RefreshTokenRotationResult.MISMATCH);
@@ -89,7 +89,7 @@ public class RefreshTokenRepositoryTest {
 
         // when
         RefreshTokenRotationResult result = refreshTokenRepository.rotateIfMatches(
-                USER_ID, USER_ROLE, OLD_TOKEN, NEW_TOKEN, TTL_MILLIS);
+                PUBLIC_ID, USER_ROLE, OLD_TOKEN, NEW_TOKEN, TTL_MILLIS);
 
         // then
         assertThat(result).isEqualTo(RefreshTokenRotationResult.ROTATED);
@@ -104,7 +104,7 @@ public class RefreshTokenRepositoryTest {
 
         // when
         RefreshTokenRotationResult result = refreshTokenRepository.rotateIfMatches(
-                USER_ID, USER_ROLE, OLD_TOKEN, NEW_TOKEN, TTL_MILLIS);
+                PUBLIC_ID, USER_ROLE, OLD_TOKEN, NEW_TOKEN, TTL_MILLIS);
 
         // then
         assertThat(result).isEqualTo(RefreshTokenRotationResult.CONCURRENT_MODIFIED);
