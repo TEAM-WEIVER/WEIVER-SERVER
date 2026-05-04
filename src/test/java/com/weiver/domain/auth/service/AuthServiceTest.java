@@ -136,7 +136,7 @@ public class AuthServiceTest {
         when(jwtTokenProvider.getRole(oldRefreshToken)).thenReturn(userRole);
         when(jwtTokenProvider.createAccessToken(userId, userRole)).thenReturn(newAccessToken);
         when(jwtTokenProvider.createRefreshToken(userId, userRole)).thenReturn(newRefreshToken);
-        when(jwtTokenProvider.getRemainingExpiration(oldRefreshToken)).thenReturn(ttlMillis);
+        when(jwtTokenProvider.getRefreshTokenExpirationMillis()).thenReturn(ttlMillis);
         when(refreshTokenRepository.rotateIfMatches(userId, userRole, oldRefreshToken, newRefreshToken, ttlMillis))
                 .thenReturn(RefreshTokenRotationResult.ROTATED);
 
@@ -146,6 +146,8 @@ public class AuthServiceTest {
         // then
         assertThat(result.accessToken()).isEqualTo(newAccessToken);
         assertThat(result.refreshToken()).isEqualTo(newRefreshToken);
+        verify(jwtTokenProvider).getRefreshTokenExpirationMillis();
+        verify(jwtTokenProvider, never()).getRemainingExpiration(oldRefreshToken);
     }
 
     @Test
@@ -161,7 +163,7 @@ public class AuthServiceTest {
         when(jwtTokenProvider.getRole(refreshToken)).thenReturn(userRole);
         when(jwtTokenProvider.createAccessToken(userId, userRole)).thenReturn("new_access_token");
         when(jwtTokenProvider.createRefreshToken(userId, userRole)).thenReturn("new_refresh_token");
-        when(jwtTokenProvider.getRemainingExpiration(refreshToken)).thenReturn(ttlMillis);
+        when(jwtTokenProvider.getRefreshTokenExpirationMillis()).thenReturn(ttlMillis);
         when(refreshTokenRepository.rotateIfMatches(userId, userRole, refreshToken, "new_refresh_token", ttlMillis))
                 .thenReturn(RefreshTokenRotationResult.NOT_FOUND);
 
@@ -169,6 +171,7 @@ public class AuthServiceTest {
         assertThatThrownBy(() -> authService.reissueToken(refreshToken))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.REFRESH_TOKEN_NOT_FOUND.defaultMessage);
+        verify(jwtTokenProvider).getRefreshTokenExpirationMillis();
     }
 
     @Test
@@ -184,7 +187,7 @@ public class AuthServiceTest {
         when(jwtTokenProvider.getRole(refreshToken)).thenReturn(userRole);
         when(jwtTokenProvider.createAccessToken(userId, userRole)).thenReturn("new_access_token");
         when(jwtTokenProvider.createRefreshToken(userId, userRole)).thenReturn("new_refresh_token");
-        when(jwtTokenProvider.getRemainingExpiration(refreshToken)).thenReturn(ttlMillis);
+        when(jwtTokenProvider.getRefreshTokenExpirationMillis()).thenReturn(ttlMillis);
         when(refreshTokenRepository.rotateIfMatches(userId, userRole, refreshToken, "new_refresh_token", ttlMillis))
                 .thenReturn(RefreshTokenRotationResult.MISMATCH);
 
@@ -194,6 +197,7 @@ public class AuthServiceTest {
                 .hasMessage(ErrorCode.TOKEN_REUSE_DETECTED.defaultMessage);
 
         verify(refreshTokenRepository).deleteByUserId(userId, userRole);
+        verify(jwtTokenProvider).getRefreshTokenExpirationMillis();
     }
 
     @Test
@@ -209,7 +213,7 @@ public class AuthServiceTest {
         when(jwtTokenProvider.getRole(refreshToken)).thenReturn(userRole);
         when(jwtTokenProvider.createAccessToken(userId, userRole)).thenReturn("new_access_token");
         when(jwtTokenProvider.createRefreshToken(userId, userRole)).thenReturn("new_refresh_token");
-        when(jwtTokenProvider.getRemainingExpiration(refreshToken)).thenReturn(ttlMillis);
+        when(jwtTokenProvider.getRefreshTokenExpirationMillis()).thenReturn(ttlMillis);
         when(refreshTokenRepository.rotateIfMatches(userId, userRole, refreshToken, "new_refresh_token", ttlMillis))
                 .thenReturn(RefreshTokenRotationResult.CONCURRENT_MODIFIED);
 
@@ -219,5 +223,6 @@ public class AuthServiceTest {
                 .hasMessage(ErrorCode.TOKEN_REUSE_DETECTED.defaultMessage);
 
         verify(refreshTokenRepository).deleteByUserId(userId, userRole);
+        verify(jwtTokenProvider).getRefreshTokenExpirationMillis();
     }
 }

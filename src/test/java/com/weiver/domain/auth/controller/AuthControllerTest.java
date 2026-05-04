@@ -1,5 +1,6 @@
 package com.weiver.domain.auth.controller;
 
+import com.github.dockerjava.zerodep.shaded.org.apache.hc.client5.http.protocol.RequestAddCookies;
 import com.weiver.auth.controller.AuthController;
 import com.weiver.auth.service.AuthService;
 import com.weiver.global.exception.BusinessException;
@@ -8,8 +9,10 @@ import com.weiver.global.security.cookie.CookieProvider;
 import com.weiver.global.security.cookie.RefreshTokenCookieResolver;
 import com.weiver.global.security.jwt.BearerTokenResolver;
 import com.weiver.global.security.jwt.JwtAuthenticationFilter;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentMatchers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -88,5 +91,38 @@ public class AuthControllerTest {
                 .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.errorCode").value("INVALID_TOKEN"));
+    }
+
+    @Test
+    @DisplayName("재사용 탐지 발생 시 RefreshToken Cookie 만료 헤더가 내려감")
+    public void removedRefreshTokenCookie() throws Exception {
+        // given
+        String refreshToken = "reusedRefreshToken";
+        Cookie requestCookie = new Cookie("refreshToken", refreshToken);
+
+        when(refreshTokenCookieResolver.resolve(ArgumentMatchers.any())).thenReturn(refreshToken);
+        when(authService.reissueToken(refreshToken))
+                .thenThrow(new BusinessException(ErrorCode.TOKEN_REUSE_DETECTED));
+        when(cookieProvider.createExpiredRefreshTokenCookie()).thenReturn(
+                ResponseCookie.from("refreshToken", "")
+                        .path("/")
+                        .httpOnly(true)
+                        .secure(false)
+                        .sameSite("Lax")
+                        .maxAge(0)
+                        .build()
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/auth/reissue")
+                .cookie(requestCookie)
+                .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("refreshToken=")))
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("Max-Age=0")))
+                .andExpect(jsonPath("$.errorCode").value("TOKEN_REUSE_DETECTED"));
+
+        verify(authService).reissueToken(refreshToken);
+        verify(cookieProvider).createExpiredRefreshTokenCookie();
     }
 }
