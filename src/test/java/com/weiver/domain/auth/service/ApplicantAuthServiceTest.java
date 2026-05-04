@@ -22,6 +22,7 @@ import com.weiver.global.mail.MailMessage;
 import com.weiver.global.mail.MailSender;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
+import com.weiver.global.security.jwt.repository.TokenVersionRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,6 +61,7 @@ public class ApplicantAuthServiceTest {
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtTokenProvider jwtTokenProvider;
     @Mock private RefreshTokenRepository refreshTokenRepository;
+    @Mock private TokenVersionRepository tokenVersionRepository;
 
     @Test
     @DisplayName("이메일 인증번호 전송 성공 시 시도 카운터 초기화 후 코드 저장 + 메일 발송")
@@ -346,7 +348,7 @@ public class ApplicantAuthServiceTest {
     }
 
     @Test
-    @DisplayName("로그인 성공 시 access/refresh 토큰을 발급하고 RefreshToken을 저장한다.")
+    @DisplayName("로그인 성공 시 현재 tokenVersion으로 access/refresh 토큰을 발급하고 RefreshToken을 저장한다.")
     public void login_success() {
         // given
         String email = "user@test.com";
@@ -360,11 +362,15 @@ public class ApplicantAuthServiceTest {
                 .build();
         ReflectionTestUtils.setField(applicant, "applicantId", 7L);
 
+        long tokenVersion = 0L;
+        long ttlMillis = 1000L * 60 * 60 * 24 * 14;
+
         when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.of(applicant));
         when(passwordEncoder.matches(rawPassword, "encoded")).thenReturn(true);
-        when(jwtTokenProvider.createAccessToken(7L, UserRole.APPLICANT)).thenReturn("access");
-        when(jwtTokenProvider.createRefreshToken(7L, UserRole.APPLICANT)).thenReturn("refresh");
-        when(jwtTokenProvider.getRemainingExpiration("refresh")).thenReturn(1000L);
+        when(tokenVersionRepository.getCurrentVersion(7L, UserRole.APPLICANT)).thenReturn(tokenVersion);
+        when(jwtTokenProvider.createAccessToken(7L, UserRole.APPLICANT, tokenVersion)).thenReturn("access");
+        when(jwtTokenProvider.createRefreshToken(7L, UserRole.APPLICANT, tokenVersion)).thenReturn("refresh");
+        when(jwtTokenProvider.getRefreshTokenExpirationMillis()).thenReturn(ttlMillis);
 
         // when
         ApplicantLoginResult result = applicantAuthService.login(request);
@@ -373,7 +379,8 @@ public class ApplicantAuthServiceTest {
         assertThat(result.accessToken()).isEqualTo("access");
         assertThat(result.refreshToken()).isEqualTo("refresh");
         assertThat(result.role()).isEqualTo(UserRole.APPLICANT);
-        verify(refreshTokenRepository).save(7L, UserRole.APPLICANT, "refresh", 1000L);
+        verify(refreshTokenRepository).save(7L, UserRole.APPLICANT, "refresh", ttlMillis);
+        verify(tokenVersionRepository, never()).increaseVersion(anyLong(), any(UserRole.class));
     }
 
     @Test
@@ -388,7 +395,7 @@ public class ApplicantAuthServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.APPLICANT_NOT_FOUND.defaultMessage);
 
-        verify(jwtTokenProvider, never()).createAccessToken(anyLong(), any(UserRole.class));
+        verify(jwtTokenProvider, never()).createAccessToken(anyLong(), any(UserRole.class), anyLong());
         verify(refreshTokenRepository, never()).save(anyLong(), any(UserRole.class), anyString(), anyLong());
     }
 
@@ -412,7 +419,7 @@ public class ApplicantAuthServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.INVALID_PASSWORD.defaultMessage);
 
-        verify(jwtTokenProvider, never()).createAccessToken(anyLong(), any(UserRole.class));
+        verify(jwtTokenProvider, never()).createAccessToken(anyLong(), any(UserRole.class), anyLong());
         verify(refreshTokenRepository, never()).save(anyLong(), any(UserRole.class), anyString(), anyLong());
     }
 

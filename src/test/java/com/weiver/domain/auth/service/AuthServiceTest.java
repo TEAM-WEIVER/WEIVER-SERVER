@@ -9,6 +9,7 @@ import com.weiver.global.common.UserRole;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.BlacklistTokenRepository;
 import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
+import com.weiver.global.security.jwt.repository.TokenVersionRepository;
 import com.weiver.global.security.jwt.type.RefreshTokenRotationResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,6 +35,8 @@ public class AuthServiceTest {
     private BlacklistTokenRepository blacklistTokenRepository;
     @Mock
     private RefreshTokenRepository refreshTokenRepository;
+    @Mock
+    private TokenVersionRepository tokenVersionRepository;
     @Mock
     private AuthUserValidator authUserValidator;
 
@@ -128,14 +131,16 @@ public class AuthServiceTest {
         String oldRefreshToken = "old_refresh_token";
         Long userId = 1L;
         UserRole userRole = UserRole.APPLICANT;
+        long tokenVersion = 1L;
         String newAccessToken = "new_access_token";
         String newRefreshToken = "new_refresh_token";
         long ttlMillis = 1000L * 60 * 60 * 24 * 7;
 
         when(jwtTokenProvider.getUserId(oldRefreshToken)).thenReturn(userId);
         when(jwtTokenProvider.getRole(oldRefreshToken)).thenReturn(userRole);
-        when(jwtTokenProvider.createAccessToken(userId, userRole)).thenReturn(newAccessToken);
-        when(jwtTokenProvider.createRefreshToken(userId, userRole)).thenReturn(newRefreshToken);
+        when(tokenVersionRepository.getCurrentVersion(userId, userRole)).thenReturn(tokenVersion);
+        when(jwtTokenProvider.createAccessToken(userId, userRole, tokenVersion)).thenReturn(newAccessToken);
+        when(jwtTokenProvider.createRefreshToken(userId, userRole, tokenVersion)).thenReturn(newRefreshToken);
         when(jwtTokenProvider.getRefreshTokenExpirationMillis()).thenReturn(ttlMillis);
         when(refreshTokenRepository.rotateIfMatches(userId, userRole, oldRefreshToken, newRefreshToken, ttlMillis))
                 .thenReturn(RefreshTokenRotationResult.ROTATED);
@@ -148,6 +153,7 @@ public class AuthServiceTest {
         assertThat(result.refreshToken()).isEqualTo(newRefreshToken);
         verify(jwtTokenProvider).getRefreshTokenExpirationMillis();
         verify(jwtTokenProvider, never()).getRemainingExpiration(oldRefreshToken);
+        verify(tokenVersionRepository, never()).increaseVersion(anyLong(), any(UserRole.class));
     }
 
     @Test
@@ -157,12 +163,14 @@ public class AuthServiceTest {
         String refreshToken = "valid_refresh_token";
         Long userId = 1L;
         UserRole userRole = UserRole.APPLICANT;
+        long tokenVersion = 0L;
         long ttlMillis = 1000L * 60 * 60 * 24 * 7;
 
         when(jwtTokenProvider.getUserId(refreshToken)).thenReturn(userId);
         when(jwtTokenProvider.getRole(refreshToken)).thenReturn(userRole);
-        when(jwtTokenProvider.createAccessToken(userId, userRole)).thenReturn("new_access_token");
-        when(jwtTokenProvider.createRefreshToken(userId, userRole)).thenReturn("new_refresh_token");
+        when(tokenVersionRepository.getCurrentVersion(userId, userRole)).thenReturn(tokenVersion);
+        when(jwtTokenProvider.createAccessToken(userId, userRole, tokenVersion)).thenReturn("new_access_token");
+        when(jwtTokenProvider.createRefreshToken(userId, userRole, tokenVersion)).thenReturn("new_refresh_token");
         when(jwtTokenProvider.getRefreshTokenExpirationMillis()).thenReturn(ttlMillis);
         when(refreshTokenRepository.rotateIfMatches(userId, userRole, refreshToken, "new_refresh_token", ttlMillis))
                 .thenReturn(RefreshTokenRotationResult.NOT_FOUND);
@@ -172,21 +180,24 @@ public class AuthServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.REFRESH_TOKEN_NOT_FOUND.defaultMessage);
         verify(jwtTokenProvider).getRefreshTokenExpirationMillis();
+        verify(tokenVersionRepository, never()).increaseVersion(anyLong(), any(UserRole.class));
     }
 
     @Test
-    @DisplayName("토큰 재사용 감지(MISMATCH) 시 기존 토큰 삭제 후 TOKEN_REUSE_DETECTED 예외")
+    @DisplayName("토큰 재사용 감지(MISMATCH) 시 기존 토큰 삭제 + tokenVersion 증가 후 TOKEN_REUSE_DETECTED 예외")
     public void reissueToken_mismatch() {
         // given
         String refreshToken = "reused_refresh_token";
         Long userId = 1L;
         UserRole userRole = UserRole.APPLICANT;
+        long tokenVersion = 0L;
         long ttlMillis = 1000L * 60 * 60 * 24 * 7;
 
         when(jwtTokenProvider.getUserId(refreshToken)).thenReturn(userId);
         when(jwtTokenProvider.getRole(refreshToken)).thenReturn(userRole);
-        when(jwtTokenProvider.createAccessToken(userId, userRole)).thenReturn("new_access_token");
-        when(jwtTokenProvider.createRefreshToken(userId, userRole)).thenReturn("new_refresh_token");
+        when(tokenVersionRepository.getCurrentVersion(userId, userRole)).thenReturn(tokenVersion);
+        when(jwtTokenProvider.createAccessToken(userId, userRole, tokenVersion)).thenReturn("new_access_token");
+        when(jwtTokenProvider.createRefreshToken(userId, userRole, tokenVersion)).thenReturn("new_refresh_token");
         when(jwtTokenProvider.getRefreshTokenExpirationMillis()).thenReturn(ttlMillis);
         when(refreshTokenRepository.rotateIfMatches(userId, userRole, refreshToken, "new_refresh_token", ttlMillis))
                 .thenReturn(RefreshTokenRotationResult.MISMATCH);
@@ -197,22 +208,25 @@ public class AuthServiceTest {
                 .hasMessage(ErrorCode.TOKEN_REUSE_DETECTED.defaultMessage);
 
         verify(refreshTokenRepository).deleteByUserId(userId, userRole);
+        verify(tokenVersionRepository).increaseVersion(userId, userRole);
         verify(jwtTokenProvider).getRefreshTokenExpirationMillis();
     }
 
     @Test
-    @DisplayName("동시 요청 충돌(CONCURRENT_MODIFIED) 시 기존 토큰 삭제 후 TOKEN_REUSE_DETECTED 예외")
+    @DisplayName("동시 요청 충돌(CONCURRENT_MODIFIED) 시 기존 토큰 삭제 + tokenVersion 증가 후 TOKEN_REUSE_DETECTED 예외")
     public void reissueToken_concurrentModified() {
         // given
         String refreshToken = "concurrent_refresh_token";
         Long userId = 1L;
         UserRole userRole = UserRole.APPLICANT;
+        long tokenVersion = 0L;
         long ttlMillis = 1000L * 60 * 60 * 24 * 7;
 
         when(jwtTokenProvider.getUserId(refreshToken)).thenReturn(userId);
         when(jwtTokenProvider.getRole(refreshToken)).thenReturn(userRole);
-        when(jwtTokenProvider.createAccessToken(userId, userRole)).thenReturn("new_access_token");
-        when(jwtTokenProvider.createRefreshToken(userId, userRole)).thenReturn("new_refresh_token");
+        when(tokenVersionRepository.getCurrentVersion(userId, userRole)).thenReturn(tokenVersion);
+        when(jwtTokenProvider.createAccessToken(userId, userRole, tokenVersion)).thenReturn("new_access_token");
+        when(jwtTokenProvider.createRefreshToken(userId, userRole, tokenVersion)).thenReturn("new_refresh_token");
         when(jwtTokenProvider.getRefreshTokenExpirationMillis()).thenReturn(ttlMillis);
         when(refreshTokenRepository.rotateIfMatches(userId, userRole, refreshToken, "new_refresh_token", ttlMillis))
                 .thenReturn(RefreshTokenRotationResult.CONCURRENT_MODIFIED);
@@ -223,6 +237,7 @@ public class AuthServiceTest {
                 .hasMessage(ErrorCode.TOKEN_REUSE_DETECTED.defaultMessage);
 
         verify(refreshTokenRepository).deleteByUserId(userId, userRole);
+        verify(tokenVersionRepository).increaseVersion(userId, userRole);
         verify(jwtTokenProvider).getRefreshTokenExpirationMillis();
     }
 }
