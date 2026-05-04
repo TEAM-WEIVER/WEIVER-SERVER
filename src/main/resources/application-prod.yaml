@@ -1,0 +1,143 @@
+# =============================================================================
+# application-prod.yml - 배포 환경
+#
+# 실행 명령: docker-compose up -d
+# 활성화 방법: IDE Run Configuration → Active Profiles: prod
+# =============================================================================
+
+server:
+  port: 8080
+  error:
+    include-stacktrace: always
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+  # ---------------------------------------------------------------------------
+  # PostgreSQL - RDS 서버
+  # ---------------------------------------------------------------------------
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:5432/${DB_NAME}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+    hikari:
+      pool-name: HikariPool-Local
+      maximum-pool-size: 10
+      minimum-idle: 3
+      idle-timeout: 300000
+      connection-timeout: 30000
+      max-lifetime: 1800000
+      connection-test-query: SELECT 1
+
+  # ---------------------------------------------------------------------------
+  # JPA & Hibernate
+  # ---------------------------------------------------------------------------
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        highlight_sql: true
+        default_batch_fetch_size: 100
+
+  # ---------------------------------------------------------------------------
+  # Redis - Docker 컨테이너
+  # ---------------------------------------------------------------------------
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      # 도커에 비밀번호 설정이 없으므로 password 필드는 비워둡니다.
+      database: 0
+      timeout: 3000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 2
+
+  # ---------------------------------------------------------------------------
+  # AWS S3 - 배포 환경
+  # ---------------------------------------------------------------------------
+  cloud:
+    aws:
+      s3:
+        bucket:
+          public: ${LOCAL_S3_PUBLIC_BUCKET}   # 프로필, 배너용 (공개)
+          private: ${LOCAL_S3_PRIVATE_BUCKET}
+      credentials:
+        access-key: ${LOCAL_S3_ACCESS_KEY} # 발급받은 IAM Access Key
+        secret-key: ${LOCAL_S3_SECRET_KEY}  # 발급받은 IAM Secret Key
+      region:
+        static: ${LOCAL_S3_REGION} # 서울 리전
+      stack:
+        auto: false # 로컬에서 실행할 때 불필요한 에러 방지
+
+aws:
+  s3:
+    bucket-name: weaver-local-bucket
+
+# =============================================================================
+# FastAPI AI 서버
+# =============================================================================
+ai:
+  server:
+    url: http://localhost:8000
+
+# =============================================================================
+# JWT 설정
+# =============================================================================
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiration: 3600000 # 1 hour
+  refresh-token-expiration: 1209600000 # 14 days
+
+# =============================================================================
+# COOKIE 설정
+# =============================================================================
+cookie:
+  refresh-token:
+    name: refreshToken
+    path: /
+    http-only: true
+    secure: false
+    same-site: Lax
+    max-age: 1209600 # 14 days
+
+# =============================================================================
+# Swagger / SpringDoc 설정
+# =============================================================================
+springdoc:
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+  swagger-ui:
+    path: /swagger-ui.html
+
+# =============================================================================
+# Actuator
+# =============================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# =============================================================================
+# 로깅 설정
+# =============================================================================
+logging:
+  level:
+    root: INFO
+    com.weiver: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE
