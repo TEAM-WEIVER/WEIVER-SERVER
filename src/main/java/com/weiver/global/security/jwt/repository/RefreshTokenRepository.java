@@ -23,13 +23,13 @@ public class RefreshTokenRepository {
     private final RedisTemplate<String, String> redisTemplate;
 
     public RefreshTokenRotationResult rotateIfMatches(
-            Long userId,
+            String publicId,
             UserRole userRole,
             String oldRefreshToken,
             String newRefreshToken,
             long ttlMillis
     ) {
-        String key = generateKey(userId, userRole);
+        String key = generateKey(publicId, userRole);
         String oldHash = TokenHashUtil.sha256(oldRefreshToken);
         String newHash = TokenHashUtil.sha256(newRefreshToken);
 
@@ -64,36 +64,36 @@ public class RefreshTokenRepository {
         });
     }
 
-    public void save(Long userId, UserRole userRole, String refreshToken, long ttlMillis) {
+    public void save(String publicId, UserRole userRole, String refreshToken, long ttlMillis) {
         redisTemplate.opsForValue().set(
-                generateKey(userId, userRole),
+                generateKey(publicId, userRole),
                 TokenHashUtil.sha256(refreshToken),
                 ttlMillis,
                 TimeUnit.MILLISECONDS
         );
     }
 
-    public Optional<String> findHashByUserId(Long userId, UserRole userRole) {
+    public Optional<String> findHashByPublicId(String publicId, UserRole userRole) {
         return Optional.ofNullable(
-                redisTemplate.opsForValue().get(generateKey(userId, userRole))
+                redisTemplate.opsForValue().get(generateKey(publicId, userRole))
         );
     }
 
-    public boolean matches(Long userId, UserRole userRole, String refreshToken) {
-        return findHashByUserId(userId, userRole)
+    public boolean matches(String publicId, UserRole userRole, String refreshToken) {
+        return findHashByPublicId(publicId, userRole)
                 .map(savedHash -> savedHash.equals(TokenHashUtil.sha256(refreshToken)))
                 .orElse(false);
     }
 
-    public void deleteByUserId(Long userId, UserRole userRole) {
-        redisTemplate.delete(generateKey(userId, userRole));
+    public void deleteByPublicId(String publicId, UserRole userRole) {
+        redisTemplate.delete(generateKey(publicId, userRole));
     }
 
-    public boolean existsByUserId(Long userId, UserRole userRole) {
-        return Boolean.TRUE.equals(redisTemplate.hasKey(generateKey(userId, userRole)));
+    public boolean existsByPublicId(String publicId, UserRole userRole) {
+        return Boolean.TRUE.equals(redisTemplate.hasKey(generateKey(publicId, userRole)));
     }
 
-    private String generateKey(Long userId, UserRole userRole) {
-        return REFRESH_TOKEN_PREFIX + userRole.name().toLowerCase() + ":" + userId;
+    private String generateKey(String publicId, UserRole userRole) {
+        return REFRESH_TOKEN_PREFIX + userRole.name().toLowerCase() + ":" + publicId;
     }
 }

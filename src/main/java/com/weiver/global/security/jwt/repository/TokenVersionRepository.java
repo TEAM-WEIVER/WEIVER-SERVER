@@ -14,23 +14,23 @@ public class TokenVersionRepository {
 
     private final RedisTemplate<String, String> redisTemplate;
 
-    public long getCurrentVersion(Long userId, UserRole userRole) {
-        String value = redisTemplate.opsForValue().get(generateKey(userId, userRole));
+    public long getCurrentVersion(String publicId, UserRole userRole) {
+        String value = redisTemplate.opsForValue().get(generateKey(publicId, userRole));
 
         if(value == null) return DEFAULT_VERSION;
 
         return Long.parseLong(value);
     }
 
-    public void increaseVersion(Long userId, UserRole userRole) {
-        Long version = redisTemplate.opsForValue().increment(generateKey(userId, userRole));
+    public void increaseVersion(String publicId, UserRole userRole) {
+        Long version = redisTemplate.opsForValue().increment(generateKey(publicId, userRole));
 
         if(version == null) {
             throw new IllegalStateException("토큰 버전 증가에 실패했습니다.");
         }
     }
 
-    private String generateKey(Long userId, UserRole userRole) {
-        return TOKEN_VERSION_PREFIX + userRole.name() + ":" + userId;
+    private String generateKey(String publicId, UserRole userRole) {
+        return TOKEN_VERSION_PREFIX + userRole.name() + ":" + publicId;
     }
 }

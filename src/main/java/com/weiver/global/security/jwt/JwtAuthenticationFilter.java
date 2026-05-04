@@ -3,6 +3,7 @@ package com.weiver.global.security.jwt;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.common.UserRole;
+import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.global.security.handler.SecurityErrorResponseWriter;
 import com.weiver.global.security.jwt.repository.BlacklistTokenRepository;
 import com.weiver.global.security.jwt.repository.TokenVersionRepository;
@@ -50,19 +51,21 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
-            Long userId = jwtTokenProvider.getUserId(accessToken);
+            String publicId = jwtTokenProvider.getPublicId(accessToken);
             UserRole userRole = jwtTokenProvider.getRole(accessToken);
             long tokenVersion = jwtTokenProvider.getTokenVersion(accessToken);
 
-            long currentTokenVersion = tokenVersionRepository.getCurrentVersion(userId, userRole);
+            long currentTokenVersion = tokenVersionRepository.getCurrentVersion(publicId, userRole);
 
             if(tokenVersion != currentTokenVersion) {
                 securityErrorResponseWriter.write(response, request, ErrorCode.INVALID_TOKEN);
                 return;
             }
 
+            AuthenticatedPrincipal principal = new AuthenticatedPrincipal(publicId, userRole);
+
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                    userId, null, List.of(new SimpleGrantedAuthority("ROLE_" + userRole.name())));
+                    principal, null, List.of(new SimpleGrantedAuthority("ROLE_" + userRole.name())));
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
 

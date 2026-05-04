@@ -29,12 +29,12 @@ public class JwtTokenProvider {
         );
     }
 
-    public String createAccessToken(Long userId, UserRole role, long tokenVersion) {
-        return createToken(userId, role, tokenVersion, jwtProperties.accessTokenExpiration());
+    public String createAccessToken(String publicId, UserRole role, long tokenVersion) {
+        return createToken(publicId, role, tokenVersion, jwtProperties.accessTokenExpiration());
     }
 
-    public String createRefreshToken(Long userId, UserRole role, long tokenVersion) {
-        return createToken(userId, role, tokenVersion, jwtProperties.refreshTokenExpiration());
+    public String createRefreshToken(String publicId, UserRole role, long tokenVersion) {
+        return createToken(publicId, role, tokenVersion, jwtProperties.refreshTokenExpiration());
     }
 
     public void validateRefreshToken(String token) {
@@ -58,14 +58,14 @@ public class JwtTokenProvider {
         return jwtProperties.refreshTokenExpiration();
     }
 
-    public Long getUserId(String token) {
+    public String getPublicId(String token) {
         String subject = getClaims(token).getSubject();
 
         if(subject == null || subject.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
 
-        return Long.valueOf(subject);
+        return subject;
     }
 
     public UserRole getRole(String token) {
@@ -82,12 +82,12 @@ public class JwtTokenProvider {
         return tokenVersion;
     }
 
-    private String createToken(Long userId, UserRole role, long tokenVersion, long expirationMillis) {
+    private String createToken(String publicId, UserRole role, long tokenVersion, long expirationMillis) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationMillis);
 
         return Jwts.builder()
-                .subject(String.valueOf(userId))
+                .subject(publicId)
                 .claim("role", role.name())
                 .claim("tokenVersion", tokenVersion)
                 .issuedAt(now)

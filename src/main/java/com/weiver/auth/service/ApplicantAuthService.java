@@ -10,6 +10,7 @@ import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
 import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
 import com.weiver.global.common.UserRole;
+import com.weiver.global.auth.ApplicantProvider;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.mail.MailMessage;
@@ -43,6 +44,7 @@ public class ApplicantAuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final ApplicantProvider applicantProvider;
 
     public void sendEmailCode(ApplicantEmailSendRequestDTO request) {
         String email = request.email();
@@ -150,17 +152,17 @@ public class ApplicantAuthService {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
         }
 
-        Long applicantId = applicant.getApplicantId();
+        String publicId = applicant.getPublicId();
         UserRole userRole = applicant.getRole();
 
-        long tokenVersion = tokenVersionRepository.getCurrentVersion(applicantId, userRole);
+        long tokenVersion = tokenVersionRepository.getCurrentVersion(publicId, userRole);
 
-        String accessToken = jwtTokenProvider.createAccessToken(applicantId, userRole, tokenVersion);
-        String refreshToken = jwtTokenProvider.createRefreshToken(applicantId, userRole, tokenVersion);
+        String accessToken = jwtTokenProvider.createAccessToken(publicId, userRole, tokenVersion);
+        String refreshToken = jwtTokenProvider.createRefreshToken(publicId, userRole, tokenVersion);
         long refreshTokenTtlMillis = jwtTokenProvider.getRefreshTokenExpirationMillis();
 
         refreshTokenRepository.save(
-                applicantId,
+                publicId,
                 userRole,
                 refreshToken,
                 refreshTokenTtlMillis
@@ -174,12 +176,11 @@ public class ApplicantAuthService {
     }
 
     @Transactional
-    public void withdraw(Long applicantId) {
-        Applicant applicant = applicantRepository.findByApplicantIdAndDeletedFalse(applicantId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+    public void withdraw(String publicId) {
+        Applicant applicant = applicantProvider.findByPublicId(publicId);
 
-        refreshTokenRepository.deleteByUserId(
-                applicant.getApplicantId(),
+        refreshTokenRepository.deleteByPublicId(
+                applicant.getPublicId(),
                 applicant.getRole()
         );
 

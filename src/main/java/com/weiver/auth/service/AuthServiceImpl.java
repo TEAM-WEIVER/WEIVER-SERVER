@@ -1,7 +1,6 @@
 package com.weiver.auth.service;
 
 import com.weiver.auth.service.dto.TokenReissueResult;
-import com.weiver.auth.validator.AuthUserValidator;
 import com.weiver.global.common.UserRole;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -21,7 +20,6 @@ public class AuthServiceImpl implements AuthService {
     private final BlacklistTokenRepository blacklistTokenRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final TokenVersionRepository tokenVersionRepository;
-    private final AuthUserValidator authUserValidator;
 
     @Override
     public void logout(String accessToken) {
@@ -30,12 +28,12 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
 
-        Long userId = jwtTokenProvider.getUserId(accessToken);
+        String publicId = jwtTokenProvider.getPublicId(accessToken);
         UserRole userRole = jwtTokenProvider.getRole(accessToken);
         long ttlMillis = jwtTokenProvider.getRemainingExpiration(accessToken);
 
         blacklistTokenRepository.save(accessToken, ttlMillis);
-        refreshTokenRepository.deleteByUserId(userId, userRole);
+        refreshTokenRepository.deleteByPublicId(publicId, userRole);
     }
 
     @Override
@@ -46,19 +44,17 @@ public class AuthServiceImpl implements AuthService {
 
         jwtTokenProvider.validateRefreshToken(refreshToken);
 
-        Long userId = jwtTokenProvider.getUserId(refreshToken);
+        String publicId = jwtTokenProvider.getPublicId(refreshToken);
         UserRole userRole = jwtTokenProvider.getRole(refreshToken);
 
-        authUserValidator.validateExist(userId, userRole);
+        long tokenVersion = tokenVersionRepository.getCurrentVersion(publicId, userRole);
 
-        long tokenVersion = tokenVersionRepository.getCurrentVersion(userId, userRole);
-
-        String newAccessToken = jwtTokenProvider.createAccessToken(userId, userRole, tokenVersion);
-        String newRefreshToken = jwtTokenProvider.createRefreshToken(userId, userRole, tokenVersion);
+        String newAccessToken = jwtTokenProvider.createAccessToken(publicId, userRole, tokenVersion);
+        String newRefreshToken = jwtTokenProvider.createRefreshToken(publicId, userRole, tokenVersion);
         long refreshTokenTtlMillis = jwtTokenProvider.getRefreshTokenExpirationMillis();
 
         RefreshTokenRotationResult rotationResult = refreshTokenRepository.rotateIfMatches(
-                userId,
+                publicId,
                 userRole,
                 refreshToken,
                 newRefreshToken,
@@ -69,8 +65,8 @@ public class AuthServiceImpl implements AuthService {
             case ROTATED -> new TokenReissueResult(newAccessToken, newRefreshToken);
             case NOT_FOUND -> throw new BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
             case MISMATCH, CONCURRENT_MODIFIED -> {
-                refreshTokenRepository.deleteByUserId(userId, userRole);
-                tokenVersionRepository.increaseVersion(userId, userRole);
+                refreshTokenRepository.deleteByPublicId(publicId, userRole);
+                tokenVersionRepository.increaseVersion(publicId, userRole);
                 throw new BusinessException(ErrorCode.TOKEN_REUSE_DETECTED);
             }
         };
