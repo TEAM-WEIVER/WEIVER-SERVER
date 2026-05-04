@@ -1,8 +1,8 @@
 # =============================================================================
-# application-local.yml - 로컬 개발 환경
+# application-dev.yml - 로컬 개발 환경
 #
 # 실행 명령: docker-compose up -d
-# 활성화 방법: IDE Run Configuration → Active Profiles: local
+# 활성화 방법: IDE Run Configuration → Active Profiles: dev
 # =============================================================================
 
 server:
@@ -37,7 +37,7 @@ spring:
   # ---------------------------------------------------------------------------
   jpa:
     hibernate:
-      ddl-auto: create-drop
+      ddl-auto: update
     show-sql: true
     open-in-view: false
     properties:
