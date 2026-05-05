@@ -6,7 +6,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 import static reactor.netty.http.HttpConnectionLiveness.log;
 
@@ -23,7 +23,7 @@ public class JobPostingScheduler {
     public void closeExpiredJobPostings() {
         log.info("마감일이 지난 공고를 CLOSED 상태로 변경합니다.");
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDate now = LocalDate.now();
         int updatedCount = jobPostingRepository.closeExpiredJobPostings(now);
 
         log.info("총 {}개의 공고가 CLOSED로 변경되었습니다.", updatedCount);

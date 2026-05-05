@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Repository
 public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
@@ -20,5 +20,5 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
     @Modifying(clearAutomatically = true)
     @Query("UPDATE JobPosting j SET j.status = 'CLOSED' " +
             "WHERE j.status = 'ACTIVE' AND j.deadline < :now")
-    int closeExpiredJobPostings(@Param("now") LocalDateTime now); // deadline 기준으로 status 변경
+    int closeExpiredJobPostings(@Param("now") LocalDate now); // deadline 기준으로 status 변경
 }
