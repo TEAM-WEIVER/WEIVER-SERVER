@@ -3,6 +3,7 @@ package com.weiver.portfolio.controller;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.portfolio.dto.request.PortfolioRequestDTO;
 import com.weiver.portfolio.dto.request.PortfolioUpdateRequestDTO;
 import com.weiver.portfolio.dto.response.PortfolioResponseDTO;
@@ -14,10 +15,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-
-import java.security.Principal;
 
 @Tag(name = "포트폴리오(Portfolio) API", description = "구직자의 포트폴리오 파일(PDF 등) 및 외부 링크 저장/조회 API입니다.")
 @RestController
@@ -38,10 +38,10 @@ public class PortfolioController {
     public ResponseEntity<ApiResponse<Void>> savePortfolio(
             @Parameter(description = "포트폴리오 텍스트 데이터 (JSON)") @RequestPart(value = "requestDTO") @Valid PortfolioRequestDTO requestDTO,
             @Parameter(description = "포트폴리오 첨부 파일 (.pdf, .zip 등)") @RequestPart(value = "portfolio", required = false) MultipartFile portfolio,
-            @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        portfolioService.savePortfolio(requestDTO, portfolio, applicantId);
+        portfolioService.savePortfolio(requestDTO, portfolio, principal.publicId());
 
         return ResponseEntity.ok(ApiResponse.success("포트폴리오 저장 완료됐습니다."));
     }
@@ -57,10 +57,10 @@ public class PortfolioController {
             @Parameter(description = "수정할 텍스트 데이터 (JSON)") @RequestPart(value = "requestDTO") @Valid PortfolioUpdateRequestDTO requestDTO,
             @Parameter(description = "새로 등록할 포트폴리오 첨부 파일 (선택)") @RequestPart(value = "portfolio", required = false) MultipartFile portfolio,
             @Parameter(description = "수정할 포트폴리오의 고유 ID", example = "1") @PathVariable Long portfolioId,
-            @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        portfolioService.updatePortfolio(requestDTO, portfolio, applicantId, portfolioId);
+        portfolioService.updatePortfolio(requestDTO, portfolio, principal.publicId(), portfolioId);
         
         return ResponseEntity.ok(ApiResponse.success("포트폴리오 수정 완료됐습니다."));
     }
@@ -73,23 +73,11 @@ public class PortfolioController {
     )
     @GetMapping
     public ResponseEntity<ApiResponse<PortfolioResponseDTO>> searchPortfolio(
-            @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        PortfolioResponseDTO responseDTO = portfolioService.searchPortfolio(applicantId);
+        PortfolioResponseDTO responseDTO = portfolioService.searchPortfolio(principal.publicId());
 
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
-    }
-
-
-    /**
-     * 편의 메소드
-     * */
-    private static Long extractedId(Principal principal) {
-        if(principal == null){
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        }
-
-        return Long.parseLong(principal.getName());
     }
 }

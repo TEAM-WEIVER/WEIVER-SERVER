@@ -25,14 +25,14 @@ public class PortfolioService {
     private ApplicantRepository applicantRepository;
     private S3Service s3Service;
 
-    public void savePortfolio(PortfolioRequestDTO requestDTO, MultipartFile file, long applicantId) {
+    public void savePortfolio(PortfolioRequestDTO requestDTO, MultipartFile file, String publicId) {
         String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "";
         Long fileSize = file.getSize();
         String fileType = org.springframework.util.StringUtils.getFilenameExtension(fileName);
 
         String fileKey = s3Service.privateUpload(file, "portfolios");
 
-        Applicant applicant = getApplicant(applicantId);
+        Applicant applicant = getApplicant(publicId);
         Portfolio portfolio = requestDTO.toEntity(applicant, fileSize, fileName, fileType, fileKey);
 
         portfolioRepository.save(portfolio);
@@ -40,13 +40,13 @@ public class PortfolioService {
 
 
     public void updatePortfolio(PortfolioUpdateRequestDTO requestDTO, MultipartFile file,
-                                long applicantId, long portfolioId) {
+                                String publicId, long portfolioId) {
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PORTFOLIO_NOT_FOUND));
 
         String fileKey = portfolio.getFileKey();
 
-        if(!portfolio.getApplicant().getApplicantId().equals(applicantId)){
+        if(!portfolio.getApplicant().getPublicId().equals(publicId)){
             throw new BusinessException(ErrorCode.PORTFOLIO_NOT_FOUND);
         }
 
@@ -68,8 +68,8 @@ public class PortfolioService {
     }
 
     @Transactional(readOnly = true)
-    public PortfolioResponseDTO searchPortfolio(long applicantId) {
-        Applicant applicant = getApplicant(applicantId);
+    public PortfolioResponseDTO searchPortfolio(String publicId) {
+        Applicant applicant = getApplicant(publicId);
 
         Portfolio portfolio = portfolioRepository.findByApplicant(applicant)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PORTFOLIO_NOT_FOUND));
@@ -80,8 +80,8 @@ public class PortfolioService {
         return responseDTO;
     }
 
-    private Applicant getApplicant(long applicantId) {
-        Applicant applicant = applicantRepository.findById(applicantId)
+    private Applicant getApplicant(String publicId) {
+        Applicant applicant = applicantRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
         return applicant;
     }

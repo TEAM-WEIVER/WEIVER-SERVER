@@ -43,10 +43,15 @@ class PortfolioServiceImplTest {
     void searchPortfolio_Success() {
         // Given
         long applicantId = 1L;
+        String publicId = "3333";
+
         String originalFileKey = "https://weiver-private-bucket/portfolios/uuid-1234.pdf";
         String mockPresignedUrl = "https://weiver-private-bucket/portfolios/uuid-1234.pdf?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...";
 
-        Applicant applicant = Applicant.builder().applicantId(applicantId).build();
+        Applicant applicant = Applicant.builder()
+                .applicantId(applicantId)
+                .publicId(publicId)
+                .build();
 
         Portfolio portfolio = Portfolio.builder()
                 .portfolioId(1L)
@@ -54,7 +59,7 @@ class PortfolioServiceImplTest {
                 .applicant(applicant)
                 .build();
 
-        given(applicantRepository.findById(applicantId))
+        given(applicantRepository.findByPublicId(publicId))
                 .willReturn(Optional.of(applicant));
         given(portfolioRepository.findByApplicant(applicant))
                 .willReturn(Optional.of(portfolio));
@@ -64,7 +69,7 @@ class PortfolioServiceImplTest {
                 .willReturn(mockPresignedUrl);
 
         // When
-        PortfolioResponseDTO responseDTO = portfolioService.searchPortfolio(applicantId);
+        PortfolioResponseDTO responseDTO = portfolioService.searchPortfolio(publicId);
 
         // Then
         verify(s3Service, times(1)).getPresignedUrl(originalFileKey);
@@ -78,16 +83,20 @@ class PortfolioServiceImplTest {
     void searchPortfolio_NotFound_ThrowsException() {
         // Given
         long applicantId = 1L;
-        Applicant applicant = Applicant.builder().applicantId(applicantId).build();
+        String publicId = "3333";
+        Applicant applicant = Applicant.builder()
+                .applicantId(applicantId)
+                .publicId(publicId)
+                .build();
 
-        given(applicantRepository.findById(applicantId))
+        given(applicantRepository.findByPublicId(publicId))
                 .willReturn(Optional.of(applicant));
 
         given(portfolioRepository.findByApplicant(applicant))
                 .willReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> portfolioService.searchPortfolio(applicantId))
+        assertThatThrownBy(() -> portfolioService.searchPortfolio(publicId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(ErrorCode.PORTFOLIO_NOT_FOUND);
@@ -98,12 +107,13 @@ class PortfolioServiceImplTest {
     void searchPortfolio_ApplicantNotFound_ThrowsException() {
         // Given
         long invalidApplicantId = 999L;
+        String invalidPublicId = "3333";
 
-        given(applicantRepository.findById(invalidApplicantId))
+        given(applicantRepository.findByPublicId(invalidPublicId))
                 .willReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> portfolioService.searchPortfolio(invalidApplicantId))
+        assertThatThrownBy(() -> portfolioService.searchPortfolio(invalidPublicId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(ErrorCode.APPLICANT_NOT_FOUND);
