@@ -226,10 +226,12 @@ public class ApplicantAuthServiceTest {
                 .thenReturn(Optional.of(email));
         when(passwordEncoder.encode(password)).thenReturn("encoded");
 
+        String expectedPublicId = "test-public-id";
         Applicant saved = Applicant.builder()
                 .email(email)
                 .password("encoded")
                 .role(UserRole.APPLICANT)
+                .publicId(expectedPublicId)
                 .build();
         ReflectionTestUtils.setField(saved, "applicantId", 1L);
         when(applicantRepository.save(any(Applicant.class))).thenReturn(saved);
@@ -238,8 +240,7 @@ public class ApplicantAuthServiceTest {
         ApplicantSignupResponseDTO response = applicantAuthService.signup(request);
 
         // then
-        assertThat(response.applicantId()).isEqualTo(1L);
-        assertThat(response.email()).isEqualTo(email);
+        assertThat(response.publicId()).isEqualTo(expectedPublicId);
         assertThat(response.role()).isEqualTo(UserRole.APPLICANT);
 
         verify(emailVerificationRepository).findAndDeleteVerifiedToken(token);
