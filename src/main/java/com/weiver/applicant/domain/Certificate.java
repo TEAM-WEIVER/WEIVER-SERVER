@@ -38,14 +38,8 @@ public class Certificate extends BaseTimeEntity {
      * 편의 메소드
      * */
     public void updateCertificate(CertificateUpdateDetailDTO updateDTO){
-        if(updateDTO.certificateName() != null) {
-            this.certificateName = updateDTO.certificateName();
-        }
-        if(updateDTO.issuer() != null) {
-            this.issuer = updateDTO.issuer();
-        }
-        if(updateDTO.acquisitionDate() != null) {
-            this.acquisitionDate = updateDTO.acquisitionDate();
-        }
+        this.certificateName = updateDTO.certificateName();
+        this.issuer = updateDTO.issuer();
+        this.acquisitionDate = updateDTO.acquisitionDate();
     }
 }

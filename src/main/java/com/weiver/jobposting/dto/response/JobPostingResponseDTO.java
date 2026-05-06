@@ -1,9 +1,7 @@
-package com.weiver.jobposting.dto.request;
+package com.weiver.jobposting.dto.response;
 
-import com.weiver.company.domain.Company;
 import com.weiver.jobposting.domain.EmailTemplate;
 import com.weiver.jobposting.domain.JobPosting;
-import com.weiver.jobposting.type.JobPostingStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,8 +9,11 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.util.List;
 
-@Schema(description = "채용 공고 생성 요청 DTO (multipart/form-data의 requestDTO 파트에 사용)")
-public record JobPostingRequestDTO(
+@Schema(description = "채용 공고 조회 DTO")
+public record JobPostingResponseDTO(
+        @Schema(description = "채용 공고 기본키", example = "1")
+        Long jdId,
+        
         @Schema(description = "채용 공고 제목", example = "2026년 상반기 백엔드 엔지니어 채용")
         @NotBlank String title,
 
@@ -51,31 +52,23 @@ public record JobPostingRequestDTO(
 
         @Schema(description = "안내 이메일 본문 내용", example = "안녕하세요. Weaver 지원에 감사드립니다...")
         @NotBlank String emailContent
-
 ) {
-    public JobPosting toJobPosting(Company company, JobPostingStatus status){
-        return JobPosting.builder()
-                .title(this.title)
-                .status(status)
-                .jobCategory(this.jobCategory)
-                .deadline(this.deadline)
-                .jobDescription(this.jobDescription)
-                .qualifications(this.qualifications)
-                .requirements(this.requirements)
-                .preferredQualifications(this.preferredQualifications)
-                .competencyPriorities(this.competencyPriorities)
-                .requiredTech(this.requiredTechs)
-                .traitPriorities(this.traitPriorities)
-                .company(company)
-                .build();
-    }
-
-    public EmailTemplate toEmailTemplate(JobPosting jobPosting, String emailBannerUrl){
-        return EmailTemplate.builder()
-                .emailTitle(this.emailTitle)
-                .emailContent(this.emailContent)
-                .emailBannerUrl(emailBannerUrl)
-                .jobPosting(jobPosting)
-                .build();
+    public static JobPostingResponseDTO of(JobPosting jobPosting, EmailTemplate emailTemplate) {
+        return new JobPostingResponseDTO(
+                jobPosting.getJdId(),
+                jobPosting.getTitle(),
+                jobPosting.getDeadline(),
+                jobPosting.getJobCategory(),
+                jobPosting.getDetailedJob(),
+                jobPosting.getJobDescription(),
+                jobPosting.getQualifications(),
+                jobPosting.getRequirements(),
+                jobPosting.getPreferredQualifications(),
+                jobPosting.getCompetencyPriorities(),
+                jobPosting.getRequiredTech(),
+                jobPosting.getTraitPriorities(),
+                emailTemplate.getEmailTitle(),
+                emailTemplate.getEmailContent()
+        );
     }
 }

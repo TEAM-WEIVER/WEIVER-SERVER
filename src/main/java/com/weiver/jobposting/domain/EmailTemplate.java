@@ -1,6 +1,7 @@
 package com.weiver.jobposting.domain;
 
 import com.weiver.global.common.BaseTimeEntity;
+import com.weiver.jobposting.dto.request.JobPostingUpdateDTO;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -29,4 +30,11 @@ public class EmailTemplate extends BaseTimeEntity {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "jd_id", nullable = false, unique = true)
     private JobPosting jobPosting;
+
+
+    public void updateEmailTemplate(JobPostingUpdateDTO updateDTO, String emailBannerUrl){
+        this.emailTitle = updateDTO.emailTitle();
+        this.emailContent = updateDTO.emailContent();
+        this.emailBannerUrl = emailBannerUrl;
+    }
 }

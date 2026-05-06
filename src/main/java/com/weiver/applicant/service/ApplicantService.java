@@ -28,9 +28,9 @@ public class ApplicantService {
     private final WorkExperienceRepository workExperienceRepository;
     private final S3Service s3Service;
 
-    public void updateApplicantInfo(long applicantId, ApplicantInfoRequestDTO requestDTO, MultipartFile profileImage) {
+    public void updateApplicantInfo(String publicId, ApplicantInfoRequestDTO requestDTO, MultipartFile profileImage) {
 
-        Applicant applicant = getApplicant(applicantId);
+        Applicant applicant = getApplicant(publicId);
 
         String photoUrl = applicant.getPhotoUrl();
 
@@ -47,8 +47,8 @@ public class ApplicantService {
     }
 
     @Transactional(readOnly = true)
-    public ApplicantInfoResponseDTO searchApplicant(long applicantId) {
-        Applicant applicant = getApplicant(applicantId);
+    public ApplicantInfoResponseDTO searchApplicant(String publicId) {
+        Applicant applicant = getApplicant(publicId);
 
         List<Education> educations = educationRepository.findAllByApplicant(applicant);
         List<Award> awards = awardRepository.findAllByApplicant(applicant);
@@ -82,8 +82,8 @@ public class ApplicantService {
         );
     }
 
-    private Applicant getApplicant(long applicantId) {
-        Applicant applicant = applicantRepository.findById(applicantId)
+    private Applicant getApplicant(String publicId) {
+        Applicant applicant = applicantRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
         return applicant;
     }

@@ -70,21 +70,11 @@ public class Applicant extends BaseTimeEntity {
      * */
     public void updateInfo(ApplicantInfoRequestDTO updateDTO, String photoUrl){
         this.photoUrl = photoUrl;
-        if(updateDTO.name() != null) {
-            this.name = updateDTO.name();
-        }
-        if(updateDTO.email() != null) {
-            this.email = updateDTO.email();
-        }
-        if(updateDTO.phoneNumber() != null) {
-            this.phoneNumber = updateDTO.phoneNumber();
-        }
-        if(updateDTO.address() != null) {
-            this.address = updateDTO.address();
-        }
-        if(updateDTO.birthday() != null) {
-            this.birthday = updateDTO.birthday();
-        }
+        this.name = updateDTO.name();
+        this.email = updateDTO.email();
+        this.phoneNumber = updateDTO.phoneNumber();
+        this.address = updateDTO.address();
+        this.birthday = updateDTO.birthday();
     }
 
     public void withdraw() {

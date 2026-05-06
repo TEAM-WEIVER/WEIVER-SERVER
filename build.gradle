@@ -127,7 +127,7 @@ dependencies {
     // swagger
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.13'
 
-    // ----------------------------------------------------------------------
+// ----------------------------------------------------------------------
     // 9. Testing
     // ----------------------------------------------------------------------
 
@@ -140,14 +140,13 @@ dependencies {
     // RabbitMQ 테스트
     testImplementation 'org.springframework.amqp:spring-rabbit-test'
 
-    // Testcontainers
-    compileOnly "org.testcontainers:testcontainers"
-    developmentOnly "org.testcontainers:testcontainers"
-    developmentOnly "org.testcontainers:jdbc"
-    developmentOnly "org.testcontainers:postgresql"
-
+    // Testcontainers BOM (버전 관리)
     implementation platform("org.testcontainers:testcontainers-bom:${testcontainersVersion}")
 
+    // Spring Boot 3.1+ Testcontainers 공식 지원 (@ServiceConnection 사용 가능)
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+
+    // Testcontainers JUnit5 연동 및 컨테이너 모듈
     testImplementation "org.testcontainers:junit-jupiter"
     testImplementation "org.testcontainers:postgresql"
     testImplementation "org.testcontainers:rabbitmq"

@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -48,8 +49,8 @@ public class ApplicantController {
     @GetMapping
     public ResponseEntity<ApiResponse<ApplicantInfoResponseDTO>> searchApplicant(
             @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
-        ApplicantInfoResponseDTO responseDTO = applicantService.searchApplicant(applicantId);
+
+        ApplicantInfoResponseDTO responseDTO = applicantService.searchApplicant(principal.getName());
 
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
 
@@ -66,9 +67,9 @@ public class ApplicantController {
     public ResponseEntity<ApiResponse<Void>> updateApplicantInfo(
             @Parameter(description = "개인정보 수정 데이터 (JSON)") @RequestPart(value = "requestDTO") @Valid ApplicantInfoRequestDTO requestDTO,
             @Parameter(description = "프로필 이미지 파일 (.jpg, .png 등)") @RequestPart(value = "profileImage", required = false) MultipartFile profileImage,
-            @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
-        applicantService.updateApplicantInfo(applicantId, requestDTO, profileImage);
+            @AuthenticationPrincipal Principal principal) {
+
+        applicantService.updateApplicantInfo(principal.getName(), requestDTO, profileImage);
 
         return ResponseEntity.ok(ApiResponse.success("개인정보 저장에 성공했습니다."));
     }
@@ -81,8 +82,8 @@ public class ApplicantController {
     public ResponseEntity<ApiResponse<Void>> saveEducationInfo(
             @RequestBody @Valid EducationRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
-        educationService.saveEducationInfo(applicantId, requestDTO);
+
+        educationService.saveEducationInfo(principal.getName(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("학력 저장에 성공했습니다."));
     }
@@ -96,8 +97,8 @@ public class ApplicantController {
     public ResponseEntity<ApiResponse<Void>> updateEducationInfo(
             @RequestBody @Valid EducationUpdateRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
-        educationService.updateEducationInfo(applicantId, requestDTO);
+
+        educationService.updateEducationInfo(principal.getName(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("학력 업데이트 성공했습니다."));
     }
@@ -110,8 +111,8 @@ public class ApplicantController {
     public ResponseEntity<ApiResponse<Void>> saveAwardInfo(
             @RequestBody @Valid AwardRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
-        awardService.saveAwardInfo(applicantId, requestDTO);
+
+        awardService.saveAwardInfo(principal.getName(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("수상이력 저장에 성공했습니다."));
     }
@@ -125,8 +126,8 @@ public class ApplicantController {
     public ResponseEntity<ApiResponse<Void>> updateAwardInfo(
             @RequestBody @Valid AwardUpdateRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
-        awardService.updateAwardInfo(applicantId, requestDTO);
+
+        awardService.updateAwardInfo(principal.getName(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("수상목록 업데이트 성공했습니다."));
     }
@@ -139,8 +140,8 @@ public class ApplicantController {
     public ResponseEntity<ApiResponse<Void>> saveCertificateInfo(
             @RequestBody @Valid CertificateRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
-        certificateService.saveCertificateInfo(applicantId, requestDTO);
+
+        certificateService.saveCertificateInfo(principal.getName(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("자격증 저장에 성공했습니다."));
     }
@@ -154,8 +155,8 @@ public class ApplicantController {
     public ResponseEntity<ApiResponse<Void>> updateCertificateInfo(
             @RequestBody @Valid CertificateUpdateRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
-        certificateService.updateCertificateInfo(applicantId, requestDTO);
+
+        certificateService.updateCertificateInfo(principal.getName(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("자격증 목록 업데이트 성공했습니다."));
     }
@@ -168,8 +169,8 @@ public class ApplicantController {
     public ResponseEntity<ApiResponse<Void>> saveWorkExperienceInfo(
             @RequestBody @Valid WorkExperienceRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
-        workExperienceService.saveWorkExperienceInfo(applicantId, requestDTO);
+
+        workExperienceService.saveWorkExperienceInfo(principal.getName(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("경력 저장에 성공했습니다."));
     }
@@ -183,23 +184,9 @@ public class ApplicantController {
     public ResponseEntity<ApiResponse<Void>> updateExperienceInfo(
             @RequestBody @Valid WorkExperienceUpdateRequestDTO requestDTO,
             @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
-        workExperienceService.updateWorkExperienceInfo(applicantId, requestDTO);
+
+        workExperienceService.updateWorkExperienceInfo(principal.getName(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("경력 업데이트 성공했습니다."));
-    }
-
-
-
-
-    /**
-     * 편의 메소드
-     * */
-    private static Long extractedId(Principal principal) {
-        if(principal == null){
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        }
-
-        return Long.parseLong(principal.getName());
     }
 }

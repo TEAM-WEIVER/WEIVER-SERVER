@@ -39,14 +39,8 @@ public class Award extends BaseTimeEntity {
      * 편의 메소드
      * */
     public void updateAward(AwardUpdateDetailDTO updateDTO){
-        if(updateDTO.awardDate() != null) {
-            this.awardDate = updateDTO.awardDate();
-        }
-        if(updateDTO.awardName() != null) {
-            this.awardName = updateDTO.awardName();
-        }
-        if(updateDTO.issuer() != null) {
-            this.issuer = updateDTO.issuer();
-        }
+        this.awardDate = updateDTO.awardDate();
+        this.awardName = updateDTO.awardName();
+        this.issuer = updateDTO.issuer();
     }
 }

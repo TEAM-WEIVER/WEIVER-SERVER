@@ -1,9 +1,5 @@
 package com.weiver.jobposting.dto.request;
 
-import com.weiver.company.domain.Company;
-import com.weiver.jobposting.domain.EmailTemplate;
-import com.weiver.jobposting.domain.JobPosting;
-import com.weiver.jobposting.type.JobPostingStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -11,8 +7,8 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 import java.util.List;
 
-@Schema(description = "채용 공고 생성 요청 DTO (multipart/form-data의 requestDTO 파트에 사용)")
-public record JobPostingRequestDTO(
+@Schema(description = "채용 공고 수정 요청 DTO")
+public record JobPostingUpdateDTO(
         @Schema(description = "채용 공고 제목", example = "2026년 상반기 백엔드 엔지니어 채용")
         @NotBlank String title,
 
@@ -50,32 +46,9 @@ public record JobPostingRequestDTO(
         @NotBlank String emailTitle,
 
         @Schema(description = "안내 이메일 본문 내용", example = "안녕하세요. Weaver 지원에 감사드립니다...")
-        @NotBlank String emailContent
+        @NotBlank String emailContent,
 
+        @Schema(description = "기존 배너 이미지 삭제 여부 (true: 삭제, false: 유지 또는 변경)", example = "false")
+        Boolean isEmailBannerDeleted
 ) {
-    public JobPosting toJobPosting(Company company, JobPostingStatus status){
-        return JobPosting.builder()
-                .title(this.title)
-                .status(status)
-                .jobCategory(this.jobCategory)
-                .deadline(this.deadline)
-                .jobDescription(this.jobDescription)
-                .qualifications(this.qualifications)
-                .requirements(this.requirements)
-                .preferredQualifications(this.preferredQualifications)
-                .competencyPriorities(this.competencyPriorities)
-                .requiredTech(this.requiredTechs)
-                .traitPriorities(this.traitPriorities)
-                .company(company)
-                .build();
-    }
-
-    public EmailTemplate toEmailTemplate(JobPosting jobPosting, String emailBannerUrl){
-        return EmailTemplate.builder()
-                .emailTitle(this.emailTitle)
-                .emailContent(this.emailContent)
-                .emailBannerUrl(emailBannerUrl)
-                .jobPosting(jobPosting)
-                .build();
-    }
 }

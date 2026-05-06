@@ -1,6 +1,7 @@
 package com.weiver.jobposting.domain;
 
 import com.weiver.company.domain.Company;
+import com.weiver.jobposting.dto.request.JobPostingUpdateDTO;
 import com.weiver.jobposting.type.JobPostingStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -73,18 +74,27 @@ public class JobPosting {
     /**
      * 편의 메소드
      * */
-    public void addCompetencyTech(List<String> competencyPriorities, List<String> requiredTechs){
-        if (competencyPriorities != null && !competencyPriorities.isEmpty()) {
-            this.competencyPriorities = competencyPriorities;
-        }
-        if (requiredTechs != null && !requiredTechs.isEmpty()) {
-            this.requiredTech = requiredTechs;
-        }
+    public void updateJobPosting(JobPostingUpdateDTO updateDTO){
+        this.title = updateDTO.title();
+        this.jobCategory = updateDTO.jobCategory();
+        this.deadline = updateDTO.deadline();
+        this.detailedJob = updateDTO.detailedJob();
+        this.jobDescription = updateDTO.jobDescription();
+        this.qualifications = updateDTO.qualifications();
+        this.requirements = updateDTO.requirements();
+        this.preferredQualifications = updateDTO.preferredQualifications();
+        this.competencyPriorities = updateDTO.competencyPriorities() != null
+                ? updateDTO.competencyPriorities()
+                : List.of();
+        this.requiredTech = updateDTO.requiredTechs() != null
+                ? updateDTO.requiredTechs()
+                : List.of();
+        this.traitPriorities = updateDTO.traitPriorities() != null
+                ? updateDTO.traitPriorities()
+                : List.of();
     }
 
-    public void addTraitPriorities(List<String> traitPriorities){
-        if(traitPriorities != null && !traitPriorities.isEmpty()){
-            this.traitPriorities = traitPriorities;
-        }
+    public void updateStatus(JobPostingStatus status){
+        this.status = status;
     }
 }

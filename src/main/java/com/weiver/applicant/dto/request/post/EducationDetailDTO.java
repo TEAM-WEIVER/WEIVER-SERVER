@@ -43,9 +43,9 @@ public record EducationDetailDTO (
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM", timezone = "Asia/Seoul")
         YearMonth endDate,
 
-        @Schema(description = "학력", example = "ACTIVE",
+        @Schema(description = "졸업 상태", example = "ACTIVE",
                 allowableValues = {"GRADUATED", "LEAVE_OF_ABSENCE", "GRADUATION_POSTPONED", "ACTIVE"})
-        @NotBlank(message = "학력 상태는 필수 입력값입니다.")
+        @NotBlank(message = "졸업 상태는 필수 입력값입니다.")
         String status){
     public Education toEntity(Applicant applicant){
         return Education.builder()
