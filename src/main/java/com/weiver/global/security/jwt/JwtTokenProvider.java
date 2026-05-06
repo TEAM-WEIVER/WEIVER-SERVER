@@ -29,12 +29,12 @@ public class JwtTokenProvider {
         );
     }
 
-    public String createAccessToken(Long userId, UserRole role) {
-        return createToken(userId, role, jwtProperties.accessTokenExpiration());
+    public String createAccessToken(String publicId, UserRole role, long tokenVersion) {
+        return createToken(publicId, role, tokenVersion, jwtProperties.accessTokenExpiration());
     }
 
-    public String createRefreshToken(Long userId, UserRole role) {
-        return createToken(userId, role, jwtProperties.refreshTokenExpiration());
+    public String createRefreshToken(String publicId, UserRole role, long tokenVersion) {
+        return createToken(publicId, role, tokenVersion, jwtProperties.refreshTokenExpiration());
     }
 
     public void validateRefreshToken(String token) {
@@ -54,27 +54,42 @@ public class JwtTokenProvider {
         return expiration.getTime() - System.currentTimeMillis();
     }
 
-    public Long getUserId(String token) {
+    public long getRefreshTokenExpirationMillis() {
+        return jwtProperties.refreshTokenExpiration();
+    }
+
+    public String getPublicId(String token) {
         String subject = getClaims(token).getSubject();
 
         if(subject == null || subject.isBlank()) {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
 
-        return Long.valueOf(subject);
+        return subject;
     }
 
     public UserRole getRole(String token) {
         return UserRole.valueOf(getClaims(token).get("role", String.class));
     }
 
-    private String createToken(Long userId, UserRole role, long expirationMillis) {
+    public long getTokenVersion(String token) {
+        Long tokenVersion = getClaims(token).get("tokenVersion", Long.class);
+
+        if(tokenVersion == null) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
+
+        return tokenVersion;
+    }
+
+    private String createToken(String publicId, UserRole role, long tokenVersion, long expirationMillis) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationMillis);
 
         return Jwts.builder()
-                .subject(String.valueOf(userId))
+                .subject(publicId)
                 .claim("role", role.name())
+                .claim("tokenVersion", tokenVersion)
                 .issuedAt(now)
                 .expiration(expiration)
                 .signWith(secretKey)

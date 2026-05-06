@@ -8,6 +8,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -21,6 +22,10 @@ public class Applicant extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "applicant_id")
     private Long applicantId;
+
+    @Builder.Default
+    @Column(name = "public_id", nullable = false, unique = true, updatable = false)
+    private String publicId = UUID.randomUUID().toString();
 
     @Column(name = "email", unique = true, nullable = false)
     private String email;   // 이메일

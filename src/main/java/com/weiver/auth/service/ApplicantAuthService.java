@@ -10,12 +10,14 @@ import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
 import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
 import com.weiver.global.common.UserRole;
+import com.weiver.global.auth.ApplicantProvider;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.mail.MailMessage;
 import com.weiver.global.mail.MailSender;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
+import com.weiver.global.security.jwt.repository.TokenVersionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,11 +38,13 @@ public class ApplicantAuthService {
     private final ApplicantRepository applicantRepository;
     private final ApplicantAgreementRepository applicantAgreementRepository;
     private final ApplicantEmailVerificationRepository emailVerificationRepository;
+    private final TokenVersionRepository tokenVersionRepository;
     private final ApplicantVerificationCodeGenerator codeGenerator;
     private final MailSender mailSender;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final ApplicantProvider applicantProvider;
 
     public void sendEmailCode(ApplicantEmailSendRequestDTO request) {
         String email = request.email();
@@ -148,13 +152,18 @@ public class ApplicantAuthService {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
         }
 
-        String accessToken = jwtTokenProvider.createAccessToken(applicant.getApplicantId(), applicant.getRole());
-        String refreshToken = jwtTokenProvider.createRefreshToken(applicant.getApplicantId(), applicant.getRole());
-        long refreshTokenTtlMillis = jwtTokenProvider.getRemainingExpiration(refreshToken);
+        String publicId = applicant.getPublicId();
+        UserRole userRole = applicant.getRole();
+
+        long tokenVersion = tokenVersionRepository.getCurrentVersion(publicId, userRole);
+
+        String accessToken = jwtTokenProvider.createAccessToken(publicId, userRole, tokenVersion);
+        String refreshToken = jwtTokenProvider.createRefreshToken(publicId, userRole, tokenVersion);
+        long refreshTokenTtlMillis = jwtTokenProvider.getRefreshTokenExpirationMillis();
 
         refreshTokenRepository.save(
-                applicant.getApplicantId(),
-                applicant.getRole(),
+                publicId,
+                userRole,
                 refreshToken,
                 refreshTokenTtlMillis
         );
@@ -162,17 +171,16 @@ public class ApplicantAuthService {
         return new ApplicantLoginResult(
                 accessToken,
                 refreshToken,
-                applicant.getRole()
+                userRole
         );
     }
 
     @Transactional
-    public void withdraw(Long applicantId) {
-        Applicant applicant = applicantRepository.findByApplicantIdAndDeletedFalse(applicantId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+    public void withdraw(String publicId) {
+        Applicant applicant = applicantProvider.findByPublicId(publicId);
 
-        refreshTokenRepository.deleteByUserId(
-                applicant.getApplicantId(),
+        refreshTokenRepository.deleteByPublicId(
+                applicant.getPublicId(),
                 applicant.getRole()
         );
 

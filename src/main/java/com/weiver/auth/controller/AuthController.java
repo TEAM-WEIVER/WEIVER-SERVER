@@ -1,5 +1,6 @@
 package com.weiver.auth.controller;
 
+import com.weiver.auth.dto.response.CsrfTokenResponse;
 import com.weiver.auth.dto.response.ReissueResponseDTO;
 import com.weiver.auth.service.AuthService;
 import com.weiver.auth.service.dto.TokenReissueResult;
@@ -15,10 +16,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.web.csrf.CsrfToken;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -39,10 +38,6 @@ public class AuthController {
     ) {
         String accessToken = bearerTokenResolver.resolve(authorizationHeader);
 
-        if(accessToken == null) {
-            throw new BusinessException(ErrorCode.INVALID_TOKEN);
-        }
-
         authService.logout(accessToken);
 
         ResponseCookie expiredRefreshTokenCookie = cookieProvider.createExpiredRefreshTokenCookie();
@@ -61,11 +56,6 @@ public class AuthController {
             HttpServletResponse response
     ) {
         String refreshToken = refreshTokenCookieResolver.resolve(request);
-
-        if(refreshToken == null) {
-            throw new BusinessException(ErrorCode.REFRESH_TOKEN_NOT_FOUND);
-        }
-
         TokenReissueResult tokenReissueResult = authService.reissueToken(refreshToken);
 
         ResponseCookie refreshTokenCookie = cookieProvider.createRefreshTokenCookie(tokenReissueResult.refreshToken());
@@ -79,5 +69,14 @@ public class AuthController {
                 200,
                 new ReissueResponseDTO(tokenReissueResult.accessToken()),
                 "토큰 재발급에 성공했습니다." ));
+    }
+
+    @GetMapping("/csrf")
+    public ResponseEntity<ApiResponse<CsrfTokenResponse>> csrf(CsrfToken csrfToken) {
+        return ResponseEntity.ok(ApiResponse.success(
+                200,
+                new CsrfTokenResponse(csrfToken.getToken()),
+                "CSRF 토큰 발급에 성공했습니다."
+        ));
     }
 }
