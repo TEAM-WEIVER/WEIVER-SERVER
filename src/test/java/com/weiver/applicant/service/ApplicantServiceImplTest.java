@@ -73,10 +73,12 @@ class ApplicantServiceImplTest {
     void updateApplicantInfo_Success() {
         // Given
         long applicantId = 1L;
+        String publicId = "2222";
 
         // Mock이 아닌 실제 엔티티 생성 
         Applicant realApplicant = Applicant.builder()
                 .applicantId(applicantId)
+                .publicId(publicId)
                 .name("홍길동")
                 .phoneNumber("010-1234-1234")
                 .photoUrl("https://old-photo.url")
@@ -87,11 +89,11 @@ class ApplicantServiceImplTest {
                 "김철수", "new@email.com", "010-5678-1234", "서울시", LocalDate.of(1999, 1, 1)
         );
 
-        given(applicantRepository.findById(applicantId))
+        given(applicantRepository.findByPublicId(publicId))
                 .willReturn(Optional.of(realApplicant));
 
         // When
-        applicantService.updateApplicantInfo(applicantId, realRequestDTO, null);
+        applicantService.updateApplicantInfo(publicId, realRequestDTO, null);
 
         // Then
         assertThat(realApplicant.getName()).isEqualTo("김철수");
@@ -109,17 +111,21 @@ class ApplicantServiceImplTest {
     void saveAward_Success() {
         // Given
         long applicantId = 1L;
+        String publicId = "2222";
 
-        Applicant realApplicant = Applicant.builder().applicantId(applicantId).build();
+        Applicant realApplicant = Applicant.builder()
+                .applicantId(applicantId)
+                .publicId(publicId)
+                .build();
 
         AwardDetailDTO awardDetailDTO = new AwardDetailDTO(LocalDate.of(2021, 2, 1), "대상", "한양대학교");
         AwardRequestDTO awardRequestDTO = new AwardRequestDTO(List.of(awardDetailDTO));
 
-        given(applicantRepository.findById(applicantId))
+        given(applicantRepository.findByPublicId(publicId))
                 .willReturn(Optional.of(realApplicant));
 
         // When
-        awardService.saveAwardInfo(applicantId, awardRequestDTO);
+        awardService.saveAwardInfo(publicId, awardRequestDTO);
 
         // Then
 
@@ -129,7 +135,7 @@ class ApplicantServiceImplTest {
 
         assertThat(savedAwards).hasSize(1);
         assertThat(savedAwards.get(0).getAwardName()).isEqualTo("대상");
-        assertThat(savedAwards.get(0).getApplicant().getApplicantId()).isEqualTo(applicantId);
+        assertThat(savedAwards.get(0).getApplicant().getPublicId()).isEqualTo(publicId);
     }
     
 
@@ -138,18 +144,22 @@ class ApplicantServiceImplTest {
     void saveEducationInfo_Success() {
         // Given
         long applicantId = 1L;
-        Applicant realApplicant = Applicant.builder().applicantId(applicantId).build();
+        String publicId = "2222";
+        Applicant realApplicant = Applicant.builder()
+                .applicantId(applicantId)
+                .publicId(publicId)
+                .build();
 
         EducationDetailDTO detailDTO = new EducationDetailDTO(
                 "BACHELOR", "한양대학교", "컴퓨터공학", 4.0, YearMonth.of(2020, 3), YearMonth.of(2024, 2), "GRADUATED"
         );
         EducationRequestDTO realRequestDTO = new EducationRequestDTO(List.of(detailDTO));
 
-        given(applicantRepository.findById(applicantId))
+        given(applicantRepository.findByPublicId(publicId))
                 .willReturn(Optional.of(realApplicant));
 
         // When
-        educationService.saveEducationInfo(applicantId, realRequestDTO);
+        educationService.saveEducationInfo(publicId, realRequestDTO);
 
         // Then
         // saveAll이 호출될 때 넘어간 진짜 파라미터(List)를 캡처(Capture)
@@ -160,7 +170,7 @@ class ApplicantServiceImplTest {
 
         assertThat(savedEducations).hasSize(1);
         assertThat(savedEducations.get(0).getSchoolName()).isEqualTo("한양대학교");
-        assertThat(savedEducations.get(0).getApplicant().getApplicantId()).isEqualTo(applicantId);
+        assertThat(savedEducations.get(0).getApplicant().getPublicId()).isEqualTo(publicId);
     }
 
     @Test
@@ -168,7 +178,11 @@ class ApplicantServiceImplTest {
     void saveEducationList_Success() {
         // Given
         long applicantId = 1L;
-        Applicant realApplicant = Applicant.builder().applicantId(applicantId).build();
+        String publicId = "2222";
+        Applicant realApplicant = Applicant.builder()
+                .applicantId(applicantId)
+                .publicId(publicId)
+                .build();
 
         EducationDetailDTO highSchoolDTO = new EducationDetailDTO(
                 "HIGH_SCHOOL", "테스트고등학교", "이과", 0.0, YearMonth.of(2017, 3), YearMonth.of(2020, 2), "GRADUATED"
@@ -180,11 +194,11 @@ class ApplicantServiceImplTest {
 
         EducationRequestDTO realRequestDTO = new EducationRequestDTO(List.of(highSchoolDTO, universityDTO));
 
-        given(applicantRepository.findById(applicantId))
+        given(applicantRepository.findByPublicId(publicId))
                 .willReturn(Optional.of(realApplicant));
 
         // When
-        educationService.saveEducationInfo(applicantId, realRequestDTO);
+        educationService.saveEducationInfo(publicId, realRequestDTO);
 
         // Then
         // saveAll이 호출될 때 넘어간 진짜 파라미터(List)를 캡처(Capture)
@@ -193,26 +207,26 @@ class ApplicantServiceImplTest {
         // 캡처한 리스트를 꺼내서, DTO의 값이 Entity로 잘 변환되어 들어갔는지 확인
         List<Education> savedEducations = educationListCaptor.getValue();
 
-        assertThat(savedEducations.get(0).getApplicant().getApplicantId()).isEqualTo(applicantId);
+        assertThat(savedEducations.get(0).getApplicant().getPublicId()).isEqualTo(publicId);
 
         assertThat(savedEducations).hasSize(2);
         assertThat(savedEducations.get(1).getSchoolName()).isEqualTo("한양대학교 에리카");
-        assertThat(savedEducations.get(1).getApplicant().getApplicantId()).isEqualTo(applicantId);
+        assertThat(savedEducations.get(1).getApplicant().getPublicId()).isEqualTo(publicId);
     }
 
     @Test
     @DisplayName("존재하지 않는 구직자 ID로 요청 시 예외 발생")
     void getApplicant_NotFound_ThrowsException() {
         // Given
-        long invalidApplicantId = 999L;
+        String invalidPublicId = "3333";
 
         ApplicantInfoRequestDTO emptyRequestDTO = new ApplicantInfoRequestDTO(null, null, null, null, null);
 
-        given(applicantRepository.findById(invalidApplicantId))
+        given(applicantRepository.findByPublicId(invalidPublicId))
                 .willReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> applicantService.updateApplicantInfo(invalidApplicantId, emptyRequestDTO,null))
+        assertThatThrownBy(() -> applicantService.updateApplicantInfo(invalidPublicId, emptyRequestDTO,null))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(ErrorCode.APPLICANT_NOT_FOUND);
@@ -223,11 +237,13 @@ class ApplicantServiceImplTest {
     void updateApplicantInfo_WithNewImage_Success() {
         // Given
         long applicantId = 1L;
+        String publicId = "2222";
         String oldPhotoUrl = "https://weiver-public-bucket/old-profile.jpg";
         String newPhotoUrl = "https://weiver-public-bucket/new-profile.jpg";
 
         Applicant realApplicant = Applicant.builder()
                 .applicantId(applicantId)
+                .publicId(publicId)
                 .name("홍길동")
                 .photoUrl(oldPhotoUrl)
                 .build();
@@ -240,14 +256,14 @@ class ApplicantServiceImplTest {
         MultipartFile mockFile = mock(MultipartFile.class);
         given(mockFile.isEmpty()).willReturn(false); // 파일이 비어있지 않음
 
-        given(applicantRepository.findById(applicantId))
+        given(applicantRepository.findByPublicId(publicId))
                 .willReturn(Optional.of(realApplicant));
 
         // s3Service.publicUpload 호출되면 가짜 URL을 반환
         given(s3Service.publicUpload(mockFile, "profiles")).willReturn(newPhotoUrl);
 
         // When
-        applicantService.updateApplicantInfo(applicantId, realRequestDTO, mockFile);
+        applicantService.updateApplicantInfo(publicId, realRequestDTO, mockFile);
 
         // Then
         verify(s3Service, times(1)).deleteFile(oldPhotoUrl);
@@ -262,9 +278,11 @@ class ApplicantServiceImplTest {
     void searchApplicant_Success() {
         // Given
         long applicantId = 1L;
+        String publicId = "2222";
 
         Applicant realApplicant = Applicant.builder()
                 .applicantId(applicantId)
+                .publicId(publicId)
                 .name("이현우")
                 .email("test@example.com")
                 .phoneNumber("010-1234-5678")
@@ -303,7 +321,7 @@ class ApplicantServiceImplTest {
                 .applicant(realApplicant)
                 .build();
 
-        given(applicantRepository.findById(applicantId))
+        given(applicantRepository.findByPublicId(publicId))
                 .willReturn(Optional.of(realApplicant));
 
         // 부모 엔티티를 넘겨줬을 때, 미리 만들어둔 자식 리스트를 반환하도록 세팅
@@ -317,7 +335,7 @@ class ApplicantServiceImplTest {
                 .willReturn(List.of(certificate));
 
         // When
-        ApplicantInfoResponseDTO responseDTO = applicantService.searchApplicant(applicantId);
+        ApplicantInfoResponseDTO responseDTO = applicantService.searchApplicant(publicId);
 
         // Then
         

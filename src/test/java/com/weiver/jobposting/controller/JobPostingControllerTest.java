@@ -1,11 +1,15 @@
 package com.weiver.jobposting.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.weiver.global.common.UserRole;
+import com.weiver.global.security.cookie.CookieProvider;
 import com.weiver.global.security.jwt.JwtAuthenticationFilter;
 import com.weiver.global.security.jwt.JwtTokenProvider;
+import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.jobposting.dto.request.JobPostingRequestDTO;
 import com.weiver.jobposting.dto.request.JobPostingUpdateDTO;
 import com.weiver.jobposting.service.JobPostingService;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,10 +19,14 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder; // 💡 핵심 임포트
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.nio.charset.StandardCharsets;
-import java.security.Principal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -42,9 +50,24 @@ class JobPostingControllerTest {
     private JwtTokenProvider jwtTokenProvider;
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
+    @MockitoBean
+    private CookieProvider cookieProvider;
 
+    private RequestPostProcessor customAuth(String publicId) {
+        return request -> {
+            AuthenticatedPrincipal principal = new AuthenticatedPrincipal(publicId, UserRole.COMPANY);
+            Authentication auth = new UsernamePasswordAuthenticationToken(
+                    principal, null, List.of(new SimpleGrantedAuthority("ROLE_COMPANY")));
 
-    private final Principal mockPrincipal = () -> "1";
+            SecurityContextHolder.getContext().setAuthentication(auth);
+            return request;
+        };
+    }
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
 
     @Test
     @DisplayName("공고 생성 컨트롤러: JSON 데이터와 이미지 파일이 함께 전송되어 성공")
@@ -71,7 +94,6 @@ class JobPostingControllerTest {
                 "requestDTO", "", MediaType.APPLICATION_JSON_VALUE, jsonPayload.getBytes(StandardCharsets.UTF_8)
         );
 
-        // 2. 가짜 이미지 파일 생성
         MockMultipartFile imagePart = new MockMultipartFile(
                 "emailBannerImage", "banner.png", MediaType.IMAGE_PNG_VALUE, "dummy image content".getBytes()
         );
@@ -81,7 +103,7 @@ class JobPostingControllerTest {
                         .file(requestDtoPart)
                         .file(imagePart)
                         .param("isTemp", "false")
-                        .principal(mockPrincipal))
+                        .with(customAuth("1")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("채용 공고가 성공적으로 등록되었습니다."))
                 .andDo(print());
@@ -116,14 +138,13 @@ class JobPostingControllerTest {
                 "requestDTO", "", MediaType.APPLICATION_JSON_VALUE, jsonPayload.getBytes(StandardCharsets.UTF_8)
         );
 
-
         mockMvc.perform(multipart("/api/job-postings/{jdId}", jdId)
                         .file(requestDtoPart)
                         .with(request -> {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .principal(mockPrincipal))
+                        .with(customAuth("1"))) // ⬅️ 다이렉트 주입!
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("채용 공고가 성공적으로 수정되었습니다."))
                 .andDo(print());
@@ -138,7 +159,7 @@ class JobPostingControllerTest {
         mockMvc.perform(get("/api/job-postings")
                         .param("page", "0")
                         .param("size", "5"))
-                .andExpect(status().isUnauthorized()) // (참고: GlobalExceptionHandler에 따라 400이나 다른 값일 수 있음. 프로젝트 설정에 맞추세요)
+                .andExpect(status().isUnauthorized())
                 .andDo(print());
     }
 }

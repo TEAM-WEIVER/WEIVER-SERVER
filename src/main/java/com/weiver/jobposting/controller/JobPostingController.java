@@ -3,6 +3,7 @@ package com.weiver.jobposting.controller;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.jobposting.dto.request.JobPostingRequestDTO;
 import com.weiver.jobposting.dto.request.JobPostingUpdateDTO;
 import com.weiver.jobposting.dto.response.JobPostingPageResponseDTO;
@@ -50,9 +51,11 @@ public class JobPostingController {
             @Parameter(description = "임시 저장 여부 (기본값 : false) ")
             @RequestParam(value = "isTemp", defaultValue = "false") boolean isTemp,
 
-            @AuthenticationPrincipal Principal principal) {
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
 
-        jobPostingService.saveJobPosting(isTemp, principal.getName(), requestDTO, emailBannerImage);
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+
+        jobPostingService.saveJobPosting(isTemp, principal.publicId(), requestDTO, emailBannerImage);
         return ResponseEntity.ok(ApiResponse.success("채용 공고가 성공적으로 등록되었습니다."));
     }
 
@@ -72,12 +75,14 @@ public class JobPostingController {
             @Parameter(description = "새로 변경할 배너 이미지 파일 (선택)", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE))
             @RequestPart(value = "emailBannerImage", required = false) MultipartFile emailBannerImage,
 
-            @AuthenticationPrincipal Principal principal,
+            @AuthenticationPrincipal AuthenticatedPrincipal principal,
 
             @Parameter(description = "수정할 공고의 고유 ID(jdId)", example = "1")
             @PathVariable Long jdId){
 
-        jobPostingService.updateJobPosting(jdId, principal.getName(), updateDTO, emailBannerImage);
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+
+        jobPostingService.updateJobPosting(jdId, principal.publicId(), updateDTO, emailBannerImage);
         return ResponseEntity.ok(ApiResponse.success("채용 공고가 성공적으로 수정되었습니다."));
     }
 
@@ -97,9 +102,11 @@ public class JobPostingController {
             @Parameter(description = "페이지당 데이터 개수", example = "3")
             @RequestParam(defaultValue = "3") int size,
 
-            @AuthenticationPrincipal Principal principal) {
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
 
-        JobPostingPageResponseDTO responseDTO = jobPostingService.searchJobPostingsList(principal.getName(), status, page, size);
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+
+        JobPostingPageResponseDTO responseDTO = jobPostingService.searchJobPostingsList(principal.publicId(), status, page, size);
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
 
@@ -109,11 +116,13 @@ public class JobPostingController {
     )
     @GetMapping("/{jdId}")
     public ResponseEntity<ApiResponse<JobPostingResponseDTO>> getJobPosting(
-            @AuthenticationPrincipal Principal principal,
+            @AuthenticationPrincipal AuthenticatedPrincipal principal,
             @Parameter(description = "조회할 공고의 고유 ID", example = "1")
             @PathVariable Long jdId){
 
-        JobPostingResponseDTO responseDTO = jobPostingService.searchJobPosting(principal.getName(), jdId);
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+
+        JobPostingResponseDTO responseDTO = jobPostingService.searchJobPosting(principal.publicId(), jdId);
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
 

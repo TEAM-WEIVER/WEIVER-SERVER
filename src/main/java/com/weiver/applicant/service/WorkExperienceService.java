@@ -28,16 +28,16 @@ public class WorkExperienceService {
     private final ApplicantRepository applicantRepository;
 
 
-    public void saveWorkExperienceInfo(long applicantId, WorkExperienceRequestDTO requestDTO) {
-        Applicant applicant = getApplicant(applicantId);
+    public void saveWorkExperienceInfo(String publicId, WorkExperienceRequestDTO requestDTO) {
+        Applicant applicant = getApplicant(publicId);
 
         List<WorkExperience> experienceList = requestDTO.toEntityList(applicant);
 
         workExperienceRepository.saveAll(experienceList);
     }
 
-    public void updateWorkExperienceInfo(long applicantId, WorkExperienceUpdateRequestDTO requestDTO) {
-        Applicant applicant = getApplicant(applicantId);
+    public void updateWorkExperienceInfo(String publicId, WorkExperienceUpdateRequestDTO requestDTO) {
+        Applicant applicant = getApplicant(publicId);
 
         List<WorkExperience> existingExperiences = workExperienceRepository.findAllByApplicant(applicant);
 
@@ -61,7 +61,7 @@ public class WorkExperienceService {
                         .findFirst()
                         .orElseThrow(() -> new BusinessException(ErrorCode.EXPERIENCE_NOT_FOUND));
 
-                if(!existingExperience.getApplicant().getApplicantId().equals(applicantId)) {
+                if(!existingExperience.getApplicant().getPublicId().equals(publicId)) {
                     throw new BusinessException(ErrorCode.FORBIDDEN);
                 }
 
@@ -75,8 +75,8 @@ public class WorkExperienceService {
     }
 
 
-    private Applicant getApplicant(long applicantId) {
-        Applicant applicant = applicantRepository.findById(applicantId)
+    private Applicant getApplicant(String publicId) {
+        Applicant applicant = applicantRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
         return applicant;
     }

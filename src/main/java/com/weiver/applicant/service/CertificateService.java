@@ -27,16 +27,16 @@ public class CertificateService {
     private final CertificateRepository certificateRepository;
     private final ApplicantRepository applicantRepository;
 
-    public void saveCertificateInfo(long applicantId, CertificateRequestDTO requestDTO) {
-        Applicant applicant = getApplicant(applicantId);
+    public void saveCertificateInfo(String publicId, CertificateRequestDTO requestDTO) {
+        Applicant applicant = getApplicant(publicId);
         List<Certificate> certificateList = requestDTO.toEntityList(applicant);
 
         certificateRepository.saveAll(certificateList);
     }
 
 
-    public void updateCertificateInfo(long applicantId, CertificateUpdateRequestDTO requestDTO) {
-        Applicant applicant = getApplicant(applicantId);
+    public void updateCertificateInfo(String publicId, CertificateUpdateRequestDTO requestDTO) {
+        Applicant applicant = getApplicant(publicId);
 
         List<Certificate> existingCertificates = certificateRepository.findAllByApplicant(applicant);
 
@@ -60,7 +60,7 @@ public class CertificateService {
                         .findFirst()
                         .orElseThrow(() -> new BusinessException(ErrorCode.CERTIFICATION_NOT_FOUND));
 
-                if(!existingCertificate.getApplicant().getApplicantId().equals(applicantId)) {
+                if(!existingCertificate.getApplicant().getPublicId().equals(publicId)) {
                     throw new BusinessException(ErrorCode.FORBIDDEN);
                 }
 
@@ -76,8 +76,8 @@ public class CertificateService {
 
 
 
-    private Applicant getApplicant(long applicantId) {
-        Applicant applicant = applicantRepository.findById(applicantId)
+    private Applicant getApplicant(String publicId) {
+        Applicant applicant = applicantRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
         return applicant;
     }

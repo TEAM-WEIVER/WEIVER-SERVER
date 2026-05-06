@@ -27,9 +27,9 @@ public class EducationService {
     private final EducationRepository educationRepository;
     private final ApplicantRepository applicantRepository;
 
-    public void saveEducationInfo(long applicantId, EducationRequestDTO requestDTO) {
+    public void saveEducationInfo(String publicId, EducationRequestDTO requestDTO) {
 
-        Applicant applicant = getApplicant(applicantId);
+        Applicant applicant = getApplicant(publicId);
 
         List<Education> educationList = requestDTO.toEntityList(applicant);
 
@@ -37,8 +37,8 @@ public class EducationService {
     }
 
 
-    public void updateEducationInfo(long applicantId, EducationUpdateRequestDTO requestDTO) {
-        Applicant applicant = getApplicant(applicantId);
+    public void updateEducationInfo(String publicId, EducationUpdateRequestDTO requestDTO) {
+        Applicant applicant = getApplicant(publicId);
 
         List<Education> existingEducations = educationRepository.findAllByApplicant(applicant);
 
@@ -67,7 +67,7 @@ public class EducationService {
                         .findFirst()
                         .orElseThrow(() -> new BusinessException(ErrorCode.EDUCATION_NOT_FOUND));
 
-                if (!existingEducation.getApplicant().getApplicantId().equals(applicantId)) {
+                if (!existingEducation.getApplicant().getPublicId().equals(publicId)) {
                     throw new BusinessException(ErrorCode.FORBIDDEN);
                 }
 
@@ -82,8 +82,8 @@ public class EducationService {
 
 
 
-    private Applicant getApplicant(long applicantId) {
-        Applicant applicant = applicantRepository.findById(applicantId)
+    private Applicant getApplicant(String publicId) {
+        Applicant applicant = applicantRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
         return applicant;
     }

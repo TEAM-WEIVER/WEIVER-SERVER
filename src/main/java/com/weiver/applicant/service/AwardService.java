@@ -26,8 +26,8 @@ public class AwardService {
     private final AwardRepository awardRepository;
     private final ApplicantRepository applicantRepository;
 
-    public void saveAwardInfo(long applicantId, AwardRequestDTO requestDTO) {
-        Applicant applicant = getApplicant(applicantId);
+    public void saveAwardInfo(String publicId, AwardRequestDTO requestDTO) {
+        Applicant applicant = getApplicant(publicId);
 
         List<Award> awardList = requestDTO.toEntityList(applicant);
 
@@ -35,8 +35,8 @@ public class AwardService {
     }
 
 
-    public void updateAwardInfo(long applicantId, AwardUpdateRequestDTO requestDTO) {
-        Applicant applicant = getApplicant(applicantId);
+    public void updateAwardInfo(String publicId, AwardUpdateRequestDTO requestDTO) {
+        Applicant applicant = getApplicant(publicId);
 
         List<Award> existingAwards = awardRepository.findAllByApplicant(applicant);
 
@@ -62,7 +62,7 @@ public class AwardService {
                         .findFirst()
                         .orElseThrow(() -> new BusinessException(ErrorCode.AWARD_NOT_FOUND));
 
-                if(!existingAward.getApplicant().getApplicantId().equals(applicantId)) {
+                if(!existingAward.getApplicant().getPublicId().equals(publicId)) {
                     throw new BusinessException(ErrorCode.FORBIDDEN);
                 }
 
@@ -77,8 +77,8 @@ public class AwardService {
 
 
 
-    private Applicant getApplicant(long applicantId) {
-        Applicant applicant = applicantRepository.findById(applicantId)
+    private Applicant getApplicant(String publicId) {
+        Applicant applicant = applicantRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
         return applicant;
     }

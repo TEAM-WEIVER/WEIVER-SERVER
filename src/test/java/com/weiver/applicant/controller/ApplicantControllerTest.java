@@ -1,12 +1,15 @@
 package com.weiver.applicant.controller;
 
-import com.weiver.applicant.dto.request.put.ApplicantInfoRequestDTO;
+import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.dto.response.*;
 import com.weiver.applicant.service.*;
+import com.weiver.global.common.UserRole; // 💡 UserRole 임포트
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.security.cookie.CookieProvider;
 import com.weiver.global.security.jwt.JwtAuthenticationFilter;
 import com.weiver.global.security.jwt.JwtTokenProvider;
+import com.weiver.global.security.principal.AuthenticatedPrincipal; // 💡 커스텀 Principal 임포트
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,21 +18,26 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.nio.charset.StandardCharsets;
-import java.security.Principal;
 import java.time.LocalDate;
 import java.util.Collections;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication; // 💡 핵심 임포트!
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -59,19 +67,30 @@ class ApplicantControllerTest {
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
     @MockitoBean
+    private CookieProvider cookieProvider;
+    @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    private final Principal mockPrincipal = () -> "1";
+    // 💡 [핵심] 현우님의 JwtAuthenticationFilter와 똑같이 동작하는 가짜 인증 객체 생성기!
+    private RequestPostProcessor customAuth(String publicId) {
+        // (주의: UserRole.APPLICANT는 현우님이 정의하신 Enum 값에 맞게 수정해 주세요)
+        AuthenticatedPrincipal principal = new AuthenticatedPrincipal(publicId, UserRole.APPLICANT);
+
+        Authentication auth = new UsernamePasswordAuthenticationToken(
+                principal, null, List.of(new SimpleGrantedAuthority("ROLE_APPLICANT")));
+
+        // 시큐리티 컨텍스트(금고)에 강제로 꽂아넣기
+        return authentication(auth);
+    }
 
     @Test
     @DisplayName("구직자 전체 정보 조회 성공")
     void searchApplicant_Success() throws Exception{
-
         // given
-        Long applicantId = 1L;
+        String publicId = "2222";
 
         ApplicantDetailResponseDTO mockApplicantDetail = new ApplicantDetailResponseDTO(
-            "https://weiver-public-bucket.s3.ap-northeast-2.amazonaws.com",
+                "https://weiver-public-bucket.s3.ap-northeast-2.amazonaws.com",
                 "이현우",
                 "2002-02-08",
                 "010-5622-5555",
@@ -79,38 +98,19 @@ class ApplicantControllerTest {
         );
 
         AwardDetailResponseDTO mockAwardDetail = new AwardDetailResponseDTO(
-                1L,
-                "한국인터넷진흥원장상",
-                "2025-11-02",
-                "한국인터넷진흥원(KISA)"
+                1L, "한국인터넷진흥원장상", "2025-11-02", "한국인터넷진흥원(KISA)"
         );
 
         CertificateDetailResponseDTO mockCertificateDetail = new CertificateDetailResponseDTO(
-                1L,
-                "정보처리기사",
-                "2025-03-25",
-                "한국산업인력공단"
+                1L, "정보처리기사", "2025-03-25", "한국산업인력공단"
         );
 
         EducationDetailResponseDTO mockEducationDetail = new EducationDetailResponseDTO(
-                1L,
-                "한양대학교 에리카",
-                "MASTER",
-                "컴퓨터학부",
-                null,
-                "2021-03",
-                null,
-                "ACTIVE"
+                1L, "한양대학교 에리카", "MASTER", "컴퓨터학부", null, "2021-03", null, "ACTIVE"
         );
 
         WorkExperienceDetailResponseDTO mockWorkExperienceDetail = new WorkExperienceDetailResponseDTO(
-                1L,
-                "SK하이닉스",
-                "인턴",
-                "2026-02-02",
-                null,
-                "백엔드개발해요",
-                "INTERN"
+                1L, "SK하이닉스", "인턴", "2026-02-02", null, "백엔드개발해요", "INTERN"
         );
 
         ApplicantInfoResponseDTO mockResponseDTO = new ApplicantInfoResponseDTO(
@@ -121,24 +121,21 @@ class ApplicantControllerTest {
                 Collections.singletonList(mockCertificateDetail)
         );
 
-        given(applicantService.searchApplicant(applicantId)).willReturn(mockResponseDTO);
+        given(applicantService.searchApplicant(publicId)).willReturn(mockResponseDTO);
 
         // when, then
         mockMvc.perform(get("/applicants")
-                        .principal(mockPrincipal)
+                        .with(customAuth("2222")) // ⬅️ 변경: 찰떡같이 붙는 커스텀 인증!
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect((jsonPath("$.status").value("success")));
-
     }
 
     @Test
     @DisplayName("구직자 개인정보 및 이미지 수정 성공 (Multipart PUT)")
     void updateApplicantInfo_Success() throws Exception{
         // given
-        Long applicantId = 1L;
-
         ApplicantInfoRequestDTO requestDTO = new ApplicantInfoRequestDTO(
                 "이현우", "test@example.com", "010-1234-5678", "안산시", LocalDate.of(2000, 1, 1)
         );
@@ -160,7 +157,7 @@ class ApplicantControllerTest {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .principal(mockPrincipal)
+                        .with(customAuth("2222")) // ⬅️ 변경!
                 )
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -171,29 +168,29 @@ class ApplicantControllerTest {
     @Test
     @DisplayName("엣지 케이스 : Principal이 없을 대 UNAUTHORIZED 에러 발생")
     void searchApplicant_WithoutPrincipal_ThrowsUnauthorized() throws Exception {
-
+        // [주의] addFilters = false 상태에서 커스텀 객체를 안 주입하면
+        // 컨트롤러의 파라미터가 아예 null이 됩니다.
+        // 컨트롤러에서 `if(principal == null) throw UNAUTHORIZED;` 처리가 되어있어야 통과합니다!
         mockMvc.perform(get("/applicants")
-                .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isUnauthorized());
-
     }
 
     @Test
     @DisplayName("엣지 케이스 : 남의 수상 이력 ID 조작 시도 -> 404 (또는 400) 에러 발생")
     void updateAwardInfo_WithOthersAwardId_ThrowsException() throws Exception {
         // given
-        Long applicantId = 1L;
+        String publicId = "1";
 
-        // 프론트에서 남의 ID(999)를 포함한 JSON을 보냈다고 가정
         String requestDtoJson = "{\"AwardDTO\":[{\"awardId\":999, \"awardDate\":\"2025-11-25\", \"awardName\":\"해킹상\", \"issuer\":\"KISA\"}]}";
 
         doThrow(new BusinessException(ErrorCode.AWARD_NOT_FOUND))
-                .when(awardService).updateAwardInfo(eq(applicantId), any());
+                .when(awardService).updateAwardInfo(eq(publicId), any());
 
         // when, then
         mockMvc.perform(put("/applicants/award")
-                        .principal(() -> "1")
+                        .with(customAuth("1")) // ⬅️ 변경!
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestDtoJson))
                 .andDo(print())
@@ -205,7 +202,7 @@ class ApplicantControllerTest {
     @DisplayName("엣지 케이스 : 프로필 사진 없이 텍스트만 수정 요청 -> 성공")
     void updateApplicantInfo_WithoutProfileImage_Success() throws Exception {
         // given
-        Long applicantId = 1L;
+        String publicId = "2222";
 
         ApplicantInfoRequestDTO requestDTO = new ApplicantInfoRequestDTO(
                 "이현우", "test@example.com", "010-1234-5678", "안산시", LocalDate.of(2000, 1, 1)
@@ -216,7 +213,7 @@ class ApplicantControllerTest {
                 "requestDTO", "", "application/json", requestDtoJson.getBytes(StandardCharsets.UTF_8)
         );
 
-        doNothing().when(applicantService).updateApplicantInfo(eq(applicantId), any(), any());
+        doNothing().when(applicantService).updateApplicantInfo(eq(publicId), any(), any());
 
         // when, then
         mockMvc.perform(MockMvcRequestBuilders.multipart("/applicants/info")
@@ -225,17 +222,15 @@ class ApplicantControllerTest {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .principal(() -> "1"))
+                        .with(customAuth("2222"))) // ⬅️ 변경!
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"));
-
     }
 
     @Test
     @DisplayName("엣지 케이스 3 : 이메일 양식 오류 및 빈 이름 전송 -> 400 Bad Request")
     void updateApplicantInfo_InvalidValidation_ThrowsBadRequest() throws Exception {
-
         // given
         ApplicantInfoRequestDTO invalidRequestDTO = new ApplicantInfoRequestDTO(
                 "", "wrong-email-format", "010-1234-5678", "안산시", LocalDate.of(2000, 1, 1)
@@ -253,9 +248,9 @@ class ApplicantControllerTest {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .principal(() -> "1"))
+                        .with(customAuth("1"))) // ⬅️ 변경!
                 .andDo(print())
-                .andExpect(status().isBadRequest()) // 400 에러 발생 확인
+                .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value("error"));
     }
 
@@ -263,7 +258,7 @@ class ApplicantControllerTest {
     @DisplayName("엣지 케이스 : 악성 스크립트 파일(.sh) 업로드 시도 -> 400 에러 발생")
     void updateApplicantInfo_WithInvalidFileExtension_ThrowsBadRequest() throws Exception {
         // given
-        Long applicantId = 1L;
+        String publicId = "2222";
 
         ApplicantInfoRequestDTO requestDTO = new ApplicantInfoRequestDTO(
                 "이현우", "test@example.com", "010-1234-5678", "안산시", LocalDate.of(2000, 1, 1)
@@ -274,24 +269,22 @@ class ApplicantControllerTest {
                 "requestDTO", "", "application/json", requestDtoJson.getBytes(StandardCharsets.UTF_8)
         );
 
-        // 이미지 파일인 척하는 악성 쉘 스크립트 파일
         MockMultipartFile maliciousFilePart = new MockMultipartFile(
                 "profileImage", "hack.sh", "application/x-sh", "rm -rf /".getBytes()
         );
 
-
         doThrow(new BusinessException(ErrorCode.BAD_REQUEST, "지원하지 않는 파일 형식입니다."))
-                .when(applicantService).updateApplicantInfo(eq(applicantId), any(), any());
+                .when(applicantService).updateApplicantInfo(eq(publicId), any(), any());
 
         // when, then
         mockMvc.perform(MockMvcRequestBuilders.multipart("/applicants/info")
                         .file(requestDtoPart)
-                        .file(maliciousFilePart) // 악성 파일 첨부
+                        .file(maliciousFilePart)
                         .with(request -> {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .principal(() -> "1"))
+                        .with(customAuth("2222"))) // ⬅️ 변경!
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("지원하지 않는 파일 형식입니다."));
