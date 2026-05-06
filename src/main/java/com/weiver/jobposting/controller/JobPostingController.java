@@ -51,7 +51,7 @@ public class JobPostingController {
             @Parameter(description = "임시 저장 여부 (기본값 : false) ")
             @RequestParam(value = "isTemp", defaultValue = "false") boolean isTemp,
 
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
 
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
@@ -75,7 +75,7 @@ public class JobPostingController {
             @Parameter(description = "새로 변경할 배너 이미지 파일 (선택)", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE))
             @RequestPart(value = "emailBannerImage", required = false) MultipartFile emailBannerImage,
 
-            @AuthenticationPrincipal AuthenticatedPrincipal principal,
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal,
 
             @Parameter(description = "수정할 공고의 고유 ID(jdId)", example = "1")
             @PathVariable Long jdId){
@@ -102,7 +102,7 @@ public class JobPostingController {
             @Parameter(description = "페이지당 데이터 개수", example = "3")
             @RequestParam(defaultValue = "3") int size,
 
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
 
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
@@ -116,7 +116,7 @@ public class JobPostingController {
     )
     @GetMapping("/{jdId}")
     public ResponseEntity<ApiResponse<JobPostingResponseDTO>> getJobPosting(
-            @AuthenticationPrincipal AuthenticatedPrincipal principal,
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal,
             @Parameter(description = "조회할 공고의 고유 ID", example = "1")
             @PathVariable Long jdId){
 

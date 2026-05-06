@@ -38,7 +38,7 @@ public class PortfolioController {
     public ResponseEntity<ApiResponse<Void>> savePortfolio(
             @Parameter(description = "포트폴리오 텍스트 데이터 (JSON)") @RequestPart(value = "requestDTO") @Valid PortfolioRequestDTO requestDTO,
             @Parameter(description = "포트폴리오 첨부 파일 (.pdf, .zip 등)") @RequestPart(value = "portfolio", required = false) MultipartFile portfolio,
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         portfolioService.savePortfolio(requestDTO, portfolio, principal.publicId());
@@ -57,7 +57,7 @@ public class PortfolioController {
             @Parameter(description = "수정할 텍스트 데이터 (JSON)") @RequestPart(value = "requestDTO") @Valid PortfolioUpdateRequestDTO requestDTO,
             @Parameter(description = "새로 등록할 포트폴리오 첨부 파일 (선택)") @RequestPart(value = "portfolio", required = false) MultipartFile portfolio,
             @Parameter(description = "수정할 포트폴리오의 고유 ID", example = "1") @PathVariable Long portfolioId,
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         portfolioService.updatePortfolio(requestDTO, portfolio, principal.publicId(), portfolioId);
@@ -73,7 +73,7 @@ public class PortfolioController {
     )
     @GetMapping
     public ResponseEntity<ApiResponse<PortfolioResponseDTO>> searchPortfolio(
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         PortfolioResponseDTO responseDTO = portfolioService.searchPortfolio(principal.publicId());

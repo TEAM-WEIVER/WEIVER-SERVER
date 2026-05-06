@@ -33,7 +33,7 @@ public class EssayAnswerController {
     @PostMapping
     public ResponseEntity<ApiResponse<Void>> saveEssayanswer(
             @RequestBody @Valid EssayAnswerRequestDTO requestDTO,
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         essayAnswerService.saveEssayAnswer(requestDTO, principal.publicId());
@@ -49,7 +49,7 @@ public class EssayAnswerController {
     public ResponseEntity<ApiResponse<Void>> updateEssayanswer(
             @RequestBody @Valid EssayAnswerUpdateRequestDTO requestDTO,
             @Parameter(description = "수정할 자기소개서의 고유 ID (PK)", example = "1") @PathVariable long answerId,
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         essayAnswerService.updateEssayAnswer(requestDTO, principal.publicId(), answerId);
@@ -63,7 +63,7 @@ public class EssayAnswerController {
     )
     @GetMapping
     public ResponseEntity<ApiResponse<EssayAnswerResponseDTO>> searchEssayanswer(
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         EssayAnswerResponseDTO responseDTO = essayAnswerService.searchEssayAnswer(principal.publicId());

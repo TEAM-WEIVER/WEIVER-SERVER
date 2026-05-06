@@ -47,7 +47,7 @@ public class ApplicantController {
     )
     @GetMapping
     public ResponseEntity<ApiResponse<ApplicantInfoResponseDTO>> searchApplicant(
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         ApplicantInfoResponseDTO responseDTO = applicantService.searchApplicant(principal.publicId());
@@ -82,7 +82,7 @@ public class ApplicantController {
     @PostMapping("/education")
     public ResponseEntity<ApiResponse<Void>> saveEducationInfo(
             @RequestBody @Valid EducationRequestDTO requestDTO,
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         educationService.saveEducationInfo(principal.publicId(), requestDTO);
@@ -98,7 +98,7 @@ public class ApplicantController {
     @PutMapping("/education")
     public ResponseEntity<ApiResponse<Void>> updateEducationInfo(
             @RequestBody @Valid EducationUpdateRequestDTO requestDTO,
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         educationService.updateEducationInfo(principal.publicId(), requestDTO);
@@ -113,7 +113,7 @@ public class ApplicantController {
     @PostMapping("/award")
     public ResponseEntity<ApiResponse<Void>> saveAwardInfo(
             @RequestBody @Valid AwardRequestDTO requestDTO,
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         awardService.saveAwardInfo(principal.publicId(), requestDTO);
@@ -129,7 +129,7 @@ public class ApplicantController {
     @PutMapping("/award")
     public ResponseEntity<ApiResponse<Void>> updateAwardInfo(
             @RequestBody @Valid AwardUpdateRequestDTO requestDTO,
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         awardService.updateAwardInfo(principal.publicId(), requestDTO);
@@ -144,7 +144,7 @@ public class ApplicantController {
     @PostMapping("/certificate")
     public ResponseEntity<ApiResponse<Void>> saveCertificateInfo(
             @RequestBody @Valid CertificateRequestDTO requestDTO,
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         certificateService.saveCertificateInfo(principal.publicId(), requestDTO);
@@ -160,7 +160,7 @@ public class ApplicantController {
     @PutMapping("/certificate")
     public ResponseEntity<ApiResponse<Void>> updateCertificateInfo(
             @RequestBody @Valid CertificateUpdateRequestDTO requestDTO,
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         certificateService.updateCertificateInfo(principal.publicId(), requestDTO);
@@ -175,7 +175,7 @@ public class ApplicantController {
     @PostMapping("/experience")
     public ResponseEntity<ApiResponse<Void>> saveWorkExperienceInfo(
             @RequestBody @Valid WorkExperienceRequestDTO requestDTO,
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         workExperienceService.saveWorkExperienceInfo(principal.publicId(), requestDTO);
@@ -191,7 +191,7 @@ public class ApplicantController {
     @PutMapping("/experience")
     public ResponseEntity<ApiResponse<Void>> updateExperienceInfo(
             @RequestBody @Valid WorkExperienceUpdateRequestDTO requestDTO,
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         workExperienceService.updateWorkExperienceInfo(principal.publicId(), requestDTO);
