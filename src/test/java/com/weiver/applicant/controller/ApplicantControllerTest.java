@@ -3,13 +3,13 @@ package com.weiver.applicant.controller;
 import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.dto.response.*;
 import com.weiver.applicant.service.*;
-import com.weiver.global.common.UserRole; // 💡 UserRole 임포트
+import com.weiver.global.common.UserRole;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.cookie.CookieProvider;
 import com.weiver.global.security.jwt.JwtAuthenticationFilter;
 import com.weiver.global.security.jwt.JwtTokenProvider;
-import com.weiver.global.security.principal.AuthenticatedPrincipal; // 💡 커스텀 Principal 임포트
+import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,15 +71,12 @@ class ApplicantControllerTest {
     @MockitoBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    // 💡 [핵심] 현우님의 JwtAuthenticationFilter와 똑같이 동작하는 가짜 인증 객체 생성기!
     private RequestPostProcessor customAuth(String publicId) {
-        // (주의: UserRole.APPLICANT는 현우님이 정의하신 Enum 값에 맞게 수정해 주세요)
         AuthenticatedPrincipal principal = new AuthenticatedPrincipal(publicId, UserRole.APPLICANT);
 
         Authentication auth = new UsernamePasswordAuthenticationToken(
                 principal, null, List.of(new SimpleGrantedAuthority("ROLE_APPLICANT")));
 
-        // 시큐리티 컨텍스트(금고)에 강제로 꽂아넣기
         return authentication(auth);
     }
 
@@ -125,7 +122,7 @@ class ApplicantControllerTest {
 
         // when, then
         mockMvc.perform(get("/applicants")
-                        .with(customAuth("2222")) // ⬅️ 변경: 찰떡같이 붙는 커스텀 인증!
+                        .with(customAuth("2222"))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -157,7 +154,7 @@ class ApplicantControllerTest {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .with(customAuth("2222")) // ⬅️ 변경!
+                        .with(customAuth("2222"))
                 )
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -168,9 +165,6 @@ class ApplicantControllerTest {
     @Test
     @DisplayName("엣지 케이스 : Principal이 없을 대 UNAUTHORIZED 에러 발생")
     void searchApplicant_WithoutPrincipal_ThrowsUnauthorized() throws Exception {
-        // [주의] addFilters = false 상태에서 커스텀 객체를 안 주입하면
-        // 컨트롤러의 파라미터가 아예 null이 됩니다.
-        // 컨트롤러에서 `if(principal == null) throw UNAUTHORIZED;` 처리가 되어있어야 통과합니다!
         mockMvc.perform(get("/applicants")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
@@ -190,7 +184,7 @@ class ApplicantControllerTest {
 
         // when, then
         mockMvc.perform(put("/applicants/award")
-                        .with(customAuth("1")) // ⬅️ 변경!
+                        .with(customAuth("1"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestDtoJson))
                 .andDo(print())
@@ -222,7 +216,7 @@ class ApplicantControllerTest {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .with(customAuth("2222"))) // ⬅️ 변경!
+                        .with(customAuth("2222")))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"));
@@ -248,7 +242,7 @@ class ApplicantControllerTest {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .with(customAuth("1"))) // ⬅️ 변경!
+                        .with(customAuth("1")))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value("error"));
@@ -284,7 +278,7 @@ class ApplicantControllerTest {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .with(customAuth("2222"))) // ⬅️ 변경!
+                        .with(customAuth("2222")))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("지원하지 않는 파일 형식입니다."));
