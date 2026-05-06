@@ -11,10 +11,10 @@ public record CompanyDashboardResponseDTO(
         String foundedYear,
         WayOfWorkingDetail wayOfWorkingDetail
 ) {
-    public static CompanyDashboardResponseDTO from(Company company){
+    public static CompanyDashboardResponseDTO from(Company company, String companyLogoUrl){
         return new CompanyDashboardResponseDTO(
                 company.getCompanyId(),
-                company.getCompanyLogoUrl(),
+                companyLogoUrl,
                 company.getCompanyCeoName(),
                 company.getAddress(),
                 company.getEmployeeNum(),
