@@ -10,6 +10,7 @@ import com.weiver.applicant.service.*;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -21,8 +22,6 @@ import org.springframework.web.multipart.MultipartFile;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-
-import java.security.Principal;
 
 @Tag(name = "구직자(Applicant) 도메인 API", description = "구직자의 프로필, 학력, 수상, 자격증, 경력 정보를 관리하는 API입니다.\n\n" +
         "**[필독: PUT(수정) API 데이터 전송 규칙]**\n" +
@@ -48,9 +47,10 @@ public class ApplicantController {
     )
     @GetMapping
     public ResponseEntity<ApiResponse<ApplicantInfoResponseDTO>> searchApplicant(
-            @Parameter(hidden = true) Principal principal) {
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        ApplicantInfoResponseDTO responseDTO = applicantService.searchApplicant(principal.getName());
+        ApplicantInfoResponseDTO responseDTO = applicantService.searchApplicant(principal.publicId());
 
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
 
@@ -67,9 +67,10 @@ public class ApplicantController {
     public ResponseEntity<ApiResponse<Void>> updateApplicantInfo(
             @Parameter(description = "개인정보 수정 데이터 (JSON)") @RequestPart(value = "requestDTO") @Valid ApplicantInfoRequestDTO requestDTO,
             @Parameter(description = "프로필 이미지 파일 (.jpg, .png 등)") @RequestPart(value = "profileImage", required = false) MultipartFile profileImage,
-            @AuthenticationPrincipal Principal principal) {
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        applicantService.updateApplicantInfo(principal.getName(), requestDTO, profileImage);
+        applicantService.updateApplicantInfo(principal.publicId(), requestDTO, profileImage);
 
         return ResponseEntity.ok(ApiResponse.success("개인정보 저장에 성공했습니다."));
     }
@@ -81,9 +82,10 @@ public class ApplicantController {
     @PostMapping("/education")
     public ResponseEntity<ApiResponse<Void>> saveEducationInfo(
             @RequestBody @Valid EducationRequestDTO requestDTO,
-            @Parameter(hidden = true) Principal principal) {
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        educationService.saveEducationInfo(principal.getName(), requestDTO);
+        educationService.saveEducationInfo(principal.publicId(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("학력 저장에 성공했습니다."));
     }
@@ -96,9 +98,10 @@ public class ApplicantController {
     @PutMapping("/education")
     public ResponseEntity<ApiResponse<Void>> updateEducationInfo(
             @RequestBody @Valid EducationUpdateRequestDTO requestDTO,
-            @Parameter(hidden = true) Principal principal) {
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        educationService.updateEducationInfo(principal.getName(), requestDTO);
+        educationService.updateEducationInfo(principal.publicId(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("학력 업데이트 성공했습니다."));
     }
@@ -110,9 +113,10 @@ public class ApplicantController {
     @PostMapping("/award")
     public ResponseEntity<ApiResponse<Void>> saveAwardInfo(
             @RequestBody @Valid AwardRequestDTO requestDTO,
-            @Parameter(hidden = true) Principal principal) {
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        awardService.saveAwardInfo(principal.getName(), requestDTO);
+        awardService.saveAwardInfo(principal.publicId(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("수상이력 저장에 성공했습니다."));
     }
@@ -125,9 +129,10 @@ public class ApplicantController {
     @PutMapping("/award")
     public ResponseEntity<ApiResponse<Void>> updateAwardInfo(
             @RequestBody @Valid AwardUpdateRequestDTO requestDTO,
-            @Parameter(hidden = true) Principal principal) {
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        awardService.updateAwardInfo(principal.getName(), requestDTO);
+        awardService.updateAwardInfo(principal.publicId(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("수상목록 업데이트 성공했습니다."));
     }
@@ -139,9 +144,10 @@ public class ApplicantController {
     @PostMapping("/certificate")
     public ResponseEntity<ApiResponse<Void>> saveCertificateInfo(
             @RequestBody @Valid CertificateRequestDTO requestDTO,
-            @Parameter(hidden = true) Principal principal) {
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        certificateService.saveCertificateInfo(principal.getName(), requestDTO);
+        certificateService.saveCertificateInfo(principal.publicId(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("자격증 저장에 성공했습니다."));
     }
@@ -154,9 +160,10 @@ public class ApplicantController {
     @PutMapping("/certificate")
     public ResponseEntity<ApiResponse<Void>> updateCertificateInfo(
             @RequestBody @Valid CertificateUpdateRequestDTO requestDTO,
-            @Parameter(hidden = true) Principal principal) {
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        certificateService.updateCertificateInfo(principal.getName(), requestDTO);
+        certificateService.updateCertificateInfo(principal.publicId(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("자격증 목록 업데이트 성공했습니다."));
     }
@@ -168,9 +175,10 @@ public class ApplicantController {
     @PostMapping("/experience")
     public ResponseEntity<ApiResponse<Void>> saveWorkExperienceInfo(
             @RequestBody @Valid WorkExperienceRequestDTO requestDTO,
-            @Parameter(hidden = true) Principal principal) {
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        workExperienceService.saveWorkExperienceInfo(principal.getName(), requestDTO);
+        workExperienceService.saveWorkExperienceInfo(principal.publicId(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("경력 저장에 성공했습니다."));
     }
@@ -183,9 +191,10 @@ public class ApplicantController {
     @PutMapping("/experience")
     public ResponseEntity<ApiResponse<Void>> updateExperienceInfo(
             @RequestBody @Valid WorkExperienceUpdateRequestDTO requestDTO,
-            @Parameter(hidden = true) Principal principal) {
+            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        workExperienceService.updateWorkExperienceInfo(principal.getName(), requestDTO);
+        workExperienceService.updateWorkExperienceInfo(principal.publicId(), requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success("경력 업데이트 성공했습니다."));
     }

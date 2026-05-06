@@ -10,6 +10,7 @@ import com.weiver.global.security.cookie.CookieProvider;
 import com.weiver.global.security.jwt.JwtAuthenticationFilter;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.principal.AuthenticatedPrincipal;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -37,7 +39,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication; // 💡 핵심 임포트!
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
@@ -72,12 +73,19 @@ class ApplicantControllerTest {
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     private RequestPostProcessor customAuth(String publicId) {
-        AuthenticatedPrincipal principal = new AuthenticatedPrincipal(publicId, UserRole.APPLICANT);
+        return request -> {
+            AuthenticatedPrincipal principal = new AuthenticatedPrincipal(publicId, UserRole.APPLICANT);
+            Authentication auth = new UsernamePasswordAuthenticationToken(
+                    principal, null, List.of(new SimpleGrantedAuthority("ROLE_APPLICANT")));
 
-        Authentication auth = new UsernamePasswordAuthenticationToken(
-                principal, null, List.of(new SimpleGrantedAuthority("ROLE_APPLICANT")));
+            SecurityContextHolder.getContext().setAuthentication(auth);
+            return request;
+        };
+    }
 
-        return authentication(auth);
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -122,7 +130,7 @@ class ApplicantControllerTest {
 
         // when, then
         mockMvc.perform(get("/applicants")
-                        .with(customAuth("2222"))
+                        .with(customAuth("2222")) // ⬅️ 변경: 찰떡같이 붙는 커스텀 인증!
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -154,7 +162,7 @@ class ApplicantControllerTest {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .with(customAuth("2222"))
+                        .with(customAuth("2222")) // ⬅️ 변경!
                 )
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -165,6 +173,9 @@ class ApplicantControllerTest {
     @Test
     @DisplayName("엣지 케이스 : Principal이 없을 대 UNAUTHORIZED 에러 발생")
     void searchApplicant_WithoutPrincipal_ThrowsUnauthorized() throws Exception {
+        // [주의] addFilters = false 상태에서 커스텀 객체를 안 주입하면
+        // 컨트롤러의 파라미터가 아예 null이 됩니다.
+        // 컨트롤러에서 `if(principal == null) throw UNAUTHORIZED;` 처리가 되어있어야 통과합니다!
         mockMvc.perform(get("/applicants")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
@@ -184,7 +195,7 @@ class ApplicantControllerTest {
 
         // when, then
         mockMvc.perform(put("/applicants/award")
-                        .with(customAuth("1"))
+                        .with(customAuth("1")) // ⬅️ 변경!
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestDtoJson))
                 .andDo(print())
@@ -216,7 +227,7 @@ class ApplicantControllerTest {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .with(customAuth("2222")))
+                        .with(customAuth("2222"))) // ⬅️ 변경!
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"));
@@ -242,7 +253,7 @@ class ApplicantControllerTest {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .with(customAuth("1")))
+                        .with(customAuth("1"))) // ⬅️ 변경!
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value("error"));
@@ -278,7 +289,7 @@ class ApplicantControllerTest {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .with(customAuth("2222")))
+                        .with(customAuth("2222"))) // ⬅️ 변경!
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("지원하지 않는 파일 형식입니다."));
