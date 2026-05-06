@@ -23,19 +23,19 @@ public class EssayAnswerService {
     private final ApplicantRepository applicantRepository;
 
 
-    public void saveEssayAnswer(EssayAnswerRequestDTO requestDTO, long applicantId) {
-        Applicant applicant = getApplicant(applicantId);
+    public void saveEssayAnswer(EssayAnswerRequestDTO requestDTO, String publicId) {
+        Applicant applicant = getApplicant(publicId);
         EssayAnswer essayAnswer = requestDTO.toEntity(applicant);
 
         essayAnswerRepository.save(essayAnswer);
     }
 
-    public void updateEssayAnswer(EssayAnswerUpdateRequestDTO requestDTO, long applicantId, long answerId) {
+    public void updateEssayAnswer(EssayAnswerUpdateRequestDTO requestDTO, String publicId, long answerId) {
 
         EssayAnswer essayAnswer = essayAnswerRepository.findById(answerId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ESSAY_ANSWER_NOT_FOUND));
 
-        if (!essayAnswer.getApplicant().getApplicantId().equals(applicantId)) {
+        if (!essayAnswer.getApplicant().getPublicId().equals(publicId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN);
         }
 
@@ -45,8 +45,8 @@ public class EssayAnswerService {
     }
 
     @Transactional(readOnly = true)
-    public EssayAnswerResponseDTO searchEssayAnswer(long applicantId) {
-        Applicant applicant = getApplicant(applicantId);
+    public EssayAnswerResponseDTO searchEssayAnswer(String publicId) {
+        Applicant applicant = getApplicant(publicId);
 
         EssayAnswer essayAnswer = essayAnswerRepository.findByApplicant(applicant)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ESSAY_ANSWER_NOT_FOUND));
@@ -55,8 +55,8 @@ public class EssayAnswerService {
         return responseDTO;
     }
 
-    private Applicant getApplicant(long applicantId) {
-        Applicant applicant = applicantRepository.findById(applicantId)
+    private Applicant getApplicant(String publicId) {
+        Applicant applicant = applicantRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
         return applicant;
     }

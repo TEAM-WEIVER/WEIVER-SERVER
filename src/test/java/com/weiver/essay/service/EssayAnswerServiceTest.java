@@ -26,7 +26,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
-class EssayAnswerServiceImplTest {
+class EssayAnswerServiceTest {
 
     @Mock
     private EssayAnswerRepository essayAnswerRepository;
@@ -42,13 +42,17 @@ class EssayAnswerServiceImplTest {
     void saveEssayAnswer_Success() {
         // Given
         long applicantId = 1L;
-        Applicant applicant = Applicant.builder().applicantId(applicantId).build();
+        String publicId = "3333";
+        Applicant applicant = Applicant.builder()
+                .applicantId(applicantId)
+                .publicId(publicId)
+                .build();
         EssayAnswerRequestDTO requestDTO = new EssayAnswerRequestDTO("안녕. 날 뽑아봐.");
 
-        given(applicantRepository.findById(applicantId)).willReturn(Optional.of(applicant));
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
 
         // When
-        essayAnswerService.saveEssayAnswer(requestDTO, applicantId);
+        essayAnswerService.saveEssayAnswer(requestDTO, publicId);
 
         // Then
         verify(essayAnswerRepository, times(1)).save(any(EssayAnswer.class));
@@ -60,8 +64,12 @@ class EssayAnswerServiceImplTest {
         // Given
         long applicantId = 1L;
         long answerId = 100L;
+        String publicId = "3333";
 
-        Applicant me = Applicant.builder().applicantId(applicantId).build();
+        Applicant me = Applicant.builder()
+                .applicantId(applicantId)
+                .publicId(publicId)
+                .build();
 
         EssayAnswer myEssay = EssayAnswer.builder()
                 .answerId(answerId)
@@ -74,7 +82,7 @@ class EssayAnswerServiceImplTest {
         given(essayAnswerRepository.findById(answerId)).willReturn(Optional.of(myEssay));
 
         // When
-        essayAnswerService.updateEssayAnswer(updateDTO, applicantId, answerId);
+        essayAnswerService.updateEssayAnswer(updateDTO, publicId, answerId);
 
         // Then
         assertThat(myEssay.getAnswer()).isEqualTo("안녕, 나 수정했어.");
@@ -85,10 +93,14 @@ class EssayAnswerServiceImplTest {
     void updateEssayAnswer_Forbidden_ThrowsException() {
         // Given
         long myApplicantId = 1L;
-        long hackerApplicantId = 2L; //  공격자 ID
+        String myPublicId = "3333";
+        String hackerPublicId = "2222";
         long answerId = 100L;
 
-        Applicant me = Applicant.builder().applicantId(myApplicantId).build();
+        Applicant me = Applicant.builder()
+                .applicantId(myApplicantId)
+                .publicId(myPublicId)
+                .build();
 
         // 진짜 주인이 있는 자소서 객체 생성
         EssayAnswer myEssay = EssayAnswer.builder()
@@ -102,7 +114,7 @@ class EssayAnswerServiceImplTest {
         given(essayAnswerRepository.findById(answerId)).willReturn(Optional.of(myEssay));
 
         // When & Then
-        assertThatThrownBy(() -> essayAnswerService.updateEssayAnswer(updateDTO, hackerApplicantId, answerId))
+        assertThatThrownBy(() -> essayAnswerService.updateEssayAnswer(updateDTO, hackerPublicId, answerId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(ErrorCode.FORBIDDEN);
@@ -113,7 +125,11 @@ class EssayAnswerServiceImplTest {
     void searchEssayAnswer_Success() {
         // Given
         long applicantId = 1L;
-        Applicant applicant = Applicant.builder().applicantId(applicantId).build();
+        String publicId = "3333";
+        Applicant applicant = Applicant.builder()
+                .applicantId(applicantId)
+                .publicId(publicId)
+                .build();
 
         EssayAnswer essayAnswer = EssayAnswer.builder()
                 .answerId(10L)
@@ -121,11 +137,11 @@ class EssayAnswerServiceImplTest {
                 .applicant(applicant)
                 .build();
 
-        given(applicantRepository.findById(applicantId)).willReturn(Optional.of(applicant));
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
         given(essayAnswerRepository.findByApplicant(applicant)).willReturn(Optional.of(essayAnswer));
 
         // When
-        EssayAnswerResponseDTO responseDTO = essayAnswerService.searchEssayAnswer(applicantId);
+        EssayAnswerResponseDTO responseDTO = essayAnswerService.searchEssayAnswer(publicId);
 
         // Then
         assertThat(responseDTO.answer()).isEqualTo("이것은 내 자소서입니다.");
@@ -135,13 +151,13 @@ class EssayAnswerServiceImplTest {
     @DisplayName("엣지 케이스: 존재하지 않는 회원의 ID로 자소서 저장 시 APPLICANT_NOT_FOUND 예외 발생")
     void saveEssayAnswer_ApplicantNotFound_ThrowsException() {
         // Given
-        long invalidApplicantId = 999L; // DB에 없는 유령 회원
+        String invalidPublicId = "2222";
         EssayAnswerRequestDTO requestDTO = new EssayAnswerRequestDTO("지원 동기입니다.");
 
-        given(applicantRepository.findById(invalidApplicantId)).willReturn(Optional.empty());
+        given(applicantRepository.findByPublicId(invalidPublicId)).willReturn(Optional.empty());
 
         // When & Then!
-        assertThatThrownBy(() -> essayAnswerService.saveEssayAnswer(requestDTO, invalidApplicantId))
+        assertThatThrownBy(() -> essayAnswerService.saveEssayAnswer(requestDTO, invalidPublicId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(ErrorCode.APPLICANT_NOT_FOUND);
@@ -151,14 +167,14 @@ class EssayAnswerServiceImplTest {
     @DisplayName("엣지 케이스: 존재하지 않는 자소서를 수정하려고 할 때 ESSAY_ANSWER_NOT_FOUND 예외 발생")
     void updateEssayAnswer_EssayNotFound_ThrowsException() {
         // Given
-        long applicantId = 1L;
+        String publicId = "3333";
         long invalidAnswerId = 999L;
         EssayAnswerUpdateRequestDTO updateDTO = new EssayAnswerUpdateRequestDTO("수정할 내용");
 
         given(essayAnswerRepository.findById(invalidAnswerId)).willReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> essayAnswerService.updateEssayAnswer(updateDTO, applicantId, invalidAnswerId))
+        assertThatThrownBy(() -> essayAnswerService.updateEssayAnswer(updateDTO, publicId, invalidAnswerId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(ErrorCode.ESSAY_ANSWER_NOT_FOUND);
@@ -169,8 +185,12 @@ class EssayAnswerServiceImplTest {
     void updateEssayAnswer_NullContent_KeepsExistingData() {
         // Given
         long applicantId = 1L;
+        String publicId = "3333";
         long answerId = 100L;
-        Applicant me = Applicant.builder().applicantId(applicantId).build();
+        Applicant me = Applicant.builder()
+                .applicantId(applicantId)
+                .publicId(publicId)
+                .build();
 
         // 기존 자소서 내용
         EssayAnswer myEssay = EssayAnswer.builder()
@@ -184,7 +204,7 @@ class EssayAnswerServiceImplTest {
         given(essayAnswerRepository.findById(answerId)).willReturn(Optional.of(myEssay));
 
         // When
-        essayAnswerService.updateEssayAnswer(nullUpdateDTO, applicantId, answerId);
+        essayAnswerService.updateEssayAnswer(nullUpdateDTO, publicId, answerId);
 
         // Then
         assertThat(myEssay.getAnswer()).isEqualTo("내 소중한 기존 자소서 내용");
@@ -196,14 +216,18 @@ class EssayAnswerServiceImplTest {
     void searchEssayAnswer_NotWrittenYet_ThrowsException() {
         // Given
         long applicantId = 1L;
-        Applicant applicant = Applicant.builder().applicantId(applicantId).build();
+        String publicId = "3333";
+        Applicant applicant = Applicant.builder()
+                .applicantId(applicantId)
+                .publicId(publicId)
+                .build();
 
-        given(applicantRepository.findById(applicantId)).willReturn(Optional.of(applicant));
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
 
         given(essayAnswerRepository.findByApplicant(applicant)).willReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> essayAnswerService.searchEssayAnswer(applicantId))
+        assertThatThrownBy(() -> essayAnswerService.searchEssayAnswer(publicId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(ErrorCode.ESSAY_ANSWER_NOT_FOUND);

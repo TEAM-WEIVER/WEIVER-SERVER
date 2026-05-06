@@ -7,15 +7,15 @@ import com.weiver.essay.service.EssayAnswerService;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.security.Principal;
 
 @Tag(name = "자기소개서(Essay) API", description = "구직자의 자기소개서 조회, 저장 및 수정 API입니다.")
 @RestController
@@ -33,10 +33,10 @@ public class EssayAnswerController {
     @PostMapping
     public ResponseEntity<ApiResponse<Void>> saveEssayanswer(
             @RequestBody @Valid EssayAnswerRequestDTO requestDTO,
-            @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        essayAnswerService.saveEssayAnswer(requestDTO, applicantId);
+        essayAnswerService.saveEssayAnswer(requestDTO, principal.publicId());
         return ResponseEntity.ok(ApiResponse.success("자기소개서 저장 성공했습니다."));
     }
 
@@ -49,10 +49,10 @@ public class EssayAnswerController {
     public ResponseEntity<ApiResponse<Void>> updateEssayanswer(
             @RequestBody @Valid EssayAnswerUpdateRequestDTO requestDTO,
             @Parameter(description = "수정할 자기소개서의 고유 ID (PK)", example = "1") @PathVariable long answerId,
-            @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        essayAnswerService.updateEssayAnswer(requestDTO, applicantId, answerId);
+        essayAnswerService.updateEssayAnswer(requestDTO, principal.publicId(), answerId);
 
         return ResponseEntity.ok(ApiResponse.success("자기소개서 수정 성공했습니다."));
     }
@@ -63,22 +63,11 @@ public class EssayAnswerController {
     )
     @GetMapping
     public ResponseEntity<ApiResponse<EssayAnswerResponseDTO>> searchEssayanswer(
-            @Parameter(hidden = true) Principal principal) {
-        Long applicantId = extractedId(principal);
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        EssayAnswerResponseDTO responseDTO = essayAnswerService.searchEssayAnswer(applicantId);
+        EssayAnswerResponseDTO responseDTO = essayAnswerService.searchEssayAnswer(principal.publicId());
 
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
-    }
-
-    /**
-     * 편의 메소드
-     * */
-    private static Long extractedId(Principal principal) {
-        if(principal == null){
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        }
-
-        return Long.parseLong(principal.getName());
     }
 }
