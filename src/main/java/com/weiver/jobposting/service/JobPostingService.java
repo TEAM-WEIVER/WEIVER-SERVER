@@ -45,7 +45,7 @@ public class JobPostingService {
     /**
      * 기업 공고 통합 생성 API
      * */
-    public void saveJobPosting(Boolean isTemp, Long companyId, JobPostingRequestDTO requestDTO,
+    public void saveJobPosting(Boolean isTemp, String publicId, JobPostingRequestDTO requestDTO,
                                MultipartFile bannerImage){
 
         String bannerImageUrl = null;
@@ -53,7 +53,7 @@ public class JobPostingService {
             bannerImageUrl = s3Service.publicUpload(bannerImage, "email-banners");
         }
 
-        Company company = companyRepository.findById(companyId)
+        Company company = companyRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMPANY_NOT_FOUND));
 
         JobPostingStatus status = JobPostingStatus.ACTIVE;
@@ -71,14 +71,14 @@ public class JobPostingService {
     /**
      * 기업 공고 통합 수정 API
      * */
-    public void updateJobPosting(Long jdId, Long companyId, JobPostingUpdateDTO updateDTO,
+    public void updateJobPosting(Long jdId, String publicId, JobPostingUpdateDTO updateDTO,
                                  MultipartFile bannerImage){
         EmailTemplate emailTemplate = emailTemplateRepository.findWithJobPostingByJdId(jdId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_NOT_FOUND));
 
         JobPosting jobPosting = emailTemplate.getJobPosting();
 
-        if (!jobPosting.getCompany().getCompanyId().equals(companyId)) {
+        if (!jobPosting.getCompany().getPublicId().equals(publicId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "공고 수정 권한이 없습니다.");
         }
 
@@ -107,14 +107,14 @@ public class JobPostingService {
      * 기업 공고 조회 API
      * */
     @Transactional(readOnly = true)
-    public JobPostingPageResponseDTO searchJobPostingsList(Long companyId, JobPostingStatus status, int page, int size){
+    public JobPostingPageResponseDTO searchJobPostingsList(String publicId, JobPostingStatus status, int page, int size){
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         Page<JobPosting> jobPostingPage;
         if (status != null) {
-            jobPostingPage = jobPostingRepository.findByCompany_CompanyIdAndStatus(companyId, status, pageable);
+            jobPostingPage = jobPostingRepository.findByCompany_PublicIdAndStatus(publicId, status, pageable);
         } else {
-            jobPostingPage = jobPostingRepository.findByCompany_CompanyId(companyId, pageable);
+            jobPostingPage = jobPostingRepository.findByCompany_PublicId(publicId, pageable);
         }
 
         List<Long> jdIds = jobPostingPage.getContent().stream()
@@ -145,13 +145,13 @@ public class JobPostingService {
     }
 
     @Transactional(readOnly = true)
-    public JobPostingResponseDTO searchJobPosting(Long companyId, Long jdId){
+    public JobPostingResponseDTO searchJobPosting(String publicId, Long jdId){
         EmailTemplate emailTemplate = emailTemplateRepository.findWithJobPostingByJdId(jdId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_NOT_FOUND));
 
         JobPosting jobPosting = emailTemplate.getJobPosting();
 
-        if (!jobPosting.getCompany().getCompanyId().equals(companyId)) {
+        if (!jobPosting.getCompany().getPublicId().equals(publicId)) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "해당 공고를 열람할 권한이 없습니다.");
         }
 

@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -49,10 +50,9 @@ public class JobPostingController {
             @Parameter(description = "임시 저장 여부 (기본값 : false) ")
             @RequestParam(value = "isTemp", defaultValue = "false") boolean isTemp,
 
-            @Parameter(hidden = true) Principal principal) {
+            @AuthenticationPrincipal Principal principal) {
 
-        Long companyId = extractedId(principal);
-        jobPostingService.saveJobPosting(isTemp, companyId, requestDTO, emailBannerImage);
+        jobPostingService.saveJobPosting(isTemp, principal.getName(), requestDTO, emailBannerImage);
         return ResponseEntity.ok(ApiResponse.success("채용 공고가 성공적으로 등록되었습니다."));
     }
 
@@ -72,13 +72,12 @@ public class JobPostingController {
             @Parameter(description = "새로 변경할 배너 이미지 파일 (선택)", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE))
             @RequestPart(value = "emailBannerImage", required = false) MultipartFile emailBannerImage,
 
-            @Parameter(hidden = true) Principal principal,
+            @AuthenticationPrincipal Principal principal,
 
             @Parameter(description = "수정할 공고의 고유 ID(jdId)", example = "1")
             @PathVariable Long jdId){
 
-        Long companyId = extractedId(principal);
-        jobPostingService.updateJobPosting(jdId, companyId, updateDTO, emailBannerImage);
+        jobPostingService.updateJobPosting(jdId, principal.getName(), updateDTO, emailBannerImage);
         return ResponseEntity.ok(ApiResponse.success("채용 공고가 성공적으로 수정되었습니다."));
     }
 
@@ -98,10 +97,9 @@ public class JobPostingController {
             @Parameter(description = "페이지당 데이터 개수", example = "3")
             @RequestParam(defaultValue = "3") int size,
 
-            @Parameter(hidden = true) Principal principal) {
+            @AuthenticationPrincipal Principal principal) {
 
-        Long companyId = extractedId(principal);
-        JobPostingPageResponseDTO responseDTO = jobPostingService.searchJobPostingsList(companyId, status, page, size);
+        JobPostingPageResponseDTO responseDTO = jobPostingService.searchJobPostingsList(principal.getName(), status, page, size);
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
 
@@ -111,20 +109,12 @@ public class JobPostingController {
     )
     @GetMapping("/{jdId}")
     public ResponseEntity<ApiResponse<JobPostingResponseDTO>> getJobPosting(
-            @Parameter(hidden = true) Principal principal,
+            @AuthenticationPrincipal Principal principal,
             @Parameter(description = "조회할 공고의 고유 ID", example = "1")
             @PathVariable Long jdId){
 
-        Long companyId = extractedId(principal);
-        JobPostingResponseDTO responseDTO = jobPostingService.searchJobPosting(companyId, jdId);
+        JobPostingResponseDTO responseDTO = jobPostingService.searchJobPosting(principal.getName(), jdId);
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
 
-    private static Long extractedId(Principal principal) {
-        if(principal == null){
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        }
-
-        return Long.parseLong(principal.getName());
-    }
 }
