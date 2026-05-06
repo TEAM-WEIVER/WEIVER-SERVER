@@ -106,8 +106,8 @@ cookie:
     name: refreshToken
     path: /
     http-only: true
-    secure: false
-    same-site: Lax
+    secure: true
+    same-site: None
     max-age: 1209600 # 14 days
 
 # =============================================================================

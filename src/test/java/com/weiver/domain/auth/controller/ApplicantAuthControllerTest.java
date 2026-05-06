@@ -18,6 +18,7 @@ import com.weiver.global.security.cookie.CookieProvider;
 import com.weiver.global.security.cookie.RefreshTokenCookieResolver;
 import com.weiver.global.security.jwt.BearerTokenResolver;
 import com.weiver.global.security.jwt.JwtAuthenticationFilter;
+import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,8 +27,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.List;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
@@ -230,26 +236,28 @@ public class ApplicantAuthControllerTest {
     @DisplayName("회원탈퇴 성공 시 200 응답 + RefreshToken 쿠키 만료")
     public void withdraw_success() throws Exception {
         // given
+        String publicId = "uuid-applicant-1";
+        AuthenticatedPrincipal principal = new AuthenticatedPrincipal(publicId, UserRole.APPLICANT);
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                principal, null, List.of(new SimpleGrantedAuthority("ROLE_APPLICANT"))
+        );
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
         ResponseCookie expiredCookie = ResponseCookie.from("refreshToken", "")
                 .path("/").httpOnly(true).secure(false).sameSite("Lax").maxAge(0).build();
         when(cookieProvider.createExpiredRefreshTokenCookie()).thenReturn(expiredCookie);
 
-        // when & then
-        mockMvc.perform(delete("/api/auth/applicants/me")
-                        .principal(() -> "1"))
-                .andExpect(status().isOk())
-                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("refreshToken=")))
-                .andExpect(jsonPath("$.message").value("회원탈퇴에 성공했습니다."));
+        try {
+            // when & then
+            mockMvc.perform(delete("/api/auth/applicants/me"))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("refreshToken=")))
+                    .andExpect(jsonPath("$.message").value("회원탈퇴에 성공했습니다."));
 
-        verify(applicantAuthService).withdraw(1L);
-    }
-
-    @Test
-    @DisplayName("엣지 케이스: Principal이 없으면 401 UNAUTHORIZED")
-    public void withdraw_unauthorized() throws Exception {
-        mockMvc.perform(delete("/api/auth/applicants/me"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
+            verify(applicantAuthService).withdraw(publicId);
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
     }
 
     private static ApplicantAgreementRequestDTO allTrueAgreements() {

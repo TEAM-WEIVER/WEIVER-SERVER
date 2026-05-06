@@ -10,8 +10,7 @@ import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
 import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
 import com.weiver.global.common.ApiResponse;
-import com.weiver.global.exception.BusinessException;
-import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.global.security.cookie.CookieProvider;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -19,9 +18,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.security.Principal;
 
 @RestController
 @RequestMapping("/api/auth/applicants")
@@ -88,12 +86,10 @@ public class ApplicantAuthController {
 
     @DeleteMapping("/me")
     public ResponseEntity<ApiResponse<Void>> withdraw(
-            Principal principal,
+            @AuthenticationPrincipal AuthenticatedPrincipal principal,
             HttpServletResponse httpServletResponse
     ) {
-        Long applicantId = extractedId(principal);
-
-        applicantAuthService.withdraw(applicantId);
+        applicantAuthService.withdraw(principal.publicId());
 
         ResponseCookie expiredRefreshTokenCookie = cookieProvider.createExpiredRefreshTokenCookie();
 
@@ -103,13 +99,5 @@ public class ApplicantAuthController {
         );
 
         return ResponseEntity.ok(ApiResponse.success(200, null, "회원탈퇴에 성공했습니다."));
-    }
-
-    private static Long extractedId(Principal principal) {
-        if(principal == null){
-            throw new BusinessException(ErrorCode.UNAUTHORIZED);
-        }
-
-        return Long.parseLong(principal.getName());
     }
 }
