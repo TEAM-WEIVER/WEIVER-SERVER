@@ -4,6 +4,7 @@ import com.weiver.matching.domain.MatchResult;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface MatchResultRepository extends JpaRepository<MatchResult, Long>, MatchResultRepositoryCustom {
@@ -11,6 +12,9 @@ public interface MatchResultRepository extends JpaRepository<MatchResult, Long>,
     Optional<MatchResult> findByJobPosting_JdIdAndApplicant_PublicIdAndJobPosting_Company_PublicId(
             Long jdId, String applicantPublicId, String companyPublicId
     );
+
+    @EntityGraph(attributePaths = {"jobPosting", "jobPosting.company"})
+    List<MatchResult> findAllByIsNotifiedFalse();
 
     boolean existsByJobPosting_JdIdAndApplicant_PublicIdAndJobPosting_Company_PublicId(
             Long jdId, String applicantPublicId, String companyPublicId

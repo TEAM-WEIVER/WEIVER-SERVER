@@ -1,6 +1,7 @@
 package com.weiver.notification.repository;
 
 import com.weiver.notification.domain.Notification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,4 +16,7 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             "WHERE n.matchResult.jobPosting.jdId IN :jdIds AND n.isRead = false " +
             "GROUP BY n.matchResult.jobPosting.jdId")
     List<Object[]> countNewApplicantsByJdIds(@Param("jdIds") List<Long> jdIds);
+
+    @EntityGraph(attributePaths = {"matchResult", "matchResult.jobPosting"})
+    List<Notification> findAllByCompany_PublicIdOrderByCreateTimeDesc(String companyPublicId);
 }
