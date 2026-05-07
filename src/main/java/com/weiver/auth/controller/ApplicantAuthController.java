@@ -12,6 +12,10 @@ import com.weiver.auth.service.dto.ApplicantLoginResult;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.global.security.cookie.CookieProvider;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +25,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "구직자(Applicant) 인증(Auth) API", description = "구직자 이메일 인증, 회원가입, 로그인, 회원탈퇴를 처리하는 API입니다.")
 @RestController
 @RequestMapping("/api/auth/applicants")
 @RequiredArgsConstructor
@@ -29,6 +34,10 @@ public class ApplicantAuthController {
     private final ApplicantAuthService applicantAuthService;
     private final CookieProvider cookieProvider;
 
+    @Operation(
+            summary = "이메일 인증번호 전송",
+            description = "회원가입시 인증에 필요한 코드를 회원의 이메일로 전송합니다."
+    )
     @PostMapping("/email/send")
     public ResponseEntity<ApiResponse<Void>> sendEmailCode(
             @RequestBody
@@ -40,6 +49,11 @@ public class ApplicantAuthController {
         return ResponseEntity.ok(ApiResponse.success(200, null, "이메일 인증번호 전송에 성공했습니다."));
     }
 
+    @Operation(
+            summary = "이메일 인증번호 검증",
+            description = "이메일로 전송된 인증번호를 검증합니다.<br>"+
+                    "인증번호가 일치하면 이메일 인증 성공 결과를 반환합니다."
+    )
     @PostMapping("/email/verify")
     public ResponseEntity<ApiResponse<ApplicantEmailVerifyResponseDTO>> verifyEmailCode(
             @RequestBody
@@ -51,6 +65,11 @@ public class ApplicantAuthController {
         return ResponseEntity.ok(ApiResponse.success(200, responseDTO, "이메일 인증번호 확인에 성공했습니다."));
     }
 
+    @Operation(
+            summary = "회원가입",
+            description = "구직자의 회원가입을 처리합니다.<br>" +
+                    "회원가입 성공 시 생성된 구직자 정보를 반환합니다."
+    )
     @PostMapping("/signup")
     public ResponseEntity<ApiResponse<ApplicantSignupResponseDTO>> signup(
             @RequestBody
@@ -62,11 +81,18 @@ public class ApplicantAuthController {
         return ResponseEntity.ok(ApiResponse.success(201, responseDTO, "회원가입에 성공했습니다."));
     }
 
+    @Operation(
+            summary = "로그인",
+            description = "구직자의 이메일과 비밀번호를 검증하여 로그인을 처리합니다.<br>" +
+                    "로그인 성공 시 Access Token과 Role을 응답 body로 반환하고, Refresh Token은 HttpOnly Cookie로 발급합니다."
+    )
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<ApplicantLoginResponseDTO>> login(
             @RequestBody
             @Valid
             ApplicantLoginRequestDTO requestDTO,
+
+            @Parameter(hidden = true)
             HttpServletResponse httpServletResponse
     ) {
         ApplicantLoginResult loginResult = applicantAuthService.login(requestDTO);
@@ -84,9 +110,19 @@ public class ApplicantAuthController {
 
     }
 
+    @Operation(
+            summary = "회원 탈퇴",
+            description = "현재 로그인한 구직자 계정을 탈퇴 처리합니다.<br>" +
+                    "탈퇴 성공 시 저장된 Refresh Token을 삭제하고 Refresh Token Cookie를 즉시 만료시킵니다.<br>" +
+                    "Authorization Header에 Bearer Access Token이 필요합니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
     @DeleteMapping("/me")
     public ResponseEntity<ApiResponse<Void>> withdraw(
+            @Parameter(hidden = true)
             @AuthenticationPrincipal AuthenticatedPrincipal principal,
+
+            @Parameter(hidden = true)
             HttpServletResponse httpServletResponse
     ) {
         applicantAuthService.withdraw(principal.publicId());

@@ -146,7 +146,7 @@ public class ApplicantAuthControllerTest {
                 "new@test.com", "Pass1234!", "Pass1234!", "verification-token", allTrueAgreements()
         );
         when(applicantAuthService.signup(any()))
-                .thenReturn(new ApplicantSignupResponseDTO(1L, "new@test.com", UserRole.APPLICANT));
+                .thenReturn(new ApplicantSignupResponseDTO("uuid-applicant-1", UserRole.APPLICANT));
 
         // when & then
         mockMvc.perform(post("/api/auth/applicants/signup")
@@ -154,8 +154,7 @@ public class ApplicantAuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk()) // ResponseEntity.ok()로 감쌈
                 .andExpect(jsonPath("$.code").value(201))
-                .andExpect(jsonPath("$.data.applicantId").value(1))
-                .andExpect(jsonPath("$.data.email").value("new@test.com"))
+                .andExpect(jsonPath("$.data.publicId").value("uuid-applicant-1"))
                 .andExpect(jsonPath("$.data.role").value("APPLICANT"))
                 .andExpect(jsonPath("$.message").value("회원가입에 성공했습니다."));
     }
