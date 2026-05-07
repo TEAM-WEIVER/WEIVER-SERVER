@@ -2,7 +2,6 @@ package com.weiver.matching.dto.response;
 
 import com.weiver.analysis.domain.CultureReport;
 import com.weiver.analysis.domain.TechnicalSkillReport;
-import com.weiver.analysis.type.CulturefitStyle;
 import com.weiver.matching.domain.MatchResult;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,10 +12,13 @@ import java.util.List;
 public record ApplicantListResponseDTO(
         @Schema(description = "구직자 ID", example = "3333")
         String publicId,
+
         @Schema(description = "구직자 프로필 이미지 URL", example = "https://example.com/profile.jpg")
         String profileImageUrl,
+
         @Schema(description = "구직자 이름", example = "홍길동")
         String applicantName,
+
         @Schema(description = "직급", example = "신입")
         String position,
 
@@ -24,7 +26,7 @@ public record ApplicantListResponseDTO(
         Float skillScore,
 
         @Schema(description = "컬처핏 스타일", example = "추진형 실행가")
-        CulturefitStyle cultureStyle,
+        String cultureStyle,
 
         @Schema(description = "컬처핏 태그 리스트", example = "[\"팀워크\", \"리더십\"]")
         List<String> cultureTags,
@@ -40,7 +42,7 @@ public record ApplicantListResponseDTO(
                 matchResult.getApplicant().getName(),
                 position,
                 matchResult.getSkillScore(),
-                cultureReport.getCulturefitStyles(),
+                cultureReport.getCulturefitStyles().getDescription(),
                 cultureReport.getCulturefitTag(), // Hibernate가 파싱 완료한 List 그대로 사용!
                 technicalSkillReport.getSkillTags()   // Hibernate가 파싱 완료한 List 그대로 사용!
         );
