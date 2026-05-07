@@ -13,8 +13,6 @@ import com.weiver.global.common.UserRole;
 import com.weiver.global.auth.ApplicantProvider;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
-import com.weiver.global.mail.MailMessage;
-import com.weiver.global.mail.MailSender;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
 import com.weiver.global.security.jwt.repository.TokenVersionRepository;
@@ -40,11 +38,11 @@ public class ApplicantAuthService {
     private final ApplicantEmailVerificationRepository emailVerificationRepository;
     private final TokenVersionRepository tokenVersionRepository;
     private final ApplicantVerificationCodeGenerator codeGenerator;
-    private final MailSender mailSender;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
     private final ApplicantProvider applicantProvider;
+    private final EmailVerificationService emailVerificationService;
 
     public void sendEmailCode(ApplicantEmailSendRequestDTO request) {
         String email = request.email();
@@ -59,11 +57,7 @@ public class ApplicantAuthService {
         emailVerificationRepository.saveCode(email, code, EMAIL_CODE_TTL);
 
         try {
-            mailSender.send(new MailMessage(
-                    email,
-                    "WEIVER 이메일 인증번호",
-                    "인증번호는 [" + code + "] 입니다."
-            ));
+            emailVerificationService.sendVerificationCode(email, code);
         } catch (Exception e) {
             emailVerificationRepository.deleteCode(email);
             throw new BusinessException(ErrorCode.EMAIL_SEND_FAILED);
