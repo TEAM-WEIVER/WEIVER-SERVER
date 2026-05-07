@@ -19,6 +19,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
+import java.util.stream.Stream;
+
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -33,7 +35,12 @@ public class SecurityConfig {
         http.cors(cors -> {});
         http.csrf(csrf -> csrf
                 .csrfTokenRepository(cookieCsrfTokenRepository())
-                .ignoringRequestMatchers(WhiteListConfig.applicantAuthWhitelist().toArray(String[]::new))
+                .ignoringRequestMatchers(
+                        Stream.concat(
+                                WhiteListConfig.applicantAuthWhitelist().stream(),
+                                WhiteListConfig.companyAuthWhitelist().stream()
+                        ).toArray(String[]::new)
+                )
         );
         http.formLogin(AbstractHttpConfigurer::disable);
         http.httpBasic(AbstractHttpConfigurer::disable);
@@ -60,6 +67,10 @@ public class SecurityConfig {
                         .requestMatchers(
                                 HttpMethod.POST,
                                 WhiteListConfig.applicantAuthWhitelist().toArray(String[]::new)
+                        ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                WhiteListConfig.companyAuthWhitelist().toArray(String[]::new)
                         ).permitAll()
 
                         .anyRequest().authenticated()

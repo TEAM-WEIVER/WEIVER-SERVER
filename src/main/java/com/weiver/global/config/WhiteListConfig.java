@@ -35,6 +35,13 @@ public class WhiteListConfig {
         );
     }
 
+    // 기업 인증 관련 인가 설정
+    public static List<String> companyAuthWhitelist() {
+        return List.of(
+                "/api/auth/companies/login"
+        );
+    }
+
     // 서버 상태 확인, 운영 편의 API
     public static List<String> serverWhitelist() {
         return List.of(
