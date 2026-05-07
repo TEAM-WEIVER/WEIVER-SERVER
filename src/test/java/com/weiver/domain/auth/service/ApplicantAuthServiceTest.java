@@ -15,12 +15,11 @@ import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
 import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.ApplicantVerificationCodeGenerator;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
+import com.weiver.auth.service.EmailVerificationService;
 import com.weiver.global.auth.ApplicantProvider;
 import com.weiver.global.common.UserRole;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
-import com.weiver.global.mail.MailMessage;
-import com.weiver.global.mail.MailSender;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
 import com.weiver.global.security.jwt.repository.TokenVersionRepository;
@@ -58,7 +57,7 @@ public class ApplicantAuthServiceTest {
     @Mock private ApplicantAgreementRepository applicantAgreementRepository;
     @Mock private ApplicantEmailVerificationRepository emailVerificationRepository;
     @Mock private ApplicantVerificationCodeGenerator codeGenerator;
-    @Mock private MailSender mailSender;
+    @Mock private EmailVerificationService emailVerificationService;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JwtTokenProvider jwtTokenProvider;
     @Mock private RefreshTokenRepository refreshTokenRepository;
@@ -82,7 +81,7 @@ public class ApplicantAuthServiceTest {
         // then
         verify(emailVerificationRepository).deleteAttemptCount(email);
         verify(emailVerificationRepository).saveCode(eq(email), eq(code), any(Duration.class));
-        verify(mailSender).send(any(MailMessage.class));
+        verify(emailVerificationService).sendVerificationCode(email, code);
         verify(emailVerificationRepository, never()).deleteCode(anyString());
     }
 
@@ -102,7 +101,7 @@ public class ApplicantAuthServiceTest {
 
         verify(codeGenerator, never()).generateCode();
         verify(emailVerificationRepository, never()).saveCode(anyString(), anyString(), any(Duration.class));
-        verify(mailSender, never()).send(any(MailMessage.class));
+        verify(emailVerificationService, never()).sendVerificationCode(anyString(), anyString());
     }
 
     @Test
@@ -115,7 +114,7 @@ public class ApplicantAuthServiceTest {
 
         when(applicantRepository.existsByEmail(email)).thenReturn(false);
         when(codeGenerator.generateCode()).thenReturn(code);
-        doThrow(new RuntimeException("smtp down")).when(mailSender).send(any(MailMessage.class));
+        doThrow(new RuntimeException("smtp down")).when(emailVerificationService).sendVerificationCode(anyString(), anyString());
 
         // when & then
         assertThatThrownBy(() -> applicantAuthService.sendEmailCode(request))
