@@ -19,4 +19,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
 
     @EntityGraph(attributePaths = {"matchResult", "matchResult.jobPosting"})
     List<Notification> findAllByCompany_PublicIdOrderByCreateTimeDesc(String companyPublicId);
+
+    List<Notification> findAllByCompany_PublicIdAndIsReadFalse(String companyPublicId);
 }

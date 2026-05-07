@@ -39,4 +39,7 @@ public class Notification extends BaseTimeEntity {
     @JoinColumn(name = "match_id", nullable = false)
     private MatchResult matchResult;
 
+    public void markAsRead() {
+        this.isRead = true;
+    }
 }
