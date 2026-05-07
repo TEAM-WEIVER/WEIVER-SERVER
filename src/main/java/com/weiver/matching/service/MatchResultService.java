@@ -6,6 +6,11 @@ import com.weiver.applicant.dto.response.*;
 import com.weiver.applicant.repository.*;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.mail.MailMessage;
+import com.weiver.global.mail.MailSender;
+import com.weiver.jobposting.domain.EmailTemplate;
+import com.weiver.jobposting.repository.EmailTemplateRepository;
+import com.weiver.matching.domain.MatchResult;
 import com.weiver.matching.dto.request.ApplicantSearchCondition;
 import com.weiver.matching.dto.response.ApplicantListResponseDTO;
 import com.weiver.matching.repository.MatchResultRepository;
@@ -24,6 +29,7 @@ import static com.weiver.matching.domain.QMatchResult.matchResult;
 import static java.util.Objects.requireNonNull;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class MatchResultService {
 
@@ -33,6 +39,8 @@ public class MatchResultService {
     private final AwardRepository awardRepository;
     private final CertificateRepository certificateRepository;
     private final WorkExperienceRepository workExperienceRepository;
+    private final EmailTemplateRepository emailTemplateRepository;
+    private final MailSender mailSender;
 
     /**
      * 매핑된 구직자 리스트 조회
@@ -53,7 +61,6 @@ public class MatchResultService {
         });
     }
 
-    @Transactional(readOnly = true)
     public ApplicantInfoResponseDTO searchApplicantDetail(Long jdId, String applicantPublicId, String companyPublicId) {
 
         boolean isApplied = matchResultRepository.existsByJobPosting_JdIdAndApplicant_PublicIdAndJobPosting_Company_PublicId(
@@ -81,6 +88,30 @@ public class MatchResultService {
         );
     }
 
+    @Transactional
+    public void sendContactEmail(Long jdId, String applicantPublicId, String companyPublicId) {
+
+        MatchResult matchResult = matchResultRepository.findByJobPosting_JdIdAndApplicant_PublicIdAndJobPosting_Company_PublicId(
+                jdId, applicantPublicId, companyPublicId
+        ).orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN));
+
+        EmailTemplate template = emailTemplateRepository.findWithJobPostingByJdId(jdId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EMAIL_NOT_FOUND));
+
+        Applicant applicant = matchResult.getApplicant();
+        String toEmail = applicant.getEmail();
+
+        String subject = template.getEmailTitle();
+        String body = template.getEmailContent();
+
+        // 템플릿 본문에 "{지원자명}" 또는 "{{name}}" 이라는 치환 변수가 존재할 경우 동작
+        if (body != null && applicant.getName() != null) {
+            body = body.replace("{{name}}", applicant.getName());
+        }
+
+        MailMessage mailMessage = new MailMessage(toEmail, subject, body);
+        mailSender.send(mailMessage);
+    }
 
     private Applicant getApplicant(String publicId) {
         Applicant applicant = applicantRepository.findByPublicId(publicId)

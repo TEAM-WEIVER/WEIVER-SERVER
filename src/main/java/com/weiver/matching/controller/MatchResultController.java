@@ -1,7 +1,6 @@
 package com.weiver.matching.controller;
 
 import com.weiver.applicant.dto.response.ApplicantInfoResponseDTO;
-import com.weiver.applicant.service.ApplicantService;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -84,8 +83,12 @@ public class MatchResultController {
     )
     @GetMapping("/{jdId}/applicants/{applicantPublicId}")
     public ResponseEntity<ApiResponse<ApplicantInfoResponseDTO>> getApplicantInfo(
-            @Parameter(description = "채용 공고 고유 ID") @PathVariable Long jdId,
-            @Parameter(description = "구직자 고유 Public ID") @PathVariable String applicantPublicId,
+            @Parameter(description = "채용 공고 고유 ID")
+            @PathVariable Long jdId,
+
+            @Parameter(description = "구직자 고유 Public ID")
+            @PathVariable String applicantPublicId,
+
             @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
 
         if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
@@ -97,5 +100,29 @@ public class MatchResultController {
         );
 
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
+    }
+
+    @Operation(
+            summary = "지원자 컨택 (메일 발송)",
+            description = "해당 공고에 설정된 합격/안내 메일 템플릿을 사용하여 특정 지원자에게 메일을 발송합니다.<br>" +
+                    "**[보안]** 해당 공고를 작성한 기업 담당자만 발송할 수 있습니다."
+    )
+    @PostMapping("/{jdId}/applicants/{applicantPublicId}/mail")
+    public ResponseEntity<ApiResponse<Void>> sendContactMail(
+            @Parameter(description = "채용 공고 고유 ID", example = "1")
+            @PathVariable Long jdId,
+
+            @Parameter(description = "컨택할 구직자의 고유 Public ID")
+            @PathVariable String applicantPublicId,
+
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
+
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        matchResultService.sendContactEmail(jdId, applicantPublicId, principal.publicId());
+
+        return ResponseEntity.ok(ApiResponse.success("메일 전송에 성공했습니다."));
     }
 }
