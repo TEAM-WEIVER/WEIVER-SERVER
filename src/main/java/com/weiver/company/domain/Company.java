@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -36,6 +37,9 @@ public class Company extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     private UserRole role = UserRole.COMPANY;
+
+    @Column(name = "company_name", nullable = false)
+    private String companyName;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "company_type", nullable = false)
@@ -87,4 +91,14 @@ public class Company extends BaseTimeEntity {
     @Column(name = "additional_work_style", nullable = true, columnDefinition = "TEXT")
     private String additionalWorkStyle;
 
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean deleted = false;
+
+    private LocalDateTime deletedAt;
+
+    public void withdraw() {
+        this.deleted = true;
+        this.deletedAt = LocalDateTime.now();
+    }
 }
