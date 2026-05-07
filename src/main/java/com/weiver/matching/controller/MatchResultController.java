@@ -1,5 +1,7 @@
 package com.weiver.matching.controller;
 
+import com.weiver.applicant.dto.response.ApplicantInfoResponseDTO;
+import com.weiver.applicant.service.ApplicantService;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -19,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/job-postings/{jdId}/applicants")
+@RequestMapping("/api/job-postings")
 @RequiredArgsConstructor
 public class MatchResultController {
 
@@ -30,7 +32,7 @@ public class MatchResultController {
             description = "특정 공고에 지원한 지원자 리스트를 스킬핏, 컬처핏, 기술 스택, 이름으로 필터링하여 페이징 조회합니다.<br>" +
                     "**[참고]** 기술 스택 다중 필터링 시 `techStacks=React&techStacks=Java` 형태로 요청하세요."
     )
-    @GetMapping
+    @GetMapping("/{jdId}/applicants")
     public ResponseEntity<ApiResponse<Page<ApplicantListResponseDTO>>> searchApplicants(
             @Parameter(description = "채용 공고 고유 ID", example = "1")
             @PathVariable Long jdId,
@@ -72,5 +74,28 @@ public class MatchResultController {
         Page<ApplicantListResponseDTO> responseDTOS = matchResultService.searchApplicantList(condition, pageable);
 
         return ResponseEntity.ok(ApiResponse.success(responseDTOS));
+    }
+
+
+    @Operation(
+            summary = "지원자 상세 정보 조회",
+            description = "특정 공고에 지원한 구직자의 프로필, 학력, 수상, 자격증, 경력 정보를 조회합니다.<br>" +
+                    "**[보안]** 해당 공고에 지원한 이력이 없거나 타사의 공고인 경우 조회할 수 없습니다."
+    )
+    @GetMapping("/{jdId}/applicants/{applicantPublicId}")
+    public ResponseEntity<ApiResponse<ApplicantInfoResponseDTO>> getApplicantInfo(
+            @Parameter(description = "채용 공고 고유 ID") @PathVariable Long jdId,
+            @Parameter(description = "구직자 고유 Public ID") @PathVariable String applicantPublicId,
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
+
+        if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+
+        ApplicantInfoResponseDTO responseDTO = matchResultService.searchApplicantDetail(
+                jdId,
+                applicantPublicId,
+                principal.publicId()
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
 }
