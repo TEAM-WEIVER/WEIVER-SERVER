@@ -8,6 +8,7 @@ import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.weiver.analysis.type.CulturefitStyle;
+import com.weiver.applicant.domain.QWorkExperience;
 import com.weiver.matching.dto.request.ApplicantSearchCondition;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -34,22 +35,26 @@ public class MatchResultRepositoryImpl implements MatchResultRepositoryCustom {
     public Page<Tuple> searchApplicantsTuple(ApplicantSearchCondition condition, Pageable pageable) {
 
 
+        QWorkExperience weSub = new QWorkExperience("weSub");
+
         StringExpression recentPositionSubQuery = Expressions.asString(
                 JPAExpressions.select(workExperience.position)
                         .from(workExperience)
-                        .where(workExperience.applicant.eq(applicant))
-                        .orderBy(workExperience.experienceId.desc())
-                        .limit(1)
+                        .where(
+                                workExperience.applicant.eq(applicant),
+                                workExperience.experienceId.eq(
+                                        JPAExpressions.select(weSub.experienceId.max())
+                                                .from(weSub)
+                                                .where(weSub.applicant.eq(applicant))
+                                )
+                        )
         );
 
-        // 데이터 조회 쿼리 (Tuple 반환)
         List<Tuple> content = queryFactory
-                // MatchResult, CultureReport, TechnicalSkillReport 엔티티 3개와 직무 문자열 1개를 한 번에 담습니다.
                 .select(matchResult, cultureReport, technicalSkillReport, recentPositionSubQuery)
                 .from(matchResult)
                 .join(matchResult.applicant, applicant)
 
-                // ON 절을 명시하여 강제 세타 조인 처리 (단방향 연관과계로 LEFT JOIN 필요)
                 .leftJoin(cultureReport).on(cultureReport.applicant.eq(applicant))
                 .leftJoin(technicalSkillReport).on(technicalSkillReport.applicant.eq(applicant))
 
@@ -62,7 +67,7 @@ public class MatchResultRepositoryImpl implements MatchResultRepositoryCustom {
                 )
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
-                .orderBy(matchResult.skillScore.desc(), matchResult.createTime.desc()) // 스킬핏 높은 순
+                .orderBy(matchResult.skillScore.desc(), matchResult.createTime.desc())
                 .fetch();
 
         JPAQuery<Long> countQuery = queryFactory

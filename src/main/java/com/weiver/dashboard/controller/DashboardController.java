@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/companies")
+@RequestMapping("/api/job-postings")
 @RequiredArgsConstructor
 public class DashboardController {
     private final DashboardService dashboardService;

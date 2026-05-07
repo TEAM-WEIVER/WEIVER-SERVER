@@ -1,10 +1,13 @@
 package com.weiver.matching.dto.request;
 
+import lombok.Builder;
+
 import java.util.List;
 
 /**
  * GET 요청의 쿼리 파라미터를 받을 DTO
  * */
+@Builder
 public record ApplicantSearchCondition(
         Long jdId,                  // 특정 공고 ID
         String keyword,             // 지원자 이름 검색
