@@ -79,6 +79,15 @@ spring:
       stack:
         auto: false # 로컬에서 실행할 때 불필요한 에러 방지
 
+# ---------------------------------------------------------------------------
+# email
+# ---------------------------------------------------------------------------
+resend:
+  api-key: ${RESEND_API_KEY}
+  api-url: ${RESEND_API_URL}
+  from-email: ${RESEND_FROM_EMAIL}
+  from-name: ${RESEND_FROM_NAME}
+
 aws:
   s3:
     bucket-name: weaver-local-bucket
