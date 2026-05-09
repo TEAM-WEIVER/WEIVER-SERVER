@@ -79,7 +79,7 @@ class MatchResultServiceTest {
         EmailSendRequest sentRequest = requestCaptor.getValue();
         assertThat(sentRequest.to()).isEqualTo("lee@example.com");
         assertThat(sentRequest.subject()).isEqualTo("서류 합격을 축하합니다.");
-        assertThat(sentRequest.textContent()).isEqualTo("안녕하세요 이현우님, 위버(Weiver)입니다.");
+        assertThat(sentRequest.htmlContent()).isEqualTo("안녕하세요 이현우님, 위버(Weiver)입니다.");
     }
 
     @Test
@@ -107,7 +107,7 @@ class MatchResultServiceTest {
         ArgumentCaptor<EmailSendRequest> requestCaptor = ArgumentCaptor.forClass(EmailSendRequest.class);
         verify(emailSender).send(requestCaptor.capture());
 
-        assertThat(requestCaptor.getValue().textContent()).isEqualTo("안녕하세요. 서류 합격자 대상 안내입니다.");
+        assertThat(requestCaptor.getValue().htmlContent()).isEqualTo("안녕하세요. 서류 합격자 대상 안내입니다.");
     }
 
     @Test
@@ -135,7 +135,7 @@ class MatchResultServiceTest {
         ArgumentCaptor<EmailSendRequest> requestCaptor = ArgumentCaptor.forClass(EmailSendRequest.class);
         verify(emailSender).send(requestCaptor.capture());
 
-        assertThat(requestCaptor.getValue().textContent()).isNull();
+        assertThat(requestCaptor.getValue().htmlContent()).isNull();
     }
 
     @Test
