@@ -108,11 +108,17 @@ public class MatchResultService {
         String subject = template.getEmailTitle();
         String body = template.getEmailContent();
 
-        // 템플릿 본문에 "{지원자명}" 또는 "{{name}}" 이라는 치환 변수가 존재할 경우 동작
-        if (body != null && applicant.getName() != null) {
-            body = body.replace("{{name}}", applicant.getName());
+        if (body != null) {
+            if (applicant.getName() != null) {
+                body = body.replace("{{name}}", applicant.getName());
+            }
+
+            // HTML 방어 로직 - 이메일 템플릿에 HTML 태그가 포함되어 있지 않다면 줄바꿈을 <br>로 변환
+            if (!body.matches(".*<[a-zA-Z]+.*?>.*")) {
+                body = body.replace("\n", "<br>");
+            }
         }
-        emailSender.send(EmailSendRequest.ofText(toEmail, subject, body));
+        emailSender.send(EmailSendRequest.ofHtml(toEmail, subject, body));
     }
 
     private Applicant getApplicant(String publicId) {
