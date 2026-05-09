@@ -69,7 +69,7 @@ public class DashboardController {
     }
 
     @Operation(summary = "알림 목록 조회", description = "현재 로그인한 기업의 알림 목록을 최신순으로 조회합니다.")
-    @GetMapping
+    @GetMapping("/notifications")
     public ResponseEntity<ApiResponse<Map<String, List<NotificationResponseDTO>>>> getNotifications(
             @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
 
@@ -80,7 +80,7 @@ public class DashboardController {
 
     @Operation(summary = "알림 읽음 처리", description = "해당 공고 매칭 지원자 리스트 페이지로 이동 함과 동시에" +
             " 해당 알림을 읽음 상태로 변경합니다.")
-    @PatchMapping("/{notificationId}/read")
+    @PatchMapping("/notifications/{notificationId}/read")
     public ResponseEntity<ApiResponse<Void>> readNotification(
             @Parameter(description = "알림 고유 ID") @PathVariable Long notificationId,
             @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
@@ -93,7 +93,7 @@ public class DashboardController {
     }
 
     @Operation(summary = "알림 전체 읽음 처리", description = "현재 사용자의 모든 미읽음 알림을 읽음 상태로 변경합니다.")
-    @PatchMapping("/read-all")
+    @PatchMapping("/notifications/read-all")
     public ResponseEntity<ApiResponse<Void>> readAllNotifications(
             @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
 
