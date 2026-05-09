@@ -9,6 +9,7 @@ import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.weiver.analysis.type.CulturefitStyle;
 import com.weiver.applicant.domain.QWorkExperience;
+import com.weiver.matching.domain.MatchResult;
 import com.weiver.matching.dto.request.ApplicantSearchCondition;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -18,6 +19,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Optional;
 
 import static com.weiver.matching.domain.QMatchResult.matchResult;
 import static com.weiver.applicant.domain.QApplicant.applicant;
@@ -85,6 +87,20 @@ public class MatchResultRepositoryImpl implements MatchResultRepositoryCustom {
                 );
 
         return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
+    }
+
+    @Override
+    public Optional<MatchResult> findMatchResultForContact(Long jdId, String applicantId, String companyId) {
+        MatchResult result = queryFactory
+                .selectFrom(matchResult)
+                .where(
+                        matchResult.jobPosting.jdId.eq(jdId),
+                        matchResult.applicant.publicId.eq(applicantId),
+                        matchResult.jobPosting.company.publicId.eq(companyId)
+                )
+                .fetchOne();
+
+        return Optional.ofNullable(result);
     }
 
   

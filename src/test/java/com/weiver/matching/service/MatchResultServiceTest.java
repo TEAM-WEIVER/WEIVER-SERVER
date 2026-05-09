@@ -1,14 +1,14 @@
 package com.weiver.matching.service;
 
 import com.weiver.applicant.domain.Applicant;
+import com.weiver.global.email.dto.EmailSendRequest;
+import com.weiver.global.email.service.EmailSender;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
-import com.weiver.global.mail.MailMessage;
-import com.weiver.global.mail.MailSender;
 import com.weiver.jobposting.domain.EmailTemplate;
+import com.weiver.jobposting.repository.EmailTemplateRepository;
 import com.weiver.matching.domain.MatchResult;
 import com.weiver.matching.repository.MatchResultRepository;
-import com.weiver.jobposting.repository.EmailTemplateRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,7 +38,7 @@ class MatchResultServiceTest {
     private EmailTemplateRepository emailTemplateRepository;
 
     @Mock
-    private MailSender mailSender;
+    private EmailSender emailSender;
 
     @Test
     @DisplayName("성공: 템플릿의 {{name}} 치환 변수가 지원자 이름으로 정상 치환되어 메일이 발송된다.")
@@ -62,7 +62,7 @@ class MatchResultServiceTest {
                 .emailContent("안녕하세요 {{name}}님, 위버(Weiver)입니다.")
                 .build();
 
-        given(matchResultRepository.findByJobPosting_JdIdAndApplicant_PublicIdAndJobPosting_Company_PublicId(
+        given(matchResultRepository.findMatchResultForContact(
                 jdId, applicantPublicId, companyPublicId))
                 .willReturn(Optional.of(matchResult));
 
@@ -73,13 +73,13 @@ class MatchResultServiceTest {
         matchResultService.sendContactEmail(jdId, applicantPublicId, companyPublicId);
 
         // then
-        ArgumentCaptor<MailMessage> messageCaptor = ArgumentCaptor.forClass(MailMessage.class);
-        verify(mailSender).send(messageCaptor.capture());
+        ArgumentCaptor<EmailSendRequest> requestCaptor = ArgumentCaptor.forClass(EmailSendRequest.class);
+        verify(emailSender).send(requestCaptor.capture());
 
-        MailMessage sentMessage = messageCaptor.getValue();
-        assertThat(sentMessage.to()).isEqualTo("lee@example.com");
-        assertThat(sentMessage.subject()).isEqualTo("서류 합격을 축하합니다.");
-        assertThat(sentMessage.body()).isEqualTo("안녕하세요 이현우님, 위버(Weiver)입니다.");
+        EmailSendRequest sentRequest = requestCaptor.getValue();
+        assertThat(sentRequest.to()).isEqualTo("lee@example.com");
+        assertThat(sentRequest.subject()).isEqualTo("서류 합격을 축하합니다.");
+        assertThat(sentRequest.textContent()).isEqualTo("안녕하세요 이현우님, 위버(Weiver)입니다.");
     }
 
     @Test
@@ -95,7 +95,7 @@ class MatchResultServiceTest {
                 .emailContent("안녕하세요. 서류 합격자 대상 안내입니다.")
                 .build();
 
-        given(matchResultRepository.findByJobPosting_JdIdAndApplicant_PublicIdAndJobPosting_Company_PublicId(any(), any(), any()))
+        given(matchResultRepository.findMatchResultForContact(any(), any(), any()))
                 .willReturn(Optional.of(matchResult));
         given(emailTemplateRepository.findWithJobPostingByJdId(any()))
                 .willReturn(Optional.of(template));
@@ -104,14 +104,14 @@ class MatchResultServiceTest {
         matchResultService.sendContactEmail(jdId, "app-123", "comp-456");
 
         // then
-        ArgumentCaptor<MailMessage> messageCaptor = ArgumentCaptor.forClass(MailMessage.class);
-        verify(mailSender).send(messageCaptor.capture());
+        ArgumentCaptor<EmailSendRequest> requestCaptor = ArgumentCaptor.forClass(EmailSendRequest.class);
+        verify(emailSender).send(requestCaptor.capture());
 
-        assertThat(messageCaptor.getValue().body()).isEqualTo("안녕하세요. 서류 합격자 대상 안내입니다.");
+        assertThat(requestCaptor.getValue().textContent()).isEqualTo("안녕하세요. 서류 합격자 대상 안내입니다.");
     }
 
     @Test
-    @DisplayName("엣지케이스: 템플릿 본문이나 지원자 이름이 null이어도 NPE 발생 없이 발송된다.")
+    @DisplayName("엣지케이스: 템플릿 본문이나 지원자 이름이 null이어도 NPE 발생 없이 발송 파라미터가 만들어진다.")
     void sendContactEmail_Success_WhenBodyOrNameIsNull() {
         // given
         Long jdId = 1L;
@@ -123,7 +123,7 @@ class MatchResultServiceTest {
                 .emailContent(null)
                 .build();
 
-        given(matchResultRepository.findByJobPosting_JdIdAndApplicant_PublicIdAndJobPosting_Company_PublicId(any(), any(), any()))
+        given(matchResultRepository.findMatchResultForContact(any(), any(), any()))
                 .willReturn(Optional.of(matchResult));
         given(emailTemplateRepository.findWithJobPostingByJdId(any()))
                 .willReturn(Optional.of(template));
@@ -132,10 +132,31 @@ class MatchResultServiceTest {
         matchResultService.sendContactEmail(jdId, "app-123", "comp-456");
 
         // then
-        ArgumentCaptor<MailMessage> messageCaptor = ArgumentCaptor.forClass(MailMessage.class);
-        verify(mailSender).send(messageCaptor.capture());
+        ArgumentCaptor<EmailSendRequest> requestCaptor = ArgumentCaptor.forClass(EmailSendRequest.class);
+        verify(emailSender).send(requestCaptor.capture());
 
-        assertThat(messageCaptor.getValue().body()).isNull();
+        assertThat(requestCaptor.getValue().textContent()).isNull();
+    }
+
+    @Test
+    @DisplayName("실패: 지원자의 이메일 주소가 없거나 비어있으면 EMAIL_NOT_FOUND 예외가 발생한다.")
+    void sendContactEmail_ThrowsEmailNotFound_WhenEmailIsBlank() {
+        // given
+        Long jdId = 1L;
+        // 이메일이 없는 구직자 세팅
+        Applicant applicant = Applicant.builder().name("이현우").email("").build();
+        MatchResult matchResult = MatchResult.builder().applicant(applicant).build();
+        EmailTemplate template = EmailTemplate.builder().build();
+
+        given(matchResultRepository.findMatchResultForContact(any(), any(), any()))
+                .willReturn(Optional.of(matchResult));
+        given(emailTemplateRepository.findWithJobPostingByJdId(any()))
+                .willReturn(Optional.of(template));
+
+        // when & then
+        assertThatThrownBy(() -> matchResultService.sendContactEmail(jdId, "app-123", "comp-456"))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("수신자 이메일이 존재하지 않습니다.");
     }
 
     @Test
@@ -146,7 +167,7 @@ class MatchResultServiceTest {
         String applicantPublicId = "app-123";
         String companyPublicId = "comp-456";
 
-        given(matchResultRepository.findByJobPosting_JdIdAndApplicant_PublicIdAndJobPosting_Company_PublicId(
+        given(matchResultRepository.findMatchResultForContact(
                 jdId, applicantPublicId, companyPublicId))
                 .willReturn(Optional.empty());
 
@@ -166,7 +187,7 @@ class MatchResultServiceTest {
 
         MatchResult matchResult = MatchResult.builder().build();
 
-        given(matchResultRepository.findByJobPosting_JdIdAndApplicant_PublicIdAndJobPosting_Company_PublicId(
+        given(matchResultRepository.findMatchResultForContact(
                 jdId, applicantPublicId, companyPublicId))
                 .willReturn(Optional.of(matchResult));
 

@@ -4,10 +4,10 @@ import com.querydsl.core.Tuple;
 import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.response.*;
 import com.weiver.applicant.repository.*;
+import com.weiver.global.email.dto.EmailSendRequest;
+import com.weiver.global.email.service.EmailSender;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
-import com.weiver.global.mail.MailMessage;
-import com.weiver.global.mail.MailSender;
 import com.weiver.jobposting.domain.EmailTemplate;
 import com.weiver.jobposting.repository.EmailTemplateRepository;
 import com.weiver.matching.domain.MatchResult;
@@ -40,7 +40,7 @@ public class MatchResultService {
     private final CertificateRepository certificateRepository;
     private final WorkExperienceRepository workExperienceRepository;
     private final EmailTemplateRepository emailTemplateRepository;
-    private final MailSender mailSender;
+    private final EmailSender emailSender;
 
     /**
      * 매핑된 구직자 리스트 조회
@@ -88,10 +88,10 @@ public class MatchResultService {
         );
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public void sendContactEmail(Long jdId, String applicantPublicId, String companyPublicId) {
 
-        MatchResult matchResult = matchResultRepository.findByJobPosting_JdIdAndApplicant_PublicIdAndJobPosting_Company_PublicId(
+        MatchResult matchResult = matchResultRepository.findMatchResultForContact(
                 jdId, applicantPublicId, companyPublicId
         ).orElseThrow(() -> new BusinessException(ErrorCode.FORBIDDEN));
 
@@ -101,6 +101,10 @@ public class MatchResultService {
         Applicant applicant = matchResult.getApplicant();
         String toEmail = applicant.getEmail();
 
+        if (toEmail == null || toEmail.isBlank()) {
+            throw new BusinessException(ErrorCode.EMAIL_NOT_FOUND, "수신자 이메일이 존재하지 않습니다.");
+        }
+
         String subject = template.getEmailTitle();
         String body = template.getEmailContent();
 
@@ -108,9 +112,7 @@ public class MatchResultService {
         if (body != null && applicant.getName() != null) {
             body = body.replace("{{name}}", applicant.getName());
         }
-
-        MailMessage mailMessage = new MailMessage(toEmail, subject, body);
-        mailSender.send(mailMessage);
+        emailSender.send(EmailSendRequest.ofText(toEmail, subject, body));
     }
 
     private Applicant getApplicant(String publicId) {

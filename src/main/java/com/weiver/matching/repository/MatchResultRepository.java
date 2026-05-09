@@ -5,14 +5,8 @@ import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface MatchResultRepository extends JpaRepository<MatchResult, Long>, MatchResultRepositoryCustom {
-    @EntityGraph(attributePaths = {"applicant"})
-    Optional<MatchResult> findByJobPosting_JdIdAndApplicant_PublicIdAndJobPosting_Company_PublicId(
-            Long jdId, String applicantPublicId, String companyPublicId
-    );
-
     @EntityGraph(attributePaths = {"jobPosting", "jobPosting.company"})
     List<MatchResult> findAllByIsNotifiedFalse();
 

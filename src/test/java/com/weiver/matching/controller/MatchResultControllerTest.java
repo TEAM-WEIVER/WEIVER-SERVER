@@ -42,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(MatchResultController.class)
-@AutoConfigureMockMvc(addFilters = false) // 시큐리티 필터 비활성화
+@AutoConfigureMockMvc(addFilters = false)
 class MatchResultControllerTest {
 
     @Autowired
@@ -54,7 +54,6 @@ class MatchResultControllerTest {
     @MockitoBean
     private MatchResultService matchResultService;
 
-    // 💡 GlobalExceptionHandler 로드를 위한 Security Bean 모킹
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
     @MockitoBean
@@ -85,7 +84,7 @@ class MatchResultControllerTest {
         Long jdId = 1L;
         ApplicantListResponseDTO dummyDto = new ApplicantListResponseDTO(
                 "pub-1", "url", "이현우", "백엔드 개발자", 90f,
-                CulturefitStyle.INCLUSIVE_INNOVATOR, List.of("포용성"), List.of("Java")
+                CulturefitStyle.INCLUSIVE_INNOVATOR.getDescription(), List.of("포용성"), List.of("Java")
         );
         Page<ApplicantListResponseDTO> mockPage = new PageImpl<>(List.of(dummyDto), PageRequest.of(0, 10), 1);
 

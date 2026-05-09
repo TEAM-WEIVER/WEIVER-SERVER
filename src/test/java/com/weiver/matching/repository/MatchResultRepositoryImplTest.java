@@ -19,6 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
@@ -60,6 +61,7 @@ class MatchResultRepositoryTest {
     @ServiceConnection
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:15-alpine");
 
+    @Qualifier("matchResultRepositoryImpl")
     @Autowired
     private MatchResultRepositoryCustom matchResultRepositoryCustom;
 
@@ -76,6 +78,7 @@ class MatchResultRepositoryTest {
                 .loginId("testCompany123")
                 .password("encodedPassword")
                 .companyType(CompanyType.STARTUP)
+                .companyName("테스트 회사")
                 .employeeNum(50)
                 .companyCeoName("김대표")
                 .foundedYear(LocalDate.of(2020, 1, 1))
