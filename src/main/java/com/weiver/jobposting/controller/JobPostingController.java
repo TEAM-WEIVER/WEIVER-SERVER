@@ -102,4 +102,17 @@ public class JobPostingController {
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
 
+    @Operation(summary = "공고 삭제", description = "채용 공고를 삭제합니다. 삭제된 공고는 복구할 수 없습니다.")
+    @DeleteMapping("/{jdId}")
+    public ResponseEntity<ApiResponse<Void>> deleteJobPosting(
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal,
+            @Parameter(description = "삭제할 공고의 고유 ID", example = "1")
+            @PathVariable Long jdId){
+
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+
+        jobPostingService.deleteJobPosting(jdId, principal.publicId());
+        return ResponseEntity.ok(ApiResponse.success("채용 공고가 성공적으로 삭제되었습니다."));
+    }
+
 }

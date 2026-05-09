@@ -158,4 +158,15 @@ public class JobPostingService {
         return JobPostingResponseDTO.of(jobPosting, emailTemplate);
     }
 
+    @Transactional
+    public void deleteJobPosting(Long jdId, String publicId){
+        JobPosting jobPosting = jobPostingRepository.findById(jdId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.JOB_POSTING_NOT_FOUND));
+
+        if (!jobPosting.getCompany().getPublicId().equals(publicId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "공고 삭제 권한이 없습니다.");
+        }
+
+        jobPostingRepository.delete(jobPosting);
+    }
 }
