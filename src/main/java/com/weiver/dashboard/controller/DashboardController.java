@@ -17,13 +17,13 @@ import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = "대시보드 API", description = "기업 대시보드 관련 API")
 @RestController
-@RequestMapping("/api/job-postings")
+@RequestMapping("/api/dashboards")
 @RequiredArgsConstructor
 public class DashboardController {
     private final DashboardService dashboardService;
 
     @Operation(summary = "기업 정보 카드 조회", description = "대시보드 상단에 표시되는 기업의 기본 정보를 조회합니다.")
-    @GetMapping("/dashboard")
+    @GetMapping("/company")
     public ResponseEntity<ApiResponse<CompanyDashboardResponseDTO>> getCompanyInfo(
             @AuthenticationPrincipal AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
