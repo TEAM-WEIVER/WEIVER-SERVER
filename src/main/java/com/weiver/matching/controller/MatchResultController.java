@@ -10,6 +10,7 @@ import com.weiver.matching.dto.response.ApplicantListResponseDTO;
 import com.weiver.matching.service.MatchResultService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Tag(name = "매칭 결과 API", description = "채용 공고에 지원한 지원자들의 매칭 결과 조회 및 컨택 API")
 @RestController
 @RequestMapping("/api/job-postings")
 @RequiredArgsConstructor

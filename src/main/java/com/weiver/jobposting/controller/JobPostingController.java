@@ -6,10 +6,8 @@ import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.jobposting.dto.request.JobPostingRequestDTO;
 import com.weiver.jobposting.dto.request.JobPostingUpdateDTO;
-import com.weiver.jobposting.dto.response.JobPostingPageResponseDTO;
 import com.weiver.jobposting.dto.response.JobPostingResponseDTO;
 import com.weiver.jobposting.service.JobPostingService;
-import com.weiver.jobposting.type.JobPostingStatus;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -22,7 +20,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.security.Principal;
 
 @Tag(name = "기업 채용 공고 API", description = "기업의 채용 공고 생성, 수정, 리스트 및 상세 조회 API")
 @RestController
@@ -86,33 +83,12 @@ public class JobPostingController {
         return ResponseEntity.ok(ApiResponse.success("채용 공고가 성공적으로 수정되었습니다."));
     }
 
-    @Operation(
-            summary = "공고 리스트 조회 (페이징)",
-            description = "기업이 작성한 채용 공고 리스트를 최신순으로 페이징하여 조회합니다.<br>" +
-                    "각 공고별 '새로운 지원자 수(newApplicantCount)'가 함께 반환됩니다."
-    )
-    @GetMapping
-    public ResponseEntity<ApiResponse<JobPostingPageResponseDTO>> getJobPostingsList(
-            @Parameter(description = "공고 상태 필터링 (DRAFT, ACTIVE, CLOSED, ON_HOLD). 미입력 시 전체 조회", example = "ACTIVE")
-            @RequestParam(required = false) JobPostingStatus status,
 
-            @Parameter(description = "페이지 번호 (0부터 시작)", example = "0")
-            @RequestParam(defaultValue = "0") int page,
-
-            @Parameter(description = "페이지당 데이터 개수", example = "3")
-            @RequestParam(defaultValue = "3") int size,
-
-            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
-
-        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
-
-        JobPostingPageResponseDTO responseDTO = jobPostingService.searchJobPostingsList(principal.publicId(), status, page, size);
-        return ResponseEntity.ok(ApiResponse.success(responseDTO));
-    }
 
     @Operation(
             summary = "공고 상세 보기",
-            description = "단일 채용 공고의 상세 정보와 이메일 템플릿 정보를 조회합니다."
+            description = "단일 채용 공고의 상세 정보와 이메일 템플릿 정보를 조회합니다." +
+                    "기업 대시보드의 공고리스트에서 수정 버튼을 눌렀을 때, 해당 공고의 상세 정보를 조회하는 API입니다.<br>"
     )
     @GetMapping("/{jdId}")
     public ResponseEntity<ApiResponse<JobPostingResponseDTO>> getJobPosting(
