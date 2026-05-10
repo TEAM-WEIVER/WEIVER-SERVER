@@ -22,7 +22,7 @@ public class ResendEmailSender implements EmailSender {
     private final WebClient resendWebClient;
     private final ResendProperties resendProperties;
 
-    Override
+    @Override
     public void send(EmailSendRequest request) {
         validate(request);
 
