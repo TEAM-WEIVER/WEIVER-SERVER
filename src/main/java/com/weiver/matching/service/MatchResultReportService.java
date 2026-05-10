@@ -252,7 +252,6 @@ public class MatchResultReportService {
                         double score = ((Number) avgScoreObj).doubleValue();
                         int percentage = (int) Math.round((score / 5.0) * 100);
 
-                        // 💡 상수로 빼둔 딕셔너리 재사용
                         matches.add(new CompetencyMatch(i + 1, COMPETENCY_NAMES.getOrDefault(priorityKey, priorityKey), percentage));
                     }
                 }
