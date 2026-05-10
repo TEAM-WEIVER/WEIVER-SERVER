@@ -80,8 +80,9 @@ public class MatchResultReportService {
      * */
     public SkillFitSummaryDTO getSkillFitSummary(Long jdId, String applicantPublicId, String companyPublicId){
         MatchResult matchResult = matchResultService.getValidatedMatchResult(jdId, applicantPublicId, companyPublicId);
-        DetailAnalysisReport detailAnalysisReport = reportService.getValidatedDetailAnalysisReport(jdId, applicantPublicId, companyPublicId);
-        TechnicalSkillReport technicalSkillReport = reportService.getValidatedTechnicalSkillReport(jdId, applicantPublicId, companyPublicId);
+
+        DetailAnalysisReport detailAnalysisReport = reportService.getDetailAnalysisReport(applicantPublicId);
+        TechnicalSkillReport technicalSkillReport = reportService.getTechnicalSkillReport(applicantPublicId);
 
         JobPosting jobPosting = matchResult.getJobPosting();
         Float matchingRate = matchResult.getMatchingRate();
@@ -105,9 +106,9 @@ public class MatchResultReportService {
      * */
     public CultureFitSummaryDTO getCultureFitSummary(Long jdId, String applicantPublicId, String companyPublicId) {
         MatchResult matchResult = matchResultService.getValidatedMatchResult(jdId, applicantPublicId, companyPublicId);
-        DetailAnalysisReport detailAnalysisReport = reportService.getValidatedDetailAnalysisReport(jdId, applicantPublicId, companyPublicId);
 
-        CultureReport cultureReport = reportService.getValidatedCultureReport(jdId, applicantPublicId, companyPublicId);
+        DetailAnalysisReport detailAnalysisReport = reportService.getDetailAnalysisReport(applicantPublicId);
+        CultureReport cultureReport = reportService.getCultureReport(applicantPublicId);
 
         String culturefitStyle = cultureReport.getCulturefitStyles().getDescription();
         String aiSummary = matchResult.getAiSummary();
@@ -201,6 +202,7 @@ public class MatchResultReportService {
         if (evaluation == null) return details;
 
         try {
+
             Map<String, Object> criteriaSummary = (Map<String, Object>) evaluation.get("criteria_summary");            if (criteriaSummary == null) return details;
 
             // 전체 6개 역량을 돌면서 DTO로 변환

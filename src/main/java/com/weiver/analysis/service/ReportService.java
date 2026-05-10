@@ -46,18 +46,18 @@ public class ReportService {
     /**
      * 매칭 결과 검증 - 해당 공고에 대한 매칭 결과가 존재하는지 검증 (DetailAnalysisReport 존재 여부로 검증)
      * */
-    public DetailAnalysisReport getValidatedDetailAnalysisReport(Long jdId, String applicantPublicId, String companyPublicId) {
-        return detailAnalysisReportRepository.findDetailAnalysisReportForContact(jdId, applicantPublicId, companyPublicId)
+    public DetailAnalysisReport getDetailAnalysisReport(String applicantPublicId) {
+        return detailAnalysisReportRepository.findByApplicant_PublicId(applicantPublicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
     }
 
-    public TechnicalSkillReport getValidatedTechnicalSkillReport(Long jdId, String applicantPublicId, String companyPublicId) {
-        return technicalSkillReportRepository.findTechnicalSkillReportForContact(jdId, applicantPublicId, companyPublicId)
+    public TechnicalSkillReport getTechnicalSkillReport(String applicantPublicId) {
+        return technicalSkillReportRepository.findByApplicant_PublicId(applicantPublicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
     }
 
-    public CultureReport getValidatedCultureReport(Long jdId, String applicantPublicId, String companyPublicId) {
-        return cultureReportRepository.findCultureReportForContact(jdId, applicantPublicId, companyPublicId)
+    public CultureReport getCultureReport(String applicantPublicId) {
+        return cultureReportRepository.findByApplicant_PublicId(applicantPublicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
     }
 }
