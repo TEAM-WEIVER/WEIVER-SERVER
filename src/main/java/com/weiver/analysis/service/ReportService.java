@@ -56,4 +56,8 @@ public class ReportService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
     }
 
+    public CultureReport getValidatedCultureReport(Long jdId, String applicantPublicId, String companyPublicId) {
+        return cultureReportRepository.findCultureReportForContact(jdId, applicantPublicId, companyPublicId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+    }
 }

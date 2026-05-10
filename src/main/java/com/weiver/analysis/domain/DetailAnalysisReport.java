@@ -7,7 +7,6 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.util.List;
 import java.util.Map;
 
 @Getter
@@ -36,7 +35,7 @@ public class DetailAnalysisReport extends BaseTimeEntity {
      * */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "culture_analysis", columnDefinition = "jsonb")
-    private List<String> cultureAnalysis; // 컬처핏 분석 결과
+    private Map<String, Object> cultureAnalysis; // 컬처핏 분석 결과
 
     @ToString.Exclude
     @ManyToOne(fetch = FetchType.LAZY)

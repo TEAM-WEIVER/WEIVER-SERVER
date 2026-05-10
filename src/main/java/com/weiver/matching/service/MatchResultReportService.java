@@ -1,9 +1,9 @@
 package com.weiver.matching.service;
 
+import com.weiver.analysis.domain.CultureReport;
 import com.weiver.analysis.domain.DetailAnalysisReport;
 import com.weiver.analysis.domain.TechnicalSkillReport;
-import com.weiver.analysis.dto.response.AnalysisReportDto;
-import com.weiver.analysis.dto.response.CompetencyDetailDTO;
+import com.weiver.analysis.dto.response.*;
 import com.weiver.analysis.service.ReportService;
 import com.weiver.applicant.dto.response.ApplicantProfileDto;
 import com.weiver.applicant.service.ApplicantService;
@@ -42,6 +42,13 @@ public class MatchResultReportService {
             "logic", "논리성"
     );
 
+    private static final Map<String, String> CULTURE_AXIS_NAMES = Map.of(
+            "openness_to_change", "자율·혁신",
+            "self_enhancement", "성과·영향",
+            "conservation", "안정·질서",
+            "self_transcendence", "관계·공동체"
+    );
+
     public ApplicantCardResponseDTO getCardSummary(Long jdId, String applicantPublicId, String companyPublicId) {
 
         MatchResult matchResult = matchResultService.getValidatedMatchResult(jdId, applicantPublicId, companyPublicId);
@@ -68,6 +75,9 @@ public class MatchResultReportService {
         return SummaryCardResponseDTO.of(matchResult.getAiSummary(), careerSummary);
     }
 
+    /**
+     * 스킬핏 분석 탭 조회 로직
+     * */
     public SkillFitSummaryDTO getSkillFitSummary(Long jdId, String applicantPublicId, String companyPublicId){
         MatchResult matchResult = matchResultService.getValidatedMatchResult(jdId, applicantPublicId, companyPublicId);
         DetailAnalysisReport detailAnalysisReport = reportService.getValidatedDetailAnalysisReport(jdId, applicantPublicId, companyPublicId);
@@ -89,6 +99,100 @@ public class MatchResultReportService {
                 matchingRate
         );
     }
+
+    /**
+     * 컬처핏 분석 탭 조회 로직
+     * */
+    public CultureFitSummaryDTO getCultureFitSummary(Long jdId, String applicantPublicId, String companyPublicId) {
+        MatchResult matchResult = matchResultService.getValidatedMatchResult(jdId, applicantPublicId, companyPublicId);
+        DetailAnalysisReport detailAnalysisReport = reportService.getValidatedDetailAnalysisReport(jdId, applicantPublicId, companyPublicId);
+
+        CultureReport cultureReport = reportService.getValidatedCultureReport(jdId, applicantPublicId, companyPublicId);
+
+        String culturefitStyle = cultureReport.getCulturefitStyles().getDescription();
+        String aiSummary = matchResult.getAiSummary();
+
+        String matchStatus = matchResult.getMatchingRate() >= 80 ? "높은 매칭률" : "보통 매칭률";
+
+        Map<String, Object> cultureAnalysisMap = detailAnalysisReport.getCultureAnalysis();
+
+        List<AxisDetailDTO> axesDetails = buildAxesDetails(cultureAnalysisMap);
+
+        List<CultureAxisDTO> topTwoAxes = extractTopTwoAxes(axesDetails);
+
+        return CultureFitSummaryDTO.of(
+                matchStatus,
+                culturefitStyle,
+                topTwoAxes,
+                aiSummary,
+                axesDetails
+        );
+    }
+
+    /**
+     * 4개 상위 축과 각각에 속하는 하위 가치(10개)를 조립합니다.
+     */
+    private List<AxisDetailDTO> buildAxesDetails(Map<String, Object> cultureAnalysisMap) {
+        if (cultureAnalysisMap == null) return new ArrayList<>();
+
+        try {
+            Map<String, Object> cultureAxis = (Map<String, Object>) cultureAnalysisMap.get("culture_axis");
+            Map<String, Object> extractedTraits = (Map<String, Object>) cultureAnalysisMap.get("extracted_culturefit");
+
+            if (cultureAxis == null || extractedTraits == null) return new ArrayList<>();
+
+            List<AxisDetailDTO> details = new ArrayList<>();
+
+            // 1. 자율·혁신 (Openness to change) -> 하위: 자기방향, 자극
+            details.add(new AxisDetailDTO(
+                    CULTURE_AXIS_NAMES.get("openness_to_change"),
+                    getPercentage(cultureAxis, "openness_to_change"),
+                    List.of(
+                            new SubTraitDTO("자기방향", getPercentage(extractedTraits, "자기방향")),
+                            new SubTraitDTO("자극", getPercentage(extractedTraits, "자극"))
+                    )
+            ));
+
+            // 2. 성과·영향 (Self-enhancement) -> 하위: 성취, 권력, 쾌락
+            details.add(new AxisDetailDTO(
+                    CULTURE_AXIS_NAMES.get("self_enhancement"),
+                    getPercentage(cultureAxis, "self_enhancement"),
+                    List.of(
+                            new SubTraitDTO("성취", getPercentage(extractedTraits, "성취")),
+                            new SubTraitDTO("권력", getPercentage(extractedTraits, "권력")),
+                            new SubTraitDTO("쾌락", getPercentage(extractedTraits, "쾌락"))
+                    )
+            ));
+
+            // 3. 안정·질서 (Conservation) -> 하위: 안전, 순응, 전통
+            details.add(new AxisDetailDTO(
+                    CULTURE_AXIS_NAMES.get("conservation"),
+                    getPercentage(cultureAxis, "conservation"),
+                    List.of(
+                            new SubTraitDTO("안전", getPercentage(extractedTraits, "안전")),
+                            new SubTraitDTO("순응", getPercentage(extractedTraits, "순응")),
+                            new SubTraitDTO("전통", getPercentage(extractedTraits, "전통"))
+                    )
+            ));
+
+            // 4. 관계·공동체 (Self-transcendence) -> 하위: 호의, 보편주의
+            details.add(new AxisDetailDTO(
+                    CULTURE_AXIS_NAMES.get("self_transcendence"),
+                    getPercentage(cultureAxis, "self_transcendence"),
+                    List.of(
+                            new SubTraitDTO("호의", getPercentage(extractedTraits, "호의")),
+                            new SubTraitDTO("보편주의", getPercentage(extractedTraits, "보편주의"))
+                    )
+            ));
+
+            return details;
+
+        } catch (Exception e) {
+            log.error("컬처핏 상세 데이터 조립 중 에러 발생", e);
+            return new ArrayList<>();
+        }
+    }
+
     /**
      * AI 역량 평가 차트용 데이터 추출기
      */
@@ -178,6 +282,28 @@ public class MatchResultReportService {
             log.error("AI 역량 평가 멘트 생성 중 에러 발생", e);
             return "역량 평가 분석 중 오류가 발생했습니다.";
         }
+    }
+
+    /**
+     * 조립된 4개의 축 중에서 점수가 가장 높은 상위 2개를 추출합니다.
+     */
+    private List<CultureAxisDTO> extractTopTwoAxes(List<AxisDetailDTO> axesDetails) {
+        return axesDetails.stream()
+                .sorted((a, b) -> Integer.compare(b.percentage(), a.percentage())) // 내림차순 정렬
+                .limit(2) // 상위 2개 자르기
+                .map(detail -> new CultureAxisDTO(detail.name(), detail.percentage()))
+                .toList();
+    }
+
+    /**
+     * Map에서 값을 꺼내 퍼센트(int)로 변환하는 헬퍼 메서드
+     * 예: 0.71 -> 71
+     */
+    private int getPercentage(Map<String, Object> map, String key) {
+        if (map.containsKey(key) && map.get(key) instanceof Number num) {
+            return (int) Math.round(num.doubleValue() * 100);
+        }
+        return 0;
     }
 
     private record CompetencyMatch(int rank, String name, int percentage) {}

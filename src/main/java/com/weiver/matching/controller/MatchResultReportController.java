@@ -1,5 +1,6 @@
 package com.weiver.matching.controller;
 
+import com.weiver.analysis.dto.response.CultureFitSummaryDTO;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -61,6 +62,25 @@ public class MatchResultReportController {
         }
 
         SkillFitSummaryDTO responseDTO = matchResultReportService.getSkillFitSummary(
+                jdId,
+                applicantPublicId,
+                principal.publicId()
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(responseDTO));
+    }
+
+    @GetMapping("/culture-fit")
+    public ResponseEntity<ApiResponse<CultureFitSummaryDTO>> getCultureFitSummary(
+            @PathVariable("jdId") Long jdId,
+            @PathVariable("applicantPublicId") String applicantPublicId,
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
+
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        CultureFitSummaryDTO responseDTO = matchResultReportService.getCultureFitSummary(
                 jdId,
                 applicantPublicId,
                 principal.publicId()
