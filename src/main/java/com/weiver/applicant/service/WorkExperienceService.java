@@ -74,6 +74,18 @@ public class WorkExperienceService {
         }
     }
 
+    /**
+     * 직급 불러오기
+     * */
+    public String getPositionName(String applicantPublicId) {
+        Applicant applicant = getApplicant(applicantPublicId);
+
+        List<WorkExperience> experiences = workExperienceRepository.findAllByApplicant(applicant);
+        if(experiences.isEmpty()) {
+            return null;
+        }
+        return experiences.get(0).getPosition();
+    }
 
     private Applicant getApplicant(String publicId) {
         Applicant applicant = applicantRepository.findByPublicId(publicId)

@@ -7,6 +7,7 @@ import com.weiver.applicant.repository.*;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.s3.service.S3Service;
+import com.weiver.matching.dto.response.ProfileDetailDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +27,7 @@ public class ApplicantService {
     private final AwardRepository awardRepository;
     private final CertificateRepository certificateRepository;
     private final WorkExperienceRepository workExperienceRepository;
+    private final WorkExperienceService workExperienceService;
     private final S3Service s3Service;
 
     public void updateApplicantInfo(String publicId, ApplicantInfoRequestDTO requestDTO, MultipartFile profileImage) {
@@ -80,6 +82,15 @@ public class ApplicantService {
                 workExperienceDTOs,
                 certificateDTOs
         );
+    }
+
+    /**
+     * 지원자 리포트 카드 조회 - 순수 도메인 데이터만 반환
+     * */
+    public ApplicantProfileDto getApplicantProfile(String publicId){
+        Applicant applicant = getApplicant(publicId);
+        String position = workExperienceService.getPositionName(publicId);
+        return new ApplicantProfileDto(applicant, position);
     }
 
     private Applicant getApplicant(String publicId) {
