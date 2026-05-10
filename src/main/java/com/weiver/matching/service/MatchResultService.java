@@ -10,6 +10,7 @@ import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.jobposting.domain.EmailTemplate;
 import com.weiver.jobposting.repository.EmailTemplateRepository;
+import com.weiver.jobposting.repository.JobPostingRepository;
 import com.weiver.matching.domain.MatchResult;
 import com.weiver.matching.dto.request.ApplicantSearchCondition;
 import com.weiver.matching.dto.response.ApplicantListResponseDTO;
@@ -36,6 +37,7 @@ public class MatchResultService {
     private final MatchResultRepository matchResultRepository;
     private final ApplicantRepository applicantRepository;
     private final EducationRepository educationRepository;
+    private final JobPostingRepository jobPostingRepository;
     private final AwardRepository awardRepository;
     private final CertificateRepository certificateRepository;
     private final WorkExperienceRepository workExperienceRepository;
@@ -45,7 +47,14 @@ public class MatchResultService {
     /**
      * 매핑된 구직자 리스트 조회
      * */
-    public Page<ApplicantListResponseDTO> searchApplicantList(ApplicantSearchCondition condition, Pageable pageable) {
+    public Page<ApplicantListResponseDTO> searchApplicantList(ApplicantSearchCondition condition, Pageable pageable, String publicId) {
+
+        boolean isOwner = jobPostingRepository.existsByJdIdAndCompany_PublicId(condition.jdId(), publicId);
+
+        if (!isOwner) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "해당 채용 공고에 접근할 권한이 없습니다.");
+        }
+
         Page<Tuple> tuplePage = matchResultRepository.searchApplicantsTuple(condition, pageable);
 
         // Tuple 순회하면서 DTO 매핑

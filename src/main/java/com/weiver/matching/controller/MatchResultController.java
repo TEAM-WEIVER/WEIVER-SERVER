@@ -72,7 +72,7 @@ public class MatchResultController {
 
         PageRequest pageable = PageRequest.of(page, size);
 
-        Page<ApplicantListResponseDTO> responseDTOS = matchResultService.searchApplicantList(condition, pageable);
+        Page<ApplicantListResponseDTO> responseDTOS = matchResultService.searchApplicantList(condition, pageable, principal.publicId());
 
         return ResponseEntity.ok(ApiResponse.success(responseDTOS));
     }

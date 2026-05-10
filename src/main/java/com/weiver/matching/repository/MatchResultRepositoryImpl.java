@@ -57,8 +57,8 @@ public class MatchResultRepositoryImpl implements MatchResultRepositoryCustom {
                 .from(matchResult)
                 .join(matchResult.applicant, applicant)
 
-                .leftJoin(cultureReport).on(cultureReport.applicant.eq(applicant))
-                .leftJoin(technicalSkillReport).on(technicalSkillReport.applicant.eq(applicant))
+                .join(cultureReport).on(cultureReport.applicant.eq(applicant))
+                .join(technicalSkillReport).on(technicalSkillReport.applicant.eq(applicant))
 
                 .where(
                         matchResult.jobPosting.jdId.eq(condition.jdId()),
@@ -76,8 +76,8 @@ public class MatchResultRepositoryImpl implements MatchResultRepositoryCustom {
                 .select(matchResult.count())
                 .from(matchResult)
                 .join(matchResult.applicant, applicant)
-                .leftJoin(cultureReport).on(cultureReport.applicant.eq(applicant))
-                .leftJoin(technicalSkillReport).on(technicalSkillReport.applicant.eq(applicant))
+                .join(cultureReport).on(cultureReport.applicant.eq(applicant))
+                .join(technicalSkillReport).on(technicalSkillReport.applicant.eq(applicant))
                 .where(
                         matchResult.jobPosting.jdId.eq(condition.jdId()),
                         keywordContains(condition.keyword()),

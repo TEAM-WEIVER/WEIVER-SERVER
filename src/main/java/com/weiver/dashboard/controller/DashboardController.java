@@ -73,6 +73,8 @@ public class DashboardController {
     public ResponseEntity<ApiResponse<Map<String, List<NotificationResponseDTO>>>> getNotifications(
             @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
 
+        if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+
         List<NotificationResponseDTO> notifications = notificationService.getCompanyNotifications(principal.publicId());
 
         return ResponseEntity.ok(ApiResponse.success(Map.of("NotificationDTO", notifications)));

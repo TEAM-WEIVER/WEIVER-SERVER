@@ -1,6 +1,5 @@
 package com.weiver.dashboard.service;
 
-import com.weiver.applicant.domain.Applicant;
 import com.weiver.company.domain.Company;
 import com.weiver.company.repository.CompanyRepository;
 import com.weiver.dashboard.dto.response.CompanyDashboardResponseDTO;
