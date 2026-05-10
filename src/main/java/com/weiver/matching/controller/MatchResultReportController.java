@@ -8,7 +8,9 @@ import com.weiver.matching.dto.response.ApplicantCardResponseDTO;
 import com.weiver.matching.service.MatchResultReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,9 +23,9 @@ public class MatchResultReportController {
 
     @GetMapping("/card-summary")
     public ResponseEntity<ApiResponse<ApplicantCardResponseDTO>> getCardSummary(
-            Long jdId,
-            String applicantPublicId,
-            AuthenticatedPrincipal principal){
+            @PathVariable("jdId") Long jdId,
+            @PathVariable("applicantPublicId") String applicantPublicId,
+            @AuthenticationPrincipal AuthenticatedPrincipal principal){
         if (principal == null) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
