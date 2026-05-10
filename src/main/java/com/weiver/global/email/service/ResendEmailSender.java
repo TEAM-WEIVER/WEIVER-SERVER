@@ -22,8 +22,7 @@ public class ResendEmailSender implements EmailSender {
     private final WebClient resendWebClient;
     private final ResendProperties resendProperties;
 
-    @Async
-    @Override
+    Override
     public void send(EmailSendRequest request) {
         validate(request);
 
