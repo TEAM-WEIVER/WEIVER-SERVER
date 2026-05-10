@@ -1,10 +1,12 @@
 package com.weiver.jobposting.repository;
 
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.weiver.company.domain.Company;
 import com.weiver.company.repository.CompanyRepository;
 import com.weiver.company.type.*;
 import com.weiver.jobposting.domain.JobPosting;
 import com.weiver.jobposting.type.JobPostingStatus;
+import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,6 +14,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -31,7 +34,12 @@ class JobPostingRepositoryTest {
 
     @TestConfiguration
     @EnableJpaAuditing
-    static class JpaAuditingTestConfig {}
+    static class JpaAuditingTestConfig {
+        @Bean
+        public JPAQueryFactory jpaQueryFactory(EntityManager em) {
+            return new JPAQueryFactory(em);
+        }
+    }
 
     @Container
     @ServiceConnection
@@ -55,6 +63,7 @@ class JobPostingRepositoryTest {
                 .companyType(CompanyType.STARTUP)
                 .employeeNum(50)
                 .companyCeoName("홍길동")
+                .companyName("테스트회사")
                 .foundedYear(LocalDate.of(2020, 1, 1))
                 .avgSale(100)
                 .address("경기도 안산시 상록구 한양대학로 55")

@@ -13,8 +13,6 @@ public record CardDetailDTO (
         Integer skillScore,
         String note,
         String culturefitStyle, // 구직자 컬처 리포트
-        List<String> strengths, // 매칭 결과 (JSONB)
-        List<String> weaknesses, // 매칭 결과 (JSONB)
         List<String> skillTags // 구직자 기술 리포트 (JSONB)
 ){
     public static CardDetailDTO of(MatchResult matchResult, CultureReport cultureReport, TechnicalSkillReport technicalSkillReport) {
@@ -22,9 +20,6 @@ public record CardDetailDTO (
                 matchResult.getSkillScore() != null ? Math.round(matchResult.getSkillScore()) : null,
                 matchResult.getNote(),
                 cultureReport != null ? valueOf(cultureReport.getCulturefitStyles()) : null,
-
-                parseJsonToList(matchResult.getStrengths()),
-                parseJsonToList(matchResult.getWeaknesses()),
                 technicalSkillReport != null ? parseJsonToList(valueOf(technicalSkillReport.getSkillTags())) : null
         );
     }

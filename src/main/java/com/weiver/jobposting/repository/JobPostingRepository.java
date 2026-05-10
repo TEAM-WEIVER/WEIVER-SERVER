@@ -14,8 +14,12 @@ import java.time.LocalDate;
 
 @Repository
 public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
+
     Page<JobPosting> findByCompany_PublicId(String publicId, Pageable pageable);
+
     Page<JobPosting> findByCompany_PublicIdAndStatus(String publicId, JobPostingStatus status, Pageable pageable);
+
+    boolean existsByJdIdAndCompany_PublicId(Long jdId, String publicId);
 
     @Modifying(clearAutomatically = true)
     @Query("UPDATE JobPosting j SET j.status = 'CLOSED' " +

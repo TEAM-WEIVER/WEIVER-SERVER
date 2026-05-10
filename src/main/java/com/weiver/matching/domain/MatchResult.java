@@ -31,14 +31,12 @@ public class MatchResult extends BaseTimeEntity {
     @Column(name = "ai_summary", columnDefinition = "TEXT")
     private String aiSummary;
 
-    @Column(name = "strengths", columnDefinition = "jsonb")
-    private String strengths; // 추후 구조 확정 시 전용 DTO 클래스를 만들어서 매핑 예정
-
-    @Column(name = "weaknesses", columnDefinition = "jsonb")
-    private String weaknesses; // 추후 구조 확정 시 전용 DTO 클래스를 만들어서 매핑 예정
-
     @Column(name = "note", columnDefinition = "TEXT")
     private String note;
+
+    @Builder.Default
+    @Column(name = "is_notified", nullable = false)
+    private Boolean isNotified = false; // 스케줄러가 알림을 생성했는지 여부를 추적
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "jd_id", nullable = false)
@@ -48,4 +46,7 @@ public class MatchResult extends BaseTimeEntity {
     @JoinColumn(name = "applicant_id", nullable = false)
     private Applicant applicant;
 
+    public void markAsNotified() {
+        this.isNotified = true;
+    }
 }

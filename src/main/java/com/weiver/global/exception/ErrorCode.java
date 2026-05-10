@@ -55,6 +55,10 @@ public enum ErrorCode {
     // ===================== ESSAY-ANSWER =====================
     ESSAY_ANSWER_NOT_FOUND("ESSAY_ANSWER_NOT_FOUND", HttpStatus.NOT_FOUND, "자기소개서를 찾을 수 없습니다."),
 
+    // ===================== NOTIFICATION =====================
+    NOTIFICATION_NOT_FOUND("NOTIFICATION_NOT_FOUND", HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다."),
+    NOTIFICATION_FORBIDDEN("NOTIFICATION_FORBIDDEN", HttpStatus.FORBIDDEN, "해당 알림에 대한 접근 권한이 없습니다."),
+
     // ===================== JOB_POSTING =====================
     JOB_POSTING_NOT_FOUND("JOB_POSTING_NOT_FOUND", HttpStatus.NOT_FOUND, "존재하지 않는 공고입니다."),
 
