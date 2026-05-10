@@ -1,16 +1,16 @@
 package com.weiver.analysis.service;
 
 import com.weiver.analysis.domain.CultureReport;
+import com.weiver.analysis.domain.DetailAnalysisReport;
 import com.weiver.analysis.domain.TechnicalSkillReport;
 import com.weiver.analysis.dto.response.AnalysisReportDto;
 import com.weiver.analysis.repository.CultureReportRepository;
+import com.weiver.analysis.repository.DetailAnalysisReportRepository;
 import com.weiver.analysis.repository.TechnicalSkillReportRepository;
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
-import com.weiver.matching.domain.MatchResult;
-import com.weiver.matching.dto.response.CardDetailDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReportService {
 
     private final ApplicantRepository applicantRepository;
+    private final DetailAnalysisReportRepository detailAnalysisReportRepository;
     private final CultureReportRepository cultureReportRepository;
     private final TechnicalSkillReportRepository technicalSkillReportRepository;
 
@@ -41,4 +42,18 @@ public class ReportService {
 
         return new AnalysisReportDto(cultureReport, technicalSkillReport);
     }
+
+    /**
+     * 매칭 결과 검증 - 해당 공고에 대한 매칭 결과가 존재하는지 검증 (DetailAnalysisReport 존재 여부로 검증)
+     * */
+    public DetailAnalysisReport getValidatedDetailAnalysisReport(Long jdId, String applicantPublicId, String companyPublicId) {
+        return detailAnalysisReportRepository.findDetailAnalysisReportForContact(jdId, applicantPublicId, companyPublicId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+    }
+
+    public TechnicalSkillReport getValidatedTechnicalSkillReport(Long jdId, String applicantPublicId, String companyPublicId) {
+        return technicalSkillReportRepository.findTechnicalSkillReportForContact(jdId, applicantPublicId, companyPublicId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
+    }
+
 }

@@ -5,8 +5,10 @@ import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.matching.dto.response.ApplicantCardResponseDTO;
+import com.weiver.matching.dto.response.SkillFitSummaryDTO;
 import com.weiver.matching.dto.response.SummaryCardResponseDTO;
 import com.weiver.matching.service.MatchResultReportService;
+import io.swagger.v3.oas.annotations.Parameter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -45,6 +47,25 @@ public class MatchResultReportController {
         }
 
         SummaryCardResponseDTO responseDTO = matchResultReportService.getSummaryCard(jdId, applicantPublicId, principal.publicId());
+        return ResponseEntity.ok(ApiResponse.success(responseDTO));
+    }
+
+    @GetMapping("/skill-fit")
+    public ResponseEntity<ApiResponse<SkillFitSummaryDTO>> getSkillFitSummary(
+            @PathVariable("jdId") Long jdId,
+            @PathVariable("applicantPublicId") String applicantPublicId,
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
+
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        SkillFitSummaryDTO responseDTO = matchResultReportService.getSkillFitSummary(
+                jdId,
+                applicantPublicId,
+                principal.publicId()
+        );
+
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
 }

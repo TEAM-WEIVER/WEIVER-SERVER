@@ -8,6 +8,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -28,7 +29,7 @@ public class DetailAnalysisReport extends BaseTimeEntity {
      * */
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "skill_analysis", columnDefinition = "jsonb")
-    private List<String> skillAnalysis; // 기술핏 분석 결과
+    private Map<String, Object> skillAnalysis; // 기술핏 분석 결과
 
     /**
      * /worker/insert/interview_result response 저장

@@ -10,4 +10,5 @@ import java.util.Optional;
 @Repository
 public interface TechnicalSkillReportRepository extends JpaRepository<TechnicalSkillReport,Long> {
     Optional<TechnicalSkillReport> findByApplicant(Applicant applicant);
+    Optional<TechnicalSkillReport> findTechnicalSkillReportForContact(Long jdId, String applicantPublicId, String companyPublicId);
 }
