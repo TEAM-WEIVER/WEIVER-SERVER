@@ -5,6 +5,7 @@ import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.matching.dto.response.ApplicantCardResponseDTO;
+import com.weiver.matching.dto.response.SummaryCardResponseDTO;
 import com.weiver.matching.service.MatchResultReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +32,19 @@ public class MatchResultReportController {
         }
 
         ApplicantCardResponseDTO responseDTO = matchResultReportService.getCardSummary(jdId, applicantPublicId, principal.publicId());
+        return ResponseEntity.ok(ApiResponse.success(responseDTO));
+    }
+
+    @GetMapping("/ai-summary")
+    public ResponseEntity<ApiResponse<SummaryCardResponseDTO>> getAiSummary(
+            @PathVariable("jdId") Long jdId,
+            @PathVariable("applicantPublicId") String applicantPublicId,
+            @AuthenticationPrincipal AuthenticatedPrincipal principal){
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        SummaryCardResponseDTO responseDTO = matchResultReportService.getSummaryCard(jdId, applicantPublicId, principal.publicId());
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
 }

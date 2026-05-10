@@ -9,6 +9,7 @@ import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.applicant.repository.WorkExperienceRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.matching.dto.response.MajorCareerDTO;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -85,6 +86,18 @@ public class WorkExperienceService {
             return null;
         }
         return experiences.get(0).getPosition();
+    }
+
+    /**
+     * 경력 요약 조회
+     * */
+    public List<MajorCareerDTO> getCareerSummary(String applicantPublicId) {
+        Applicant applicant = getApplicant(applicantPublicId);
+
+        List<WorkExperience> experiences = workExperienceRepository.findAllByApplicant(applicant);
+        return experiences.stream()
+                .map(MajorCareerDTO::from)
+                .toList();
     }
 
     private Applicant getApplicant(String publicId) {

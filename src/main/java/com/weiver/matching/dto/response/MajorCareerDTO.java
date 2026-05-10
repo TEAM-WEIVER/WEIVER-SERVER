@@ -1,4 +1,4 @@
-package com.weiver.dashboard.dto.response;
+package com.weiver.matching.dto.response;
 
 import com.weiver.applicant.domain.WorkExperience;
 
