@@ -88,7 +88,7 @@ class MatchResultControllerTest {
         );
         Page<ApplicantListResponseDTO> mockPage = new PageImpl<>(List.of(dummyDto), PageRequest.of(0, 10), 1);
 
-        given(matchResultService.searchApplicantList(any(ApplicantSearchCondition.class), any(Pageable.class)))
+        given(matchResultService.searchApplicantList(any(ApplicantSearchCondition.class), any(Pageable.class), any(String.class)))
                 .willReturn(mockPage);
 
         // when & then
@@ -109,7 +109,7 @@ class MatchResultControllerTest {
         Long jdId = 1L;
         Page<ApplicantListResponseDTO> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 5), 0);
 
-        given(matchResultService.searchApplicantList(any(ApplicantSearchCondition.class), any(Pageable.class)))
+        given(matchResultService.searchApplicantList(any(ApplicantSearchCondition.class), any(Pageable.class), any(String.class)))
                 .willReturn(emptyPage);
 
         // when
@@ -128,7 +128,7 @@ class MatchResultControllerTest {
 
         // then
         ArgumentCaptor<ApplicantSearchCondition> conditionCaptor = ArgumentCaptor.forClass(ApplicantSearchCondition.class);
-        verify(matchResultService).searchApplicantList(conditionCaptor.capture(), any(Pageable.class));
+        verify(matchResultService).searchApplicantList(conditionCaptor.capture(), any(Pageable.class), any(String.class));
 
         ApplicantSearchCondition capturedCondition = conditionCaptor.getValue();
         assertThat(capturedCondition.jdId()).isEqualTo(jdId);
