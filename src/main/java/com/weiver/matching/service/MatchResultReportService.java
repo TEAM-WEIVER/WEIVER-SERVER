@@ -8,9 +8,14 @@ import com.weiver.analysis.service.ReportService;
 import com.weiver.applicant.dto.response.ApplicantProfileDto;
 import com.weiver.applicant.service.ApplicantService;
 import com.weiver.applicant.service.WorkExperienceService;
+import com.weiver.global.exception.BusinessException;
+import com.weiver.global.exception.ErrorCode;
+import com.weiver.interview.service.InterviewSessionService;
+import com.weiver.interview.type.InterviewType;
 import com.weiver.jobposting.domain.JobPosting;
 import com.weiver.matching.domain.MatchResult;
 import com.weiver.matching.dto.response.*;
+import com.weiver.portfolio.service.PortfolioService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,7 +36,9 @@ public class MatchResultReportService {
     private final ApplicantService applicantService;
     private final ReportService reportService;
     private final MatchResultService matchResultService;
+    private final PortfolioService portfolioService;
     private final WorkExperienceService workExperienceService;
+    private final InterviewSessionService interviewSessionService;
 
     private static final Map<String, String> COMPETENCY_NAMES = Map.of(
             "learning", "성장가능성",
@@ -129,6 +136,34 @@ public class MatchResultReportService {
                 axesDetails
         );
     }
+
+    /**
+     * 제출 서류 (면접 스크립트) 탭 조회 로직
+     * */
+    public DocumentTabSummaryDTO getDocumentTabSummary(Long jdId, String applicantPublicId, String companyPublicId) {
+        matchResultService.getValidatedMatchResult(jdId, applicantPublicId, companyPublicId);
+
+        PortfolioDetailDTO portfolioDetailDTO;
+        try {
+            portfolioDetailDTO = portfolioService.getApplicantPortfolio(applicantPublicId);
+        } catch (BusinessException e) {
+            if (e.getCode() == ErrorCode.PORTFOLIO_NOT_FOUND) {
+                portfolioDetailDTO = new PortfolioDetailDTO(null, null, null, null);
+            } else {
+                throw e;
+            }        }
+
+        List<InterviewScriptDTO> techScripts = interviewSessionService.getInterviewScripts(applicantPublicId, InterviewType.TECH.name());
+        List<InterviewScriptDTO> cultureScripts = interviewSessionService.getInterviewScripts(applicantPublicId, InterviewType.CULTURE.name());
+
+        return DocumentTabSummaryDTO.of(
+                portfolioDetailDTO,
+                techScripts,
+                cultureScripts
+        );
+
+    }
+
 
     /**
      * 4개 상위 축과 각각에 속하는 하위 가치(10개)를 조립합니다.

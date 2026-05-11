@@ -6,6 +6,7 @@ import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.matching.dto.response.ApplicantCardResponseDTO;
+import com.weiver.matching.dto.response.DocumentTabSummaryDTO;
 import com.weiver.matching.dto.response.SkillFitSummaryDTO;
 import com.weiver.matching.dto.response.SummaryCardResponseDTO;
 import com.weiver.matching.service.MatchResultReportService;
@@ -125,6 +126,27 @@ public class MatchResultReportController {
         }
 
         CultureFitSummaryDTO responseDTO = matchResultReportService.getCultureFitSummary(
+                jdId,
+                applicantPublicId,
+                principal.publicId()
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(responseDTO));
+    }
+
+    @GetMapping("/document-summary")
+    public ResponseEntity<ApiResponse<DocumentTabSummaryDTO>> getDocumentTabSummary(
+            @PathVariable("jdId") Long jdId,
+
+            @PathVariable("applicantPublicId") String applicantPublicId,
+
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
+
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        DocumentTabSummaryDTO responseDTO = matchResultReportService.getDocumentTabSummary(
                 jdId,
                 applicantPublicId,
                 principal.publicId()

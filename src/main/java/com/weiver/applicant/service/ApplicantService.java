@@ -7,6 +7,7 @@ import com.weiver.applicant.repository.*;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.s3.service.S3Service;
+import com.weiver.matching.dto.response.PortfolioDetailDTO;
 import com.weiver.matching.dto.response.ProfileDetailDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -93,7 +94,7 @@ public class ApplicantService {
         return new ApplicantProfileDto(applicant, position);
     }
 
-    private Applicant getApplicant(String publicId) {
+    public Applicant getApplicant(String publicId) {
         Applicant applicant = applicantRepository.findByPublicId(publicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
         return applicant;
