@@ -4,6 +4,7 @@ import com.weiver.analysis.dto.response.CultureFitSummaryDTO;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.exception.ErrorResponse;
 import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.matching.dto.response.ApplicantCardResponseDTO;
 import com.weiver.matching.dto.response.DocumentTabSummaryDTO;
@@ -12,6 +13,9 @@ import com.weiver.matching.dto.response.SummaryCardResponseDTO;
 import com.weiver.matching.service.MatchResultReportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +39,23 @@ public class MatchResultReportController {
             description = "특정 채용 공고에 지원한 지원자의 프로필, 스킬핏 점수, 컬처핏 스타일, 보유 기술 태그, 기업 담당자 메모를 카드 형태로 조회합니다.<br>" +
                     "**[보안]** 로그인한 기업 담당자가 소유한 채용 공고에 지원한 지원자에 대해서만 조회할 수 있습니다."
     )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200",
+                    description = "지원자 카드 요약 조회 성공",
+                    content = @Content(schema = @Schema(implementation = ApplicantCardResponseDTO.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401",
+                    description = "인증되지 않은 요청",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404",
+                    description = "매칭 결과, 지원자 또는 분석 리포트를 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
     @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/card-summary")
     public ResponseEntity<ApiResponse<ApplicantCardResponseDTO>> getCardSummary(
@@ -134,10 +155,18 @@ public class MatchResultReportController {
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
 
+    @Operation(
+            summary = "지원자 제출 서류 및 면접 스크립트 요약 조회",
+            description = "지원자의 포트폴리오 링크와 기술면접/컬처핏 면접 스크립트 목록을 조회합니다.<br>" +
+                    "포트폴리오가 없는 경우 포트폴리오 필드는 null 값으로 반환되며, 면접 스크립트가 없으면 빈 목록이 반환될 수 있습니다."
+    )
+    @SecurityRequirement(name = "bearerAuth")
     @GetMapping("/document-summary")
     public ResponseEntity<ApiResponse<DocumentTabSummaryDTO>> getDocumentTabSummary(
+            @Parameter(description = "채용 공고 고유 ID", example = "1")
             @PathVariable("jdId") Long jdId,
 
+            @Parameter(description = "조회할 지원자의 공개 Public ID", example = "applicant-8f4a2c1e")
             @PathVariable("applicantPublicId") String applicantPublicId,
 
             @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {

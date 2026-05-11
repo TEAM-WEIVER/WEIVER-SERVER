@@ -5,10 +5,7 @@ import com.weiver.analysis.domain.TechnicalSkillReport;
 import com.weiver.matching.domain.MatchResult;
 import io.swagger.v3.oas.annotations.media.Schema;
 
-import java.util.Arrays;
 import java.util.List;
-
-import static java.lang.String.valueOf;
 
 @Schema(description = "지원자 카드 상세 정보 DTO")
 public record CardDetailDTO(
@@ -28,13 +25,8 @@ public record CardDetailDTO(
         return new CardDetailDTO(
                 matchResult.getSkillScore() != null ? Math.round(matchResult.getSkillScore()) : null,
                 matchResult.getNote(),
-                cultureReport != null ? valueOf(cultureReport.getCulturefitStyles()) : null,
-                technicalSkillReport != null ? parseJsonToList(valueOf(technicalSkillReport.getSkillTags())) : null
+                cultureReport != null ? cultureReport.getCulturefitStyles().getDescription() : null,
+                technicalSkillReport != null ? technicalSkillReport.getSkillTags() : null
         );
-    }
-
-    private static List<String> parseJsonToList(String jsonString) {
-        if (jsonString == null || jsonString.isBlank()) return List.of();
-        return Arrays.asList(jsonString.replace("[\"", "").replace("\"]", "").split("\",\""));
     }
 }
