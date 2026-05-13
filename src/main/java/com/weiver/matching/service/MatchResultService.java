@@ -85,7 +85,7 @@ public class MatchResultService {
 
         List<Education> educations = educationRepository.findAllByApplicant(applicant);
         List<Award> awards = awardRepository.findAllByApplicant(applicant);
-        List<WorkExperience> workExperiences = workExperienceRepository.findAllByApplicant(applicant);
+        List<WorkExperience> workExperiences = workExperienceRepository.findAllByApplicantOrderByStartDateDesc(applicant);
         List<Certificate> certificates = certificateRepository.findAllByApplicant(applicant);
 
         return new ApplicantInfoResponseDTO(

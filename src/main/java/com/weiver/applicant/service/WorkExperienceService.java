@@ -40,7 +40,7 @@ public class WorkExperienceService {
     public void updateWorkExperienceInfo(String publicId, WorkExperienceUpdateRequestDTO requestDTO) {
         Applicant applicant = getApplicant(publicId);
 
-        List<WorkExperience> existingExperiences = workExperienceRepository.findAllByApplicant(applicant);
+        List<WorkExperience> existingExperiences = workExperienceRepository.findAllByApplicantOrderByStartDateDesc(applicant);
 
         Set<Long> requestExperienceIds = requestDTO.workExperienceList().stream()
                 .map(WorkExperienceUpdateDetailDTO::workExperienceId)
@@ -81,7 +81,7 @@ public class WorkExperienceService {
     public String getPositionName(String applicantPublicId) {
         Applicant applicant = getApplicant(applicantPublicId);
 
-        List<WorkExperience> experiences = workExperienceRepository.findAllByApplicant(applicant);
+        List<WorkExperience> experiences = workExperienceRepository.findAllByApplicantOrderByStartDateDesc(applicant);
         if(experiences.isEmpty()) {
             return null;
         }
@@ -94,7 +94,7 @@ public class WorkExperienceService {
     public List<MajorCareerDTO> getCareerSummary(String applicantPublicId) {
         Applicant applicant = getApplicant(applicantPublicId);
 
-        List<WorkExperience> experiences = workExperienceRepository.findAllByApplicant(applicant);
+        List<WorkExperience> experiences = workExperienceRepository.findAllByApplicantOrderByStartDateDesc(applicant);
         return experiences.stream()
                 .map(MajorCareerDTO::from)
                 .toList();
