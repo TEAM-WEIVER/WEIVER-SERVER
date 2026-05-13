@@ -6,8 +6,10 @@ import com.weiver.auth.dto.request.ApplicantAgreementRequestDTO;
 import com.weiver.auth.dto.request.ApplicantEmailSendRequestDTO;
 import com.weiver.auth.dto.request.ApplicantEmailVerifyRequestDTO;
 import com.weiver.auth.dto.request.ApplicantLoginRequestDTO;
-import com.weiver.auth.dto.request.ApplicantSignupRequestDTO;
+import com.weiver.auth.dto.request.ApplicantSignupCompleteRequestDTO;
+import com.weiver.auth.dto.request.ApplicantSignupInitRequestDTO;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
+import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
 import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
@@ -40,6 +42,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -139,20 +142,73 @@ public class ApplicantAuthControllerTest {
     }
 
     @Test
-    @DisplayName("회원가입 성공 시 201 응답과 ApplicantSignupResponseDTO 반환")
-    public void signup_success() throws Exception {
+    @DisplayName("회원가입 1단계 성공 시 200 응답과 signupToken 반환")
+    public void initSignup_success() throws Exception {
         // given
-        ApplicantSignupRequestDTO request = new ApplicantSignupRequestDTO(
-                "new@test.com", "Pass1234!", "Pass1234!", "verification-token", allTrueAgreements()
+        ApplicantSignupInitRequestDTO request = new ApplicantSignupInitRequestDTO(
+                "new@test.com", "Pass1234!", "Pass1234!", "verification-token"
         );
-        when(applicantAuthService.signup(any()))
+        when(applicantAuthService.initSignup(any()))
+                .thenReturn(new ApplicantSignupInitResponseDTO("signup-token"));
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/signup/init")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.signupToken").value("signup-token"))
+                .andExpect(jsonPath("$.message").value("회원가입 1단계에 성공했습니다."));
+    }
+
+    @Test
+    @DisplayName("엣지 케이스: 회원가입 1단계 비밀번호 복잡도 미달 -> 400 Bad Request")
+    public void initSignup_weakPassword() throws Exception {
+        // given - 영문만, 숫자/특수문자 없음
+        ApplicantSignupInitRequestDTO request = new ApplicantSignupInitRequestDTO(
+                "new@test.com", "onlyletters", "onlyletters", "token"
+        );
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/signup/init")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("엣지 케이스: 회원가입 1단계에 이미 ACTIVE 가입된 이메일이면 409 EMAIL_ALREADY_EXISTS")
+    public void initSignup_emailAlreadyExists() throws Exception {
+        // given
+        ApplicantSignupInitRequestDTO request = new ApplicantSignupInitRequestDTO(
+                "exists@test.com", "Pass1234!", "Pass1234!", "token"
+        );
+        when(applicantAuthService.initSignup(any()))
+                .thenThrow(new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS));
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/signup/init")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("EMAIL_ALREADY_EXISTS"));
+    }
+
+    @Test
+    @DisplayName("회원가입 2단계 성공 시 201 응답과 ApplicantSignupResponseDTO 반환")
+    public void completeSignup_success() throws Exception {
+        // given
+        ApplicantSignupCompleteRequestDTO request = new ApplicantSignupCompleteRequestDTO(
+                "signup-token", allTrueAgreements()
+        );
+        when(applicantAuthService.completeSignup(any()))
                 .thenReturn(new ApplicantSignupResponseDTO("uuid-applicant-1", UserRole.APPLICANT));
 
         // when & then
-        mockMvc.perform(post("/api/auth/applicants/signup")
+        mockMvc.perform(patch("/api/auth/applicants/signup/agreements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk()) // ResponseEntity.ok()로 감쌈
+                .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(201))
                 .andExpect(jsonPath("$.data.publicId").value("uuid-applicant-1"))
                 .andExpect(jsonPath("$.data.role").value("APPLICANT"))
@@ -160,36 +216,21 @@ public class ApplicantAuthControllerTest {
     }
 
     @Test
-    @DisplayName("엣지 케이스: 비밀번호 복잡도 미달 -> 400 Bad Request")
-    public void signup_weakPassword() throws Exception {
-        // given - 영문만, 숫자/특수문자 없음
-        ApplicantSignupRequestDTO request = new ApplicantSignupRequestDTO(
-                "new@test.com", "onlyletters", "onlyletters", "token", allTrueAgreements()
-        );
-
-        // when & then
-        mockMvc.perform(post("/api/auth/applicants/signup")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
-    }
-
-    @Test
-    @DisplayName("엣지 케이스: 이미 가입된 이메일이면 409 EMAIL_ALREADY_EXISTS")
-    public void signup_emailAlreadyExists() throws Exception {
+    @DisplayName("엣지 케이스: 회원가입 2단계에서 signupToken 만료/위변조 시 400 INVALID_SIGNUP_TOKEN")
+    public void completeSignup_invalidSignupToken() throws Exception {
         // given
-        ApplicantSignupRequestDTO request = new ApplicantSignupRequestDTO(
-                "exists@test.com", "Pass1234!", "Pass1234!", "token", allTrueAgreements()
+        ApplicantSignupCompleteRequestDTO request = new ApplicantSignupCompleteRequestDTO(
+                "expired-token", allTrueAgreements()
         );
-        when(applicantAuthService.signup(any()))
-                .thenThrow(new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS));
+        when(applicantAuthService.completeSignup(any()))
+                .thenThrow(new BusinessException(ErrorCode.INVALID_SIGNUP_TOKEN));
 
         // when & then
-        mockMvc.perform(post("/api/auth/applicants/signup")
+        mockMvc.perform(patch("/api/auth/applicants/signup/agreements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.errorCode").value("EMAIL_ALREADY_EXISTS"));
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("INVALID_SIGNUP_TOKEN"));
     }
 
     @Test
