@@ -40,6 +40,8 @@ public enum ErrorCode {
     INVALID_PASSWORD("INVALID_PASSWORD", HttpStatus.UNAUTHORIZED, "비밀번호가 올바르지 않습니다."),
     PASSWORD_CONFIRM_NOT_MATCH("PASSWORD_CONFIRM_NOT_MATCH", HttpStatus.BAD_REQUEST, "비밀번호와 비밀번호 확인이 일치하지 않습니다."),
     REQUIRED_AGREEMENT_NOT_ACCEPTED("REQUIRED_AGREEMENT_NOT_ACCEPTED", HttpStatus.BAD_REQUEST, "필수 약관에 동의해야 합니다."),
+    INVALID_SIGNUP_TOKEN("INVALID_SIGNUP_TOKEN", HttpStatus.BAD_REQUEST, "회원가입 토큰이 유효하지 않거나 만료되었습니다."),
+    SIGNUP_NOT_COMPLETED("SIGNUP_NOT_COMPLETED", HttpStatus.FORBIDDEN, "회원가입이 완료되지 않은 계정입니다."),
 
     // ===================== COMPANY =====================
     COMPANY_NOT_FOUND("COMPANY_NOT_FOUND", HttpStatus.NOT_FOUND, "존재하지 않는 기업입니다."),
