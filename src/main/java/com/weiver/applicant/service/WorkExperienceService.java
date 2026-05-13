@@ -9,6 +9,7 @@ import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.applicant.repository.WorkExperienceRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.matching.dto.response.MajorCareerDTO;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -39,7 +40,7 @@ public class WorkExperienceService {
     public void updateWorkExperienceInfo(String publicId, WorkExperienceUpdateRequestDTO requestDTO) {
         Applicant applicant = getApplicant(publicId);
 
-        List<WorkExperience> existingExperiences = workExperienceRepository.findAllByApplicant(applicant);
+        List<WorkExperience> existingExperiences = workExperienceRepository.findAllByApplicantOrderByStartDateDesc(applicant);
 
         Set<Long> requestExperienceIds = requestDTO.workExperienceList().stream()
                 .map(WorkExperienceUpdateDetailDTO::workExperienceId)
@@ -74,6 +75,30 @@ public class WorkExperienceService {
         }
     }
 
+    /**
+     * 직급 불러오기
+     * */
+    public String getPositionName(String applicantPublicId) {
+        Applicant applicant = getApplicant(applicantPublicId);
+
+        List<WorkExperience> experiences = workExperienceRepository.findAllByApplicantOrderByStartDateDesc(applicant);
+        if(experiences.isEmpty()) {
+            return null;
+        }
+        return experiences.get(0).getPosition();
+    }
+
+    /**
+     * 경력 요약 조회
+     * */
+    public List<MajorCareerDTO> getCareerSummary(String applicantPublicId) {
+        Applicant applicant = getApplicant(applicantPublicId);
+
+        List<WorkExperience> experiences = workExperienceRepository.findAllByApplicantOrderByStartDateDesc(applicant);
+        return experiences.stream()
+                .map(MajorCareerDTO::from)
+                .toList();
+    }
 
     private Applicant getApplicant(String publicId) {
         Applicant applicant = applicantRepository.findByPublicId(publicId)

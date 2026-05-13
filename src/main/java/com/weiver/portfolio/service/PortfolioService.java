@@ -5,6 +5,7 @@ import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.s3.service.S3Service;
+import com.weiver.matching.dto.response.PortfolioDetailDTO;
 import com.weiver.portfolio.domain.Portfolio;
 import com.weiver.portfolio.dto.request.PortfolioRequestDTO;
 import com.weiver.portfolio.dto.request.PortfolioUpdateRequestDTO;
@@ -78,6 +79,21 @@ public class PortfolioService {
         PortfolioResponseDTO responseDTO = PortfolioResponseDTO.from(portfolio, presignedUrl);
 
         return responseDTO;
+    }
+
+    /**
+     * 지원자 포트폴리오 주소 조회
+     * */
+    public PortfolioDetailDTO getApplicantPortfolio(String publicId) {
+        Applicant applicant = getApplicant(publicId);
+
+        Portfolio portfolio = portfolioRepository.findByApplicant(applicant)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PORTFOLIO_NOT_FOUND));
+
+        String fileKey = portfolio.getFileKey();
+        String presignedUrl = StringUtils.hasText(fileKey) ? s3Service.getPresignedUrl(fileKey) : null;
+
+        return PortfolioDetailDTO.of(portfolio, presignedUrl);
     }
 
     private Applicant getApplicant(String publicId) {

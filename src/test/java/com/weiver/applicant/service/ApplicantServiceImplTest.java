@@ -329,7 +329,7 @@ class ApplicantServiceImplTest {
                 .willReturn(List.of(education));
         given(awardRepository.findAllByApplicant(realApplicant))
                 .willReturn(List.of(award));
-        given(workExperienceRepository.findAllByApplicant(realApplicant))
+        given(workExperienceRepository.findAllByApplicantOrderByStartDateDesc(realApplicant))
                 .willReturn(List.of(workExperience));
         given(certificateRepository.findAllByApplicant(realApplicant))
                 .willReturn(List.of(certificate));
@@ -342,7 +342,7 @@ class ApplicantServiceImplTest {
         // N+1 발생 여부 확인
         verify(educationRepository, times(1)).findAllByApplicant(realApplicant);
         verify(awardRepository, times(1)).findAllByApplicant(realApplicant);
-        verify(workExperienceRepository, times(1)).findAllByApplicant(realApplicant);
+        verify(workExperienceRepository, times(1)).findAllByApplicantOrderByStartDateDesc(realApplicant);
         verify(certificateRepository, times(1)).findAllByApplicant(realApplicant);
 
         // 부모 DTO 변환 검증

@@ -9,5 +9,5 @@ import java.util.List;
 
 @Repository
 public interface WorkExperienceRepository extends JpaRepository<WorkExperience, Long> {
-    List<WorkExperience> findAllByApplicant(Applicant applicant);
+    List<WorkExperience> findAllByApplicantOrderByStartDateDesc(Applicant applicant);
 }

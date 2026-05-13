@@ -34,6 +34,9 @@ public class MatchResult extends BaseTimeEntity {
     @Column(name = "note", columnDefinition = "TEXT")
     private String note;
 
+    @Column(name = "matching_rate")
+    private Float matchingRate;
+
     @Builder.Default
     @Column(name = "is_notified", nullable = false)
     private Boolean isNotified = false; // 스케줄러가 알림을 생성했는지 여부를 추적

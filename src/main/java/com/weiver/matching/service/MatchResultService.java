@@ -85,7 +85,7 @@ public class MatchResultService {
 
         List<Education> educations = educationRepository.findAllByApplicant(applicant);
         List<Award> awards = awardRepository.findAllByApplicant(applicant);
-        List<WorkExperience> workExperiences = workExperienceRepository.findAllByApplicant(applicant);
+        List<WorkExperience> workExperiences = workExperienceRepository.findAllByApplicantOrderByStartDateDesc(applicant);
         List<Certificate> certificates = certificateRepository.findAllByApplicant(applicant);
 
         return new ApplicantInfoResponseDTO(
@@ -128,6 +128,14 @@ public class MatchResultService {
             }
         }
         emailSender.send(EmailSendRequest.ofHtml(toEmail, subject, body));
+    }
+
+    /**
+     * 매칭 결과 검증 - 해당 공고에 대한 매칭 결과가 존재하는지 검증
+     * */
+    public MatchResult getValidatedMatchResult(Long jdId, String applicantPublicId, String companyPublicId) {
+        return matchResultRepository.findMatchResultForContact(jdId, applicantPublicId, companyPublicId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
     }
 
     private Applicant getApplicant(String publicId) {

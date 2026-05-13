@@ -52,6 +52,10 @@ public enum ErrorCode {
     EXPERIENCE_NOT_FOUND("EXPERIENCE_NOT_FOUND", HttpStatus.NOT_FOUND, "경력 정보를 찾을 수 없습니다."),
     PORTFOLIO_NOT_FOUND("PORTFOLIO_NOT_FOUND", HttpStatus.NOT_FOUND, "포트폴리오를 찾을 수 없습니다."),
 
+    // ===================== REPORT =====================
+    REPORT_NOT_FOUND("REPORT_NOT_FOUND", HttpStatus.NOT_FOUND, "보고서를 찾을 수 없습니다."),
+
+
     // ===================== ESSAY-ANSWER =====================
     ESSAY_ANSWER_NOT_FOUND("ESSAY_ANSWER_NOT_FOUND", HttpStatus.NOT_FOUND, "자기소개서를 찾을 수 없습니다."),
 
@@ -65,6 +69,7 @@ public enum ErrorCode {
     // ===================== INTERVIEW =====================
     INTERVIEW_SESSION_NOT_FOUND("INTERVIEW_SESSION_NOT_FOUND", HttpStatus.NOT_FOUND, "면접 세션을 찾을 수 없습니다."),
     INTERVIEW_ALREADY_COMPLETED("INTERVIEW_ALREADY_COMPLETED", HttpStatus.CONFLICT, "이미 완료된 면접입니다."),
+    INVALID_INTERVIEW_TYPE("INVALID_INTERVIEW_TYPE", HttpStatus.BAD_REQUEST, "잘못된 인터뷰 타입입니다."),
 
     // ===================== MATCHING =====================
     MATCH_NOT_FOUND("MATCH_NOT_FOUND", HttpStatus.NOT_FOUND, "매칭 결과를 찾을 수 없습니다."),
