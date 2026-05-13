@@ -10,6 +10,7 @@ import com.weiver.matching.dto.response.InterviewScriptDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.Collections;
 import java.util.List;
@@ -42,6 +43,10 @@ public class InterviewSessionService {
      * 안전한 Enum 변환 헬퍼 메서드
      */
     private InterviewType parseInterviewType(String typeStr) {
+        if (!StringUtils.hasText(typeStr)) {
+            throw new BusinessException(ErrorCode.INVALID_INTERVIEW_TYPE);
+        }
+
         try {
             return InterviewType.valueOf(typeStr.toUpperCase());
         } catch (IllegalArgumentException e) {

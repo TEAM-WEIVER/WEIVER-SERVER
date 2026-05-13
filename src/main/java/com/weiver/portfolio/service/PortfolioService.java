@@ -90,7 +90,8 @@ public class PortfolioService {
         Portfolio portfolio = portfolioRepository.findByApplicant(applicant)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PORTFOLIO_NOT_FOUND));
 
-        String presignedUrl = s3Service.getPresignedUrl(portfolio.getFileKey());
+        String fileKey = portfolio.getFileKey();
+        String presignedUrl = StringUtils.hasText(fileKey) ? s3Service.getPresignedUrl(fileKey) : null;
 
         return PortfolioDetailDTO.of(portfolio, presignedUrl);
     }

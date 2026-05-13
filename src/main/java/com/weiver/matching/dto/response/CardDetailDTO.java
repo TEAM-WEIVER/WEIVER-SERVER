@@ -25,7 +25,8 @@ public record CardDetailDTO(
         return new CardDetailDTO(
                 matchResult.getSkillScore() != null ? Math.round(matchResult.getSkillScore()) : null,
                 matchResult.getNote(),
-                cultureReport != null ? cultureReport.getCulturefitStyles().getDescription() : null,
+                (cultureReport != null && cultureReport.getCulturefitStyles() != null)
+                        ? cultureReport.getCulturefitStyles().getDescription() : null,
                 technicalSkillReport != null ? technicalSkillReport.getSkillTags() : null
         );
     }

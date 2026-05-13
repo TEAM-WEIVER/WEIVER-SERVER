@@ -223,9 +223,12 @@ public class MatchResultReportService {
 
             return details;
 
-        } catch (Exception e) {
-            log.error("컬처핏 상세 데이터 조립 중 에러 발생", e);
+        }catch (ClassCastException | NullPointerException e) {
+            log.error("컬처핏 상세 데이터 파싱 실패 - 잘못된 데이터 타입 또는 구조 (ClassCastException/NullPointerException)", e);
             return new ArrayList<>();
+        } catch (Exception e) {
+            log.error("컬처핏 상세 데이터 조립 중 예상치 못한 에러 발생", e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -255,8 +258,11 @@ public class MatchResultReportService {
                     details.add(new CompetencyDetailDTO(koreanName, percentage));
                 }
             }
+        } catch (ClassCastException | NullPointerException e) {
+            log.error("AI 역량 평가 차트 데이터 파싱 실패 (ClassCastException/NullPointerException)", e);
         } catch (Exception e) {
-            log.error("AI 역량 평가 차트 데이터 추출 중 에러 발생", e);
+            log.error("AI 역량 평가 차트 데이터 추출 중 예상치 못한 에러 발생", e);
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
 
         return details;
@@ -314,9 +320,12 @@ public class MatchResultReportService {
 
             return String.format("우선순위 역량 중 %s 역량이 %s로 일치합니다.", rankStr, detailStr);
 
+        } catch (ClassCastException | NullPointerException e) {
+            log.error("AI 역량 평가 멘트 생성 파싱 실패 (ClassCastException/NullPointerException)", e);
+            return "역량 평가 분석 중 데이터 형식 오류가 발생했습니다.";
         } catch (Exception e) {
-            log.error("AI 역량 평가 멘트 생성 중 에러 발생", e);
-            return "역량 평가 분석 중 오류가 발생했습니다.";
+            log.error("AI 역량 평가 멘트 생성 중 예상치 못한 에러 발생", e);
+            return "역량 평가 분석 중 서버 오류가 발생했습니다.";
         }
     }
 
