@@ -1,6 +1,7 @@
 package com.weiver.applicant.domain;
 
 import com.weiver.applicant.dto.request.put.ApplicantInfoRequestDTO;
+import com.weiver.applicant.type.ApplicantStatus;
 import com.weiver.global.common.BaseTimeEntity;
 import com.weiver.global.common.UserRole;
 import jakarta.persistence.*;
@@ -37,6 +38,11 @@ public class Applicant extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     private UserRole role = UserRole.APPLICANT;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private ApplicantStatus status = ApplicantStatus.PENDING; // 회원 상태
 
     @Column(name = "name", nullable = true)
     private String name;    // 사용자 이름
@@ -79,6 +85,15 @@ public class Applicant extends BaseTimeEntity {
 
     public void withdraw() {
         this.deleted = true;
+        this.status = ApplicantStatus.WITHDRAWN;
         this.deletedAt = LocalDateTime.now();
+    }
+
+    public void activate() {
+        this.status = ApplicantStatus.ACTIVE;
+    }
+
+    public void resetPendingPassword(String encodedPassword) {
+        this.password = encodedPassword;
     }
 }
