@@ -3,9 +3,11 @@ package com.weiver.auth.controller;
 import com.weiver.auth.dto.request.ApplicantEmailSendRequestDTO;
 import com.weiver.auth.dto.request.ApplicantEmailVerifyRequestDTO;
 import com.weiver.auth.dto.request.ApplicantLoginRequestDTO;
-import com.weiver.auth.dto.request.ApplicantSignupRequestDTO;
+import com.weiver.auth.dto.request.ApplicantSignupCompleteRequestDTO;
+import com.weiver.auth.dto.request.ApplicantSignupInitRequestDTO;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantLoginResponseDTO;
+import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
 import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
@@ -66,17 +68,35 @@ public class ApplicantAuthController {
     }
 
     @Operation(
-            summary = "회원가입",
-            description = "구직자의 회원가입을 처리합니다.<br>" +
-                    "회원가입 성공 시 생성된 구직자 정보를 반환합니다."
+            summary = "회원가입 1단계 - 계정 정보 등록",
+            description = "이메일, 비밀번호, 비밀번호 확인, 이메일 인증 토큰을 검증한 뒤 PENDING 상태의 구직자를 생성합니다.<br>" +
+                    "동일 이메일의 PENDING 계정이 이미 존재하면 비밀번호를 갱신합니다.<br>" +
+                    "응답으로 약관 동의 단계에서 사용할 signupToken을 반환합니다."
     )
-    @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<ApplicantSignupResponseDTO>> signup(
+    @PostMapping("/signup/init")
+    public ResponseEntity<ApiResponse<ApplicantSignupInitResponseDTO>> initSignup(
             @RequestBody
             @Valid
-            ApplicantSignupRequestDTO requestDTO
+            ApplicantSignupInitRequestDTO requestDTO
     ) {
-        ApplicantSignupResponseDTO responseDTO = applicantAuthService.signup(requestDTO);
+        ApplicantSignupInitResponseDTO responseDTO = applicantAuthService.initSignup(requestDTO);
+
+        return ResponseEntity.ok(ApiResponse.success(200, responseDTO, "회원가입 1단계에 성공했습니다."));
+    }
+
+    @Operation(
+            summary = "회원가입 2단계 - 약관 동의",
+            description = "signupToken과 약관 동의 정보를 받아 회원가입을 최종 완료합니다.<br>" +
+                    "필수 약관 동의 검증 후 PENDING 계정을 ACTIVE로 전환합니다.<br>" +
+                    "성공 시 가입된 구직자 정보를 반환합니다."
+    )
+    @PatchMapping("/signup/agreements")
+    public ResponseEntity<ApiResponse<ApplicantSignupResponseDTO>> completeSignup(
+            @RequestBody
+            @Valid
+            ApplicantSignupCompleteRequestDTO requestDTO
+    ) {
+        ApplicantSignupResponseDTO responseDTO = applicantAuthService.completeSignup(requestDTO);
 
         return ResponseEntity.ok(ApiResponse.success(201, responseDTO, "회원가입에 성공했습니다."));
     }

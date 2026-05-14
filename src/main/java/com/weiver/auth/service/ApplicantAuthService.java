@@ -4,10 +4,13 @@ import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.domain.ApplicantAgreement;
 import com.weiver.applicant.repository.ApplicantAgreementRepository;
 import com.weiver.applicant.repository.ApplicantRepository;
+import com.weiver.applicant.type.ApplicantStatus;
 import com.weiver.auth.dto.request.*;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
+import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
 import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
+import com.weiver.auth.repository.ApplicantSignupTokenRepository;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
 import com.weiver.global.common.UserRole;
 import com.weiver.global.auth.ApplicantProvider;
@@ -31,11 +34,13 @@ public class ApplicantAuthService {
 
     private static final Duration EMAIL_CODE_TTL = Duration.ofMinutes(5);
     private static final Duration VERIFICATION_TOKEN_TTL = Duration.ofMinutes(30);
+    private static final Duration SIGNUP_TOKEN_TTL = Duration.ofMinutes(30);
     private static final int MAX_VERIFICATION_ATTEMPTS = 5;
 
     private final ApplicantRepository applicantRepository;
     private final ApplicantAgreementRepository applicantAgreementRepository;
     private final ApplicantEmailVerificationRepository emailVerificationRepository;
+    private final ApplicantSignupTokenRepository signupTokenRepository;
     private final TokenVersionRepository tokenVersionRepository;
     private final ApplicantVerificationCodeGenerator codeGenerator;
     private final PasswordEncoder passwordEncoder;
@@ -47,9 +52,11 @@ public class ApplicantAuthService {
     public void sendEmailCode(ApplicantEmailSendRequestDTO request) {
         String email = request.email();
 
-        if(applicantRepository.existsByEmail(email)) {
-            throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
-        }
+        applicantRepository.findByEmailAndDeletedFalse(email)
+                .filter(existing -> existing.getStatus() == ApplicantStatus.ACTIVE)
+                .ifPresent(existing -> {
+                    throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
+                });
 
         String code = codeGenerator.generateCode();
 
@@ -96,9 +103,8 @@ public class ApplicantAuthService {
     }
 
     @Transactional
-    public ApplicantSignupResponseDTO signup(ApplicantSignupRequestDTO request) {
+    public ApplicantSignupInitResponseDTO initSignup(ApplicantSignupInitRequestDTO request) {
         validatePasswordConfirm(request.password(), request.passwordConfirm());
-        validateRequiredAgreements(request.agreements());
 
         // verification 토큰을 atomic하게 소비 (한 번 시도하면 재사용 불가)
         String verifiedEmail = emailVerificationRepository.findAndDeleteVerifiedToken(request.verificationToken())
@@ -108,22 +114,53 @@ public class ApplicantAuthService {
             throw new BusinessException(ErrorCode.EMAIL_NOT_VERIFIED);
         }
 
-        Applicant applicant = Applicant.builder()
-                .email(request.email())
-                .password(passwordEncoder.encode(request.password()))
-                .role(UserRole.APPLICANT)
-                .build();
+        String encodedPassword = passwordEncoder.encode(request.password());
 
-        Applicant savedApplicant;
-        try {
-            savedApplicant = applicantRepository.save(applicant);
-            applicantRepository.flush();
-        } catch (DataIntegrityViolationException e) {
-            throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        Applicant applicant = applicantRepository.findByEmailAndDeletedFalse(request.email())
+                .map(existing -> {
+                    if (existing.getStatus() == ApplicantStatus.ACTIVE) {
+                        throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
+                    }
+                    existing.resetPendingPassword(encodedPassword);
+                    return existing;
+                })
+                .orElseGet(() -> {
+                    Applicant newApplicant = Applicant.builder()
+                            .email(request.email())
+                            .password(encodedPassword)
+                            .role(UserRole.APPLICANT)
+                            .build();
+                    try {
+                        Applicant saved = applicantRepository.save(newApplicant);
+                        applicantRepository.flush();
+                        return saved;
+                    } catch (DataIntegrityViolationException e) {
+                        throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
+                    }
+                });
+
+        String signupToken = UUID.randomUUID().toString();
+        signupTokenRepository.save(signupToken, applicant.getPublicId(), SIGNUP_TOKEN_TTL);
+
+        return new ApplicantSignupInitResponseDTO(signupToken);
+    }
+
+    @Transactional
+    public ApplicantSignupResponseDTO completeSignup(ApplicantSignupCompleteRequestDTO request) {
+        validateRequiredAgreements(request.agreements());
+
+        String publicId = signupTokenRepository.findAndDelete(request.signupToken())
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_SIGNUP_TOKEN));
+
+        Applicant applicant = applicantRepository.findByPublicIdAndDeletedFalse(publicId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+
+        if (applicant.getStatus() != ApplicantStatus.PENDING) {
+            throw new BusinessException(ErrorCode.INVALID_SIGNUP_TOKEN);
         }
 
         ApplicantAgreement agreement = ApplicantAgreement.builder()
-                .applicant(savedApplicant)
+                .applicant(applicant)
                 .termsOfService(request.agreements().termsOfService())
                 .privacyPolicy(request.agreements().privacyPolicy())
                 .individualMemberTerms(request.agreements().individualMemberTerms())
@@ -133,8 +170,9 @@ public class ApplicantAuthService {
                 .build();
 
         applicantAgreementRepository.save(agreement);
+        applicant.activate();
 
-        return ApplicantSignupResponseDTO.from(savedApplicant);
+        return ApplicantSignupResponseDTO.from(applicant);
     }
 
     @Transactional
@@ -144,6 +182,10 @@ public class ApplicantAuthService {
 
         if(!passwordEncoder.matches(request.password(), applicant.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
+        }
+
+        if (applicant.getStatus() != ApplicantStatus.ACTIVE) {
+            throw new BusinessException(ErrorCode.SIGNUP_NOT_COMPLETED);
         }
 
         String publicId = applicant.getPublicId();

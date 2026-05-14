@@ -4,14 +4,18 @@ import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.domain.ApplicantAgreement;
 import com.weiver.applicant.repository.ApplicantAgreementRepository;
 import com.weiver.applicant.repository.ApplicantRepository;
+import com.weiver.applicant.type.ApplicantStatus;
 import com.weiver.auth.dto.request.ApplicantAgreementRequestDTO;
 import com.weiver.auth.dto.request.ApplicantEmailSendRequestDTO;
 import com.weiver.auth.dto.request.ApplicantEmailVerifyRequestDTO;
 import com.weiver.auth.dto.request.ApplicantLoginRequestDTO;
-import com.weiver.auth.dto.request.ApplicantSignupRequestDTO;
+import com.weiver.auth.dto.request.ApplicantSignupCompleteRequestDTO;
+import com.weiver.auth.dto.request.ApplicantSignupInitRequestDTO;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
+import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
 import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
+import com.weiver.auth.repository.ApplicantSignupTokenRepository;
 import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.ApplicantVerificationCodeGenerator;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
@@ -56,6 +60,7 @@ public class ApplicantAuthServiceTest {
     @Mock private ApplicantRepository applicantRepository;
     @Mock private ApplicantAgreementRepository applicantAgreementRepository;
     @Mock private ApplicantEmailVerificationRepository emailVerificationRepository;
+    @Mock private ApplicantSignupTokenRepository signupTokenRepository;
     @Mock private ApplicantVerificationCodeGenerator codeGenerator;
     @Mock private EmailVerificationService emailVerificationService;
     @Mock private PasswordEncoder passwordEncoder;
@@ -72,7 +77,7 @@ public class ApplicantAuthServiceTest {
         String code = "123456";
         ApplicantEmailSendRequestDTO request = new ApplicantEmailSendRequestDTO(email);
 
-        when(applicantRepository.existsByEmail(email)).thenReturn(false);
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.empty());
         when(codeGenerator.generateCode()).thenReturn(code);
 
         // when
@@ -86,13 +91,14 @@ public class ApplicantAuthServiceTest {
     }
 
     @Test
-    @DisplayName("이미 가입된 이메일이면 EMAIL_ALREADY_EXISTS 예외 발생")
+    @DisplayName("ACTIVE 상태의 동일 이메일이면 EMAIL_ALREADY_EXISTS 예외 발생")
     public void sendEmailCode_emailAlreadyExists() {
         // given
         String email = "exists@test.com";
         ApplicantEmailSendRequestDTO request = new ApplicantEmailSendRequestDTO(email);
 
-        when(applicantRepository.existsByEmail(email)).thenReturn(true);
+        Applicant active = activeApplicant(email);
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.of(active));
 
         // when & then
         assertThatThrownBy(() -> applicantAuthService.sendEmailCode(request))
@@ -105,6 +111,26 @@ public class ApplicantAuthServiceTest {
     }
 
     @Test
+    @DisplayName("PENDING 상태의 동일 이메일이면 인증번호 전송을 허용한다.")
+    public void sendEmailCode_allowsPending() {
+        // given
+        String email = "pending@test.com";
+        String code = "123456";
+        ApplicantEmailSendRequestDTO request = new ApplicantEmailSendRequestDTO(email);
+
+        Applicant pending = pendingApplicant(email);
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.of(pending));
+        when(codeGenerator.generateCode()).thenReturn(code);
+
+        // when
+        applicantAuthService.sendEmailCode(request);
+
+        // then
+        verify(emailVerificationRepository).saveCode(eq(email), eq(code), any(Duration.class));
+        verify(emailVerificationService).sendVerificationCode(email, code);
+    }
+
+    @Test
     @DisplayName("메일 발송 실패 시 저장한 코드를 삭제하고 EMAIL_SEND_FAILED 예외 발생")
     public void sendEmailCode_mailSendFails() {
         // given
@@ -112,7 +138,7 @@ public class ApplicantAuthServiceTest {
         String code = "123456";
         ApplicantEmailSendRequestDTO request = new ApplicantEmailSendRequestDTO(email);
 
-        when(applicantRepository.existsByEmail(email)).thenReturn(false);
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.empty());
         when(codeGenerator.generateCode()).thenReturn(code);
         doThrow(new RuntimeException("smtp down")).when(emailVerificationService).sendVerificationCode(anyString(), anyString());
 
@@ -211,18 +237,19 @@ public class ApplicantAuthServiceTest {
     }
 
     @Test
-    @DisplayName("회원가입 성공 시 토큰 소비 -> Applicant 저장 -> Agreement 저장 순으로 수행한다.")
-    public void signup_success() {
+    @DisplayName("회원가입 1단계 성공 시 PENDING 회원을 저장하고 signupToken을 발급한다.")
+    public void initSignup_success() {
         // given
         String email = "new@test.com";
         String password = "Pass1234!";
-        String token = "verification-token";
-        ApplicantSignupRequestDTO request = new ApplicantSignupRequestDTO(
-                email, password, password, token, allTrueAgreements()
+        String verificationToken = "verification-token";
+        ApplicantSignupInitRequestDTO request = new ApplicantSignupInitRequestDTO(
+                email, password, password, verificationToken
         );
 
-        when(emailVerificationRepository.findAndDeleteVerifiedToken(token))
+        when(emailVerificationRepository.findAndDeleteVerifiedToken(verificationToken))
                 .thenReturn(Optional.of(email));
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.empty());
         when(passwordEncoder.encode(password)).thenReturn("encoded");
 
         String expectedPublicId = "test-public-id";
@@ -236,115 +263,239 @@ public class ApplicantAuthServiceTest {
         when(applicantRepository.save(any(Applicant.class))).thenReturn(saved);
 
         // when
-        ApplicantSignupResponseDTO response = applicantAuthService.signup(request);
+        ApplicantSignupInitResponseDTO response = applicantAuthService.initSignup(request);
 
         // then
-        assertThat(response.publicId()).isEqualTo(expectedPublicId);
-        assertThat(response.role()).isEqualTo(UserRole.APPLICANT);
-
-        verify(emailVerificationRepository).findAndDeleteVerifiedToken(token);
+        assertThat(response.signupToken()).isNotBlank();
+        verify(emailVerificationRepository).findAndDeleteVerifiedToken(verificationToken);
         verify(applicantRepository).save(any(Applicant.class));
         verify(applicantRepository).flush();
-        verify(applicantAgreementRepository).save(any(ApplicantAgreement.class));
+        verify(signupTokenRepository).save(eq(response.signupToken()), eq(expectedPublicId), any(Duration.class));
     }
 
     @Test
-    @DisplayName("비밀번호와 비밀번호 확인이 다르면 PASSWORD_CONFIRM_NOT_MATCH 예외 (토큰 소비 안 함)")
-    public void signup_passwordConfirmMismatch() {
+    @DisplayName("회원가입 1단계 재시도: 기존 PENDING 회원이 있으면 비밀번호를 갱신하고 새 signupToken을 발급한다.")
+    public void initSignup_overwritesPending() {
         // given
-        ApplicantSignupRequestDTO request = new ApplicantSignupRequestDTO(
-                "user@test.com", "Pass1234!", "Different1!", "token", allTrueAgreements()
+        String email = "pending@test.com";
+        String password = "NewPass1234!";
+        String verificationToken = "verification-token";
+        ApplicantSignupInitRequestDTO request = new ApplicantSignupInitRequestDTO(
+                email, password, password, verificationToken
+        );
+
+        Applicant existingPending = pendingApplicant(email);
+        when(emailVerificationRepository.findAndDeleteVerifiedToken(verificationToken))
+                .thenReturn(Optional.of(email));
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.of(existingPending));
+        when(passwordEncoder.encode(password)).thenReturn("encoded-new");
+
+        // when
+        ApplicantSignupInitResponseDTO response = applicantAuthService.initSignup(request);
+
+        // then
+        assertThat(response.signupToken()).isNotBlank();
+        assertThat(existingPending.getPassword()).isEqualTo("encoded-new");
+        verify(applicantRepository, never()).save(any(Applicant.class));
+        verify(applicantRepository, never()).flush();
+        verify(signupTokenRepository).save(eq(response.signupToken()), eq(existingPending.getPublicId()), any(Duration.class));
+    }
+
+    @Test
+    @DisplayName("회원가입 1단계 - ACTIVE 상태 회원이 있으면 EMAIL_ALREADY_EXISTS 예외")
+    public void initSignup_activeAlreadyExists() {
+        // given
+        String email = "active@test.com";
+        String password = "Pass1234!";
+        String verificationToken = "verification-token";
+        ApplicantSignupInitRequestDTO request = new ApplicantSignupInitRequestDTO(
+                email, password, password, verificationToken
+        );
+
+        when(emailVerificationRepository.findAndDeleteVerifiedToken(verificationToken))
+                .thenReturn(Optional.of(email));
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.of(activeApplicant(email)));
+        when(passwordEncoder.encode(password)).thenReturn("encoded");
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.initSignup(request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.EMAIL_ALREADY_EXISTS.defaultMessage);
+
+        verify(signupTokenRepository, never()).save(anyString(), anyString(), any(Duration.class));
+    }
+
+    @Test
+    @DisplayName("회원가입 1단계 - 비밀번호와 비밀번호 확인이 다르면 PASSWORD_CONFIRM_NOT_MATCH 예외 (토큰 소비 안 함)")
+    public void initSignup_passwordConfirmMismatch() {
+        // given
+        ApplicantSignupInitRequestDTO request = new ApplicantSignupInitRequestDTO(
+                "user@test.com", "Pass1234!", "Different1!", "token"
         );
 
         // when & then
-        assertThatThrownBy(() -> applicantAuthService.signup(request))
+        assertThatThrownBy(() -> applicantAuthService.initSignup(request))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.PASSWORD_CONFIRM_NOT_MATCH.defaultMessage);
 
         verify(emailVerificationRepository, never()).findAndDeleteVerifiedToken(anyString());
         verify(applicantRepository, never()).save(any(Applicant.class));
+        verify(signupTokenRepository, never()).save(anyString(), anyString(), any(Duration.class));
     }
 
     @Test
-    @DisplayName("필수 약관 미동의 시 REQUIRED_AGREEMENT_NOT_ACCEPTED 예외 (토큰 소비 안 함)")
-    public void signup_requiredAgreementNotAccepted() {
-        // given
-        ApplicantAgreementRequestDTO partial = new ApplicantAgreementRequestDTO(
-                true, true, true, true, false, true
-        );
-        ApplicantSignupRequestDTO request = new ApplicantSignupRequestDTO(
-                "user@test.com", "Pass1234!", "Pass1234!", "token", partial
-        );
-
-        // when & then
-        assertThatThrownBy(() -> applicantAuthService.signup(request))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage(ErrorCode.REQUIRED_AGREEMENT_NOT_ACCEPTED.defaultMessage);
-
-        verify(emailVerificationRepository, never()).findAndDeleteVerifiedToken(anyString());
-        verify(applicantRepository, never()).save(any(Applicant.class));
-    }
-
-    @Test
-    @DisplayName("verification 토큰이 Redis에 없으면 EMAIL_NOT_VERIFIED 예외")
-    public void signup_verificationTokenNotFound() {
+    @DisplayName("회원가입 1단계 - verification 토큰이 Redis에 없으면 EMAIL_NOT_VERIFIED 예외")
+    public void initSignup_verificationTokenNotFound() {
         // given
         String token = "missing-token";
-        ApplicantSignupRequestDTO request = new ApplicantSignupRequestDTO(
-                "user@test.com", "Pass1234!", "Pass1234!", token, allTrueAgreements()
+        ApplicantSignupInitRequestDTO request = new ApplicantSignupInitRequestDTO(
+                "user@test.com", "Pass1234!", "Pass1234!", token
         );
 
         when(emailVerificationRepository.findAndDeleteVerifiedToken(token))
                 .thenReturn(Optional.empty());
 
         // when & then
-        assertThatThrownBy(() -> applicantAuthService.signup(request))
+        assertThatThrownBy(() -> applicantAuthService.initSignup(request))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.EMAIL_NOT_VERIFIED.defaultMessage);
 
         verify(applicantRepository, never()).save(any(Applicant.class));
+        verify(signupTokenRepository, never()).save(anyString(), anyString(), any(Duration.class));
     }
 
     @Test
-    @DisplayName("verification 토큰의 이메일과 요청 이메일이 다르면 EMAIL_NOT_VERIFIED 예외")
-    public void signup_emailMismatch() {
+    @DisplayName("회원가입 1단계 - verification 토큰의 이메일과 요청 이메일이 다르면 EMAIL_NOT_VERIFIED 예외")
+    public void initSignup_emailMismatch() {
         // given
         String token = "token";
-        ApplicantSignupRequestDTO request = new ApplicantSignupRequestDTO(
-                "request@test.com", "Pass1234!", "Pass1234!", token, allTrueAgreements()
+        ApplicantSignupInitRequestDTO request = new ApplicantSignupInitRequestDTO(
+                "request@test.com", "Pass1234!", "Pass1234!", token
         );
 
         when(emailVerificationRepository.findAndDeleteVerifiedToken(token))
                 .thenReturn(Optional.of("other@test.com"));
 
         // when & then
-        assertThatThrownBy(() -> applicantAuthService.signup(request))
+        assertThatThrownBy(() -> applicantAuthService.initSignup(request))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.EMAIL_NOT_VERIFIED.defaultMessage);
 
         verify(applicantRepository, never()).save(any(Applicant.class));
+        verify(signupTokenRepository, never()).save(anyString(), anyString(), any(Duration.class));
     }
 
     @Test
-    @DisplayName("DB unique 제약 위반(race condition)으로 가입 실패 시 EMAIL_ALREADY_EXISTS 예외")
-    public void signup_uniqueViolationOnRace() {
+    @DisplayName("회원가입 1단계 - DB unique 제약 위반(race condition) 시 EMAIL_ALREADY_EXISTS 예외")
+    public void initSignup_uniqueViolationOnRace() {
         // given
         String email = "race@test.com";
         String token = "token";
-        ApplicantSignupRequestDTO request = new ApplicantSignupRequestDTO(
-                email, "Pass1234!", "Pass1234!", token, allTrueAgreements()
+        ApplicantSignupInitRequestDTO request = new ApplicantSignupInitRequestDTO(
+                email, "Pass1234!", "Pass1234!", token
         );
 
         when(emailVerificationRepository.findAndDeleteVerifiedToken(token))
                 .thenReturn(Optional.of(email));
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.empty());
         when(passwordEncoder.encode(anyString())).thenReturn("encoded");
         when(applicantRepository.save(any(Applicant.class)))
                 .thenThrow(new DataIntegrityViolationException("unique violation"));
 
         // when & then
-        assertThatThrownBy(() -> applicantAuthService.signup(request))
+        assertThatThrownBy(() -> applicantAuthService.initSignup(request))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.EMAIL_ALREADY_EXISTS.defaultMessage);
+
+        verify(signupTokenRepository, never()).save(anyString(), anyString(), any(Duration.class));
+    }
+
+    @Test
+    @DisplayName("회원가입 2단계 성공 시 signupToken 소비 -> Agreement 저장 -> Applicant ACTIVE 전환")
+    public void completeSignup_success() {
+        // given
+        String signupToken = "signup-token";
+        String publicId = "applicant-public-id";
+        ApplicantSignupCompleteRequestDTO request = new ApplicantSignupCompleteRequestDTO(
+                signupToken, allTrueAgreements()
+        );
+
+        Applicant pending = pendingApplicant("new@test.com");
+        ReflectionTestUtils.setField(pending, "publicId", publicId);
+
+        when(signupTokenRepository.findAndDelete(signupToken)).thenReturn(Optional.of(publicId));
+        when(applicantRepository.findByPublicIdAndDeletedFalse(publicId)).thenReturn(Optional.of(pending));
+
+        // when
+        ApplicantSignupResponseDTO response = applicantAuthService.completeSignup(request);
+
+        // then
+        assertThat(response.publicId()).isEqualTo(publicId);
+        assertThat(response.role()).isEqualTo(UserRole.APPLICANT);
+        assertThat(pending.getStatus()).isEqualTo(ApplicantStatus.ACTIVE);
+        verify(signupTokenRepository).findAndDelete(signupToken);
+        verify(applicantAgreementRepository).save(any(ApplicantAgreement.class));
+    }
+
+    @Test
+    @DisplayName("회원가입 2단계 - 필수 약관 미동의 시 REQUIRED_AGREEMENT_NOT_ACCEPTED 예외 (토큰 소비 안 함)")
+    public void completeSignup_requiredAgreementNotAccepted() {
+        // given
+        ApplicantAgreementRequestDTO partial = new ApplicantAgreementRequestDTO(
+                true, true, true, true, false, true
+        );
+        ApplicantSignupCompleteRequestDTO request = new ApplicantSignupCompleteRequestDTO(
+                "signup-token", partial
+        );
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.completeSignup(request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.REQUIRED_AGREEMENT_NOT_ACCEPTED.defaultMessage);
+
+        verify(signupTokenRepository, never()).findAndDelete(anyString());
+        verify(applicantAgreementRepository, never()).save(any(ApplicantAgreement.class));
+    }
+
+    @Test
+    @DisplayName("회원가입 2단계 - signupToken이 만료/존재하지 않으면 INVALID_SIGNUP_TOKEN 예외")
+    public void completeSignup_invalidSignupToken() {
+        // given
+        String signupToken = "missing-token";
+        ApplicantSignupCompleteRequestDTO request = new ApplicantSignupCompleteRequestDTO(
+                signupToken, allTrueAgreements()
+        );
+
+        when(signupTokenRepository.findAndDelete(signupToken)).thenReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.completeSignup(request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_SIGNUP_TOKEN.defaultMessage);
+
+        verify(applicantAgreementRepository, never()).save(any(ApplicantAgreement.class));
+    }
+
+    @Test
+    @DisplayName("회원가입 2단계 - Applicant가 PENDING이 아니면 INVALID_SIGNUP_TOKEN 예외")
+    public void completeSignup_applicantNotPending() {
+        // given
+        String signupToken = "signup-token";
+        String publicId = "applicant-public-id";
+        ApplicantSignupCompleteRequestDTO request = new ApplicantSignupCompleteRequestDTO(
+                signupToken, allTrueAgreements()
+        );
+
+        Applicant active = activeApplicant("active@test.com");
+        ReflectionTestUtils.setField(active, "publicId", publicId);
+
+        when(signupTokenRepository.findAndDelete(signupToken)).thenReturn(Optional.of(publicId));
+        when(applicantRepository.findByPublicIdAndDeletedFalse(publicId)).thenReturn(Optional.of(active));
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.completeSignup(request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_SIGNUP_TOKEN.defaultMessage);
 
         verify(applicantAgreementRepository, never()).save(any(ApplicantAgreement.class));
     }
@@ -363,6 +514,7 @@ public class ApplicantAuthServiceTest {
                 .password("encoded")
                 .role(UserRole.APPLICANT)
                 .publicId(publicId)
+                .status(ApplicantStatus.ACTIVE)
                 .build();
         ReflectionTestUtils.setField(applicant, "applicantId", 7L);
 
@@ -412,6 +564,7 @@ public class ApplicantAuthServiceTest {
                 .email("user@test.com")
                 .password("encoded")
                 .role(UserRole.APPLICANT)
+                .status(ApplicantStatus.ACTIVE)
                 .build();
         ReflectionTestUtils.setField(applicant, "applicantId", 1L);
 
@@ -428,6 +581,25 @@ public class ApplicantAuthServiceTest {
     }
 
     @Test
+    @DisplayName("PENDING 상태의 회원이 로그인 시도하면 SIGNUP_NOT_COMPLETED 예외")
+    public void login_pendingBlocked() {
+        // given
+        ApplicantLoginRequestDTO request = new ApplicantLoginRequestDTO("pending@test.com", "Pass1234!");
+        Applicant pending = pendingApplicant("pending@test.com");
+
+        when(applicantRepository.findByEmailAndDeletedFalse("pending@test.com")).thenReturn(Optional.of(pending));
+        when(passwordEncoder.matches("Pass1234!", pending.getPassword())).thenReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.login(request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.SIGNUP_NOT_COMPLETED.defaultMessage);
+
+        verify(jwtTokenProvider, never()).createAccessToken(anyString(), any(UserRole.class), anyLong());
+        verify(refreshTokenRepository, never()).save(anyString(), any(UserRole.class), anyString(), anyLong());
+    }
+
+    @Test
     @DisplayName("회원탈퇴 성공 시 RefreshToken 삭제 후 Applicant를 soft-delete 처리한다.")
     public void withdraw_success() {
         // given
@@ -437,6 +609,7 @@ public class ApplicantAuthServiceTest {
                 .password("encoded")
                 .role(UserRole.APPLICANT)
                 .publicId(publicId)
+                .status(ApplicantStatus.ACTIVE)
                 .build();
         ReflectionTestUtils.setField(applicant, "applicantId", 5L);
 
@@ -469,5 +642,27 @@ public class ApplicantAuthServiceTest {
 
     private static ApplicantAgreementRequestDTO allTrueAgreements() {
         return new ApplicantAgreementRequestDTO(true, true, true, true, true, true);
+    }
+
+    private static Applicant activeApplicant(String email) {
+        Applicant applicant = Applicant.builder()
+                .email(email)
+                .password("encoded")
+                .role(UserRole.APPLICANT)
+                .status(ApplicantStatus.ACTIVE)
+                .build();
+        ReflectionTestUtils.setField(applicant, "applicantId", 10L);
+        return applicant;
+    }
+
+    private static Applicant pendingApplicant(String email) {
+        Applicant applicant = Applicant.builder()
+                .email(email)
+                .password("encoded-old")
+                .role(UserRole.APPLICANT)
+                .status(ApplicantStatus.PENDING)
+                .build();
+        ReflectionTestUtils.setField(applicant, "applicantId", 20L);
+        return applicant;
     }
 }
