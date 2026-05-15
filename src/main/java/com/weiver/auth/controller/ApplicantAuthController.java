@@ -90,7 +90,7 @@ public class ApplicantAuthController {
                     "필수 약관 동의 검증 후 PENDING 계정을 ACTIVE로 전환합니다.<br>" +
                     "성공 시 가입된 구직자 정보를 반환합니다."
     )
-    @PatchMapping("/signup/agreements")
+    @PostMapping("/signup/agreements")
     public ResponseEntity<ApiResponse<ApplicantSignupResponseDTO>> completeSignup(
             @RequestBody
             @Valid

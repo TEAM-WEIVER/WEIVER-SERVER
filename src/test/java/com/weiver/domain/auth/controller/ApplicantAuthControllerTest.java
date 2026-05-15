@@ -42,7 +42,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -205,7 +204,7 @@ public class ApplicantAuthControllerTest {
                 .thenReturn(new ApplicantSignupResponseDTO("uuid-applicant-1", UserRole.APPLICANT));
 
         // when & then
-        mockMvc.perform(patch("/api/auth/applicants/signup/agreements")
+        mockMvc.perform(post("/api/auth/applicants/signup/agreements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -226,7 +225,7 @@ public class ApplicantAuthControllerTest {
                 .thenThrow(new BusinessException(ErrorCode.INVALID_SIGNUP_TOKEN));
 
         // when & then
-        mockMvc.perform(patch("/api/auth/applicants/signup/agreements")
+        mockMvc.perform(post("/api/auth/applicants/signup/agreements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
