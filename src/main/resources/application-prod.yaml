@@ -118,6 +118,14 @@ cookie:
     secure: true
     same-site: None
     max-age: 1209600 # 14 days
+  csrf-token:
+    cookie-name: XSRF-TOKEN
+    header-name: X-XSRF-TOKEN
+    path: /
+    domain: .piuda.site
+    http-only: false
+    secure: true
+    same-site: None
 
 # =============================================================================
 # Swagger / SpringDoc 설정
