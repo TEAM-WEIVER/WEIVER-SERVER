@@ -2,9 +2,11 @@ package com.weiver.global.config;
 
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.csrf.CsrfCookieFilter;
+import com.weiver.global.security.csrf.CsrfCookieProperties;
 import com.weiver.global.security.handler.SecurityErrorResponseWriter;
 import com.weiver.global.security.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -23,12 +25,14 @@ import java.util.stream.Stream;
 
 @Configuration
 @EnableWebSecurity
+@EnableConfigurationProperties(CsrfCookieProperties.class)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final SecurityErrorResponseWriter securityErrorResponseWriter;
     private final CsrfCookieFilter csrfCookieFilter;
+    private final CsrfCookieProperties csrfCookieProperties;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -86,15 +90,20 @@ public class SecurityConfig {
     public CookieCsrfTokenRepository cookieCsrfTokenRepository() {
         CookieCsrfTokenRepository repository = new CookieCsrfTokenRepository();
 
-        repository.setCookieName("XSRF-TOKEN");
-        repository.setHeaderName("X-XSRF-TOKEN");
+        repository.setCookieName(csrfCookieProperties.cookieName());
+        repository.setHeaderName(csrfCookieProperties.headerName());
 
-        repository.setCookieCustomizer(cookie -> cookie
-                .httpOnly(false)
-                .secure(true)
-                .sameSite("None")
-                .path("/")
-        );
+        repository.setCookieCustomizer(cookie -> {
+            cookie.httpOnly(false)
+                    .secure(csrfCookieProperties.secure())
+                    .sameSite(csrfCookieProperties.sameSite())
+                    .path(csrfCookieProperties.path());
+
+            String domain = csrfCookieProperties.domain();
+            if (domain != null && !domain.isBlank()) {
+                cookie.domain(domain);
+            }
+        });
 
         return repository;
     }

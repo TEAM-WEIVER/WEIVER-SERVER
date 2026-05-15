@@ -16,7 +16,7 @@ public class CorsConfig {
 
         corsConfiguration.setAllowedOrigins(List.of(
                 "https://www.piuda.site",
-                "http://localhost:5173"
+                "http://localhost:3000"
         ));
 
         corsConfiguration.setAllowedMethods(List.of(

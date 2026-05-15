@@ -114,10 +114,16 @@ cookie:
   refresh-token:
     name: refreshToken
     path: /
-    http-only: true
     secure: true
     same-site: None
     max-age: 1209600 # 14 days
+  csrf-token:
+    cookie-name: XSRF-TOKEN
+    header-name: X-XSRF-TOKEN
+    path: /
+    domain: .piuda.site
+    secure: true
+    same-site: None
 
 # =============================================================================
 # Swagger / SpringDoc 설정
