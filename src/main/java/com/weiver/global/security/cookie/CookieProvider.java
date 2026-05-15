@@ -19,7 +19,7 @@ public class CookieProvider {
     public ResponseCookie createRefreshTokenCookie(String refreshToken) {
         return ResponseCookie.from(cookieProperties.name(), refreshToken)
                 .path(cookieProperties.path())
-                .httpOnly(true)
+                .httpOnly(cookieProperties.httpOnly())
                 .secure(cookieProperties.secure())
                 .sameSite(cookieProperties.sameSite())
                 .maxAge(Duration.ofSeconds(cookieProperties.maxAge()))
@@ -30,7 +30,7 @@ public class CookieProvider {
     public ResponseCookie createExpiredRefreshTokenCookie() {
         return ResponseCookie.from(cookieProperties.name(), "")
                 .path(cookieProperties.path())
-                .httpOnly(true)
+                .httpOnly(cookieProperties.httpOnly())
                 .secure(cookieProperties.secure())
                 .sameSite(cookieProperties.sameSite())
                 .maxAge(Duration.ZERO)
