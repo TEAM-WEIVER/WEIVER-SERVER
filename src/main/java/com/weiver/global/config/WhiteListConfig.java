@@ -30,7 +30,8 @@ public class WhiteListConfig {
         return List.of(
                 "/api/auth/applicants/email/send",
                 "/api/auth/applicants/email/verify",
-                "/api/auth/applicants/signup",
+                "/api/auth/applicants/signup/init",
+                "/api/auth/applicants/signup/agreements",
                 "/api/auth/applicants/login"
         );
     }
