@@ -94,7 +94,7 @@ public class SecurityConfig {
         repository.setHeaderName(csrfCookieProperties.headerName());
 
         repository.setCookieCustomizer(cookie -> {
-            cookie.httpOnly(csrfCookieProperties.httpOnly())
+            cookie.httpOnly(false)
                     .secure(csrfCookieProperties.secure())
                     .sameSite(csrfCookieProperties.sameSite())
                     .path(csrfCookieProperties.path());

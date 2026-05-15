@@ -8,7 +8,6 @@ public record CsrfCookieProperties(
         String headerName,
         String path,
         String domain,
-        boolean httpOnly,
         boolean secure,
         String sameSite
 ) {

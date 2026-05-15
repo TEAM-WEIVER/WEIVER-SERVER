@@ -105,7 +105,6 @@ cookie:
   refresh-token:
     name: refreshToken
     path: /
-    http-only: true
     secure: false
     same-site: Lax
     max-age: 1209600 # 14 days
@@ -114,7 +113,6 @@ cookie:
     header-name: X-XSRF-TOKEN
     path: /
     domain: # 로컬은 호스트 자동 매칭 (빈 값이면 .domain() 미적용)
-    http-only: false
     secure: false
     same-site: Lax
 
