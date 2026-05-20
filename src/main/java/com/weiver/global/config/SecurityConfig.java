@@ -20,6 +20,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 import java.util.stream.Stream;
 
@@ -33,10 +34,11 @@ public class SecurityConfig {
     private final SecurityErrorResponseWriter securityErrorResponseWriter;
     private final CsrfCookieFilter csrfCookieFilter;
     private final CsrfCookieProperties csrfCookieProperties;
+    private final CorsConfigurationSource corsConfigurationSource;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.cors(cors -> {});
+        http.cors(cors -> cors.configurationSource(corsConfigurationSource));
         http.csrf(csrf -> csrf
                 .csrfTokenRepository(cookieCsrfTokenRepository())
                 .ignoringRequestMatchers(
@@ -64,6 +66,7 @@ public class SecurityConfig {
                 );
 
         http.authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(WhiteListConfig.swaggerWhitelist().toArray(String[]::new)).permitAll()
                         .requestMatchers(WhiteListConfig.serverWhitelist().toArray(String[]::new)).permitAll()
                         .requestMatchers(WhiteListConfig.authWhitelist().toArray(String[]::new)).permitAll()
