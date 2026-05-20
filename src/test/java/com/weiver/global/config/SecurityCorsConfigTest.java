@@ -1,4 +1,4 @@
-인package com.weiver.global.config;
+package com.weiver.global.config;
 
 import com.weiver.auth.controller.ApplicantAuthController;
 import com.weiver.auth.service.ApplicantAuthService;
