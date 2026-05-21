@@ -121,7 +121,7 @@ cookie:
     cookie-name: XSRF-TOKEN
     header-name: X-XSRF-TOKEN
     path: /
-    domain: .piuda.site
+    domain: piuda.site
     secure: true
     same-site: None
 
