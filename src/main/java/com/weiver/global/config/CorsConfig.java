@@ -17,6 +17,7 @@ public class CorsConfig {
 
         corsConfiguration.setAllowedOrigins(List.of(
                 "https://www.piuda.site",
+                "https://weiver.local.piuda.site:3000",
                 "http://localhost:3000"
         ));
 
