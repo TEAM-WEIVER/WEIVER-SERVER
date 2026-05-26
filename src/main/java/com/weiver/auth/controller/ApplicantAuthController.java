@@ -88,15 +88,27 @@ public class ApplicantAuthController {
             summary = "회원가입 2단계 - 약관 동의",
             description = "signupToken과 약관 동의 정보를 받아 회원가입을 최종 완료합니다.<br>" +
                     "필수 약관 동의 검증 후 PENDING 계정을 ACTIVE로 전환합니다.<br>" +
-                    "성공 시 가입된 구직자 정보를 반환합니다."
+                    "성공 시 Access Token과 Role을 반환하고, Refresh Token은 Cookie로 발급합니다."
     )
     @PostMapping("/signup/agreements")
     public ResponseEntity<ApiResponse<ApplicantSignupResponseDTO>> completeSignup(
             @RequestBody
             @Valid
-            ApplicantSignupCompleteRequestDTO requestDTO
+            ApplicantSignupCompleteRequestDTO requestDTO,
+
+            @Parameter(hidden = true)
+            HttpServletResponse httpServletResponse
     ) {
-        ApplicantSignupResponseDTO responseDTO = applicantAuthService.completeSignup(requestDTO);
+        ApplicantLoginResult loginResult = applicantAuthService.completeSignup(requestDTO);
+
+        ResponseCookie refreshTokenCookie = cookieProvider.createRefreshTokenCookie(loginResult.refreshToken());
+
+        httpServletResponse.addHeader(
+                HttpHeaders.SET_COOKIE,
+                refreshTokenCookie.toString()
+        );
+
+        ApplicantSignupResponseDTO responseDTO = new ApplicantSignupResponseDTO(loginResult.role(), loginResult.accessToken());
 
         return ResponseEntity.ok(ApiResponse.success(201, responseDTO, "회원가입에 성공했습니다."));
     }

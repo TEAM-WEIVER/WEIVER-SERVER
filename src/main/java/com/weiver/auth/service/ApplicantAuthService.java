@@ -8,7 +8,6 @@ import com.weiver.applicant.type.ApplicantStatus;
 import com.weiver.auth.dto.request.*;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
-import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
 import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
 import com.weiver.auth.repository.ApplicantSignupTokenRepository;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
@@ -146,7 +145,7 @@ public class ApplicantAuthService {
     }
 
     @Transactional
-    public ApplicantSignupResponseDTO completeSignup(ApplicantSignupCompleteRequestDTO request) {
+    public ApplicantLoginResult completeSignup(ApplicantSignupCompleteRequestDTO request) {
         validateRequiredAgreements(request.agreements());
 
         String publicId = signupTokenRepository.findAndDelete(request.signupToken())
@@ -172,7 +171,27 @@ public class ApplicantAuthService {
         applicantAgreementRepository.save(agreement);
         applicant.activate();
 
-        return ApplicantSignupResponseDTO.from(applicant);
+        UserRole userRole = applicant.getRole();
+
+        long tokenVersion = tokenVersionRepository.getCurrentVersion(publicId, userRole);
+
+        String accessToken = jwtTokenProvider.createAccessToken(publicId, userRole, tokenVersion);
+        String refreshToken = jwtTokenProvider.createRefreshToken(publicId, userRole, tokenVersion);
+        long refreshTokenTtlMillis = jwtTokenProvider.getRefreshTokenExpirationMillis();
+
+        refreshTokenRepository.save(
+                publicId,
+                userRole,
+                refreshToken,
+                refreshTokenTtlMillis
+        );
+
+        return new ApplicantLoginResult(
+                accessToken,
+                refreshToken,
+                userRole
+        );
+
     }
 
     @Transactional
