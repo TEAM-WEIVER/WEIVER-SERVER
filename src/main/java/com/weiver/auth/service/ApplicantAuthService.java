@@ -146,7 +146,7 @@ public class ApplicantAuthService {
     }
 
     @Transactional
-    public ApplicantSignupResponseDTO completeSignup(ApplicantSignupCompleteRequestDTO request) {
+    public ApplicantLoginResult completeSignup(ApplicantSignupCompleteRequestDTO request) {
         validateRequiredAgreements(request.agreements());
 
         String publicId = signupTokenRepository.findAndDelete(request.signupToken())
@@ -172,7 +172,27 @@ public class ApplicantAuthService {
         applicantAgreementRepository.save(agreement);
         applicant.activate();
 
-        return ApplicantSignupResponseDTO.from(applicant);
+        UserRole userRole = applicant.getRole();
+
+        long tokenVersion = tokenVersionRepository.getCurrentVersion(publicId, userRole);
+
+        String accessToken = jwtTokenProvider.createAccessToken(publicId, userRole, tokenVersion);
+        String refreshToken = jwtTokenProvider.createRefreshToken(publicId, userRole, tokenVersion);
+        long refreshTokenTtlMillis = jwtTokenProvider.getRefreshTokenExpirationMillis();
+
+        refreshTokenRepository.save(
+                publicId,
+                userRole,
+                refreshToken,
+                refreshTokenTtlMillis
+        );
+
+        return new ApplicantLoginResult(
+                accessToken,
+                refreshToken,
+                userRole
+        );
+
     }
 
     @Transactional
