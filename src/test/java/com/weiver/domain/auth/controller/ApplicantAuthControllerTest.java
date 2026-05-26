@@ -10,7 +10,6 @@ import com.weiver.auth.dto.request.ApplicantSignupCompleteRequestDTO;
 import com.weiver.auth.dto.request.ApplicantSignupInitRequestDTO;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
-import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
 import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
 import com.weiver.global.common.UserRole;
@@ -194,22 +193,27 @@ public class ApplicantAuthControllerTest {
     }
 
     @Test
-    @DisplayName("회원가입 2단계 성공 시 201 응답과 ApplicantSignupResponseDTO 반환")
+    @DisplayName("회원가입 2단계 성공 시 accessToken 반환 + RefreshToken 쿠키 설정")
     public void completeSignup_success() throws Exception {
         // given
         ApplicantSignupCompleteRequestDTO request = new ApplicantSignupCompleteRequestDTO(
                 "signup-token", allTrueAgreements()
         );
         when(applicantAuthService.completeSignup(any()))
-                .thenReturn(new ApplicantSignupResponseDTO("uuid-applicant-1", UserRole.APPLICANT));
+                .thenReturn(new ApplicantLoginResult("access", "refresh", UserRole.APPLICANT));
+
+        ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", "refresh")
+                .path("/").httpOnly(true).secure(false).sameSite("Lax").maxAge(1209600).build();
+        when(cookieProvider.createRefreshTokenCookie("refresh")).thenReturn(refreshCookie);
 
         // when & then
         mockMvc.perform(post("/api/auth/applicants/signup/agreements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("refreshToken=refresh")))
                 .andExpect(jsonPath("$.code").value(201))
-                .andExpect(jsonPath("$.data.publicId").value("uuid-applicant-1"))
+                .andExpect(jsonPath("$.data.accessToken").value("access"))
                 .andExpect(jsonPath("$.data.role").value("APPLICANT"))
                 .andExpect(jsonPath("$.message").value("회원가입에 성공했습니다."));
     }

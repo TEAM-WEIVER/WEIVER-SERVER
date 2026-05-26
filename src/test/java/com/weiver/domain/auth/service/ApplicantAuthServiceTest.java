@@ -13,7 +13,6 @@ import com.weiver.auth.dto.request.ApplicantSignupCompleteRequestDTO;
 import com.weiver.auth.dto.request.ApplicantSignupInitRequestDTO;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
-import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
 import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
 import com.weiver.auth.repository.ApplicantSignupTokenRepository;
 import com.weiver.auth.service.ApplicantAuthService;
@@ -411,11 +410,13 @@ public class ApplicantAuthServiceTest {
     }
 
     @Test
-    @DisplayName("회원가입 2단계 성공 시 signupToken 소비 -> Agreement 저장 -> Applicant ACTIVE 전환")
+    @DisplayName("회원가입 2단계 성공 시 signupToken 소비 -> Agreement 저장 -> Applicant ACTIVE 전환 + 토큰 발급")
     public void completeSignup_success() {
         // given
         String signupToken = "signup-token";
         String publicId = "applicant-public-id";
+        long tokenVersion = 0L;
+        long ttlMillis = 1000L * 60 * 60 * 24 * 14;
         ApplicantSignupCompleteRequestDTO request = new ApplicantSignupCompleteRequestDTO(
                 signupToken, allTrueAgreements()
         );
@@ -425,16 +426,22 @@ public class ApplicantAuthServiceTest {
 
         when(signupTokenRepository.findAndDelete(signupToken)).thenReturn(Optional.of(publicId));
         when(applicantRepository.findByPublicIdAndDeletedFalse(publicId)).thenReturn(Optional.of(pending));
+        when(tokenVersionRepository.getCurrentVersion(publicId, UserRole.APPLICANT)).thenReturn(tokenVersion);
+        when(jwtTokenProvider.createAccessToken(publicId, UserRole.APPLICANT, tokenVersion)).thenReturn("access");
+        when(jwtTokenProvider.createRefreshToken(publicId, UserRole.APPLICANT, tokenVersion)).thenReturn("refresh");
+        when(jwtTokenProvider.getRefreshTokenExpirationMillis()).thenReturn(ttlMillis);
 
         // when
-        ApplicantSignupResponseDTO response = applicantAuthService.completeSignup(request);
+        ApplicantLoginResult result = applicantAuthService.completeSignup(request);
 
         // then
-        assertThat(response.publicId()).isEqualTo(publicId);
-        assertThat(response.role()).isEqualTo(UserRole.APPLICANT);
+        assertThat(result.accessToken()).isEqualTo("access");
+        assertThat(result.refreshToken()).isEqualTo("refresh");
+        assertThat(result.role()).isEqualTo(UserRole.APPLICANT);
         assertThat(pending.getStatus()).isEqualTo(ApplicantStatus.ACTIVE);
         verify(signupTokenRepository).findAndDelete(signupToken);
         verify(applicantAgreementRepository).save(any(ApplicantAgreement.class));
+        verify(refreshTokenRepository).save(publicId, UserRole.APPLICANT, "refresh", ttlMillis);
     }
 
     @Test
