@@ -8,7 +8,6 @@ import com.weiver.applicant.type.ApplicantStatus;
 import com.weiver.auth.dto.request.*;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
-import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
 import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
 import com.weiver.auth.repository.ApplicantSignupTokenRepository;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
