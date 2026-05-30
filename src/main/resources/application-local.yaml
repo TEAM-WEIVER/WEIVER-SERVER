@@ -63,6 +63,23 @@ spring:
           min-idle: 2
 
   # ---------------------------------------------------------------------------
+  # RabbitMQ - 로컬 RabbitMQ 컨테이너
+  # ---------------------------------------------------------------------------
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 10
+        retry:
+          enabled: false
+
+  # ---------------------------------------------------------------------------
   # AWS S3 - 로컬 개발 환경
   # ---------------------------------------------------------------------------
   cloud:
@@ -82,6 +99,18 @@ spring:
 aws:
   s3:
     bucket-name: weaver-local-bucket
+
+# ---------------------------------------------------------------------------
+# RabbitMQ - 로컬 RabbitMQ 설정
+# ---------------------------------------------------------------------------
+weiver:
+  rabbitmq:
+    domain-exchange: domain.events
+    dead-letter-exchange: domain.events.dlx
+    spring-queue: spring.domain.events.queue
+    spring-dlq: spring.domain.events.dlq
+    ai-queue: ai.domain.events.queue
+    ai-dlq: ai.domain.events.dlq
 
 # =============================================================================
 # FastAPI AI 서버
