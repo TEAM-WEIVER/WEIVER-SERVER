@@ -51,8 +51,8 @@ spring:
   # ---------------------------------------------------------------------------
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:weiver-redis}
+      port: ${REDIS_PORT:6379}
       # 도커에 비밀번호 설정이 없으므로 password 필드는 비워둡니다.
       database: 0
       timeout: 3000ms
@@ -61,6 +61,23 @@ spring:
           max-active: 8
           max-idle: 4
           min-idle: 2
+
+  # ---------------------------------------------------------------------------
+  # RabbitMQ - RabbitMQ 컨테이너
+  # ---------------------------------------------------------------------------
+  rabbitmq:
+    host: ${RABBITMQ_HOST:weiver-rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER}
+    password: ${RABBITMQ_PASSWORD}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 10
+        retry:
+          enabled: false
 
   # ---------------------------------------------------------------------------
   # AWS S3 - 배포 환경
@@ -92,12 +109,25 @@ aws:
   s3:
     bucket-name: weaver-local-bucket
 
+
+# ---------------------------------------------------------------------------
+# RabbitMQ - RabbitMQ 설정
+# ---------------------------------------------------------------------------
+weiver:
+  rabbitmq:
+    domain-exchange: domain.events
+    dead-letter-exchange: domain.events.dlx
+    spring-queue: spring.domain.events.queue
+    spring-dlq: spring.domain.events.dlq
+    ai-queue: ai.domain.events.queue
+    ai-dlq: ai.domain.events.dlq
+
 # =============================================================================
 # FastAPI AI 서버
 # =============================================================================
 ai:
   server:
-    url: http://localhost:8000
+    url: ${AI_SERVER_URL:http://weiver-ai:8000}
 
 # =============================================================================
 # JWT 설정

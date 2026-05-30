@@ -1,0 +1,31 @@
+package com.weiver.global.event.dto;
+
+public enum EventType {
+    // 구직자 프로필 동기화
+    APPLICANT_PROFILE_CHANGED,
+    APPLICANT_PROFILE_SYNC_COMPLETED,
+
+    // JD 분석
+    JD_ANALYSIS_REQUESTED,
+    JD_ANALYSIS_COMPLETED,
+
+    // 구직자 분석
+    APPLICANT_ANALYSIS_REQUESTED,
+    APPLICANT_ANALYSIS_COMPLETED,
+
+    // 기업 - 구직자 매칭
+    MATCHING_REQUESTED,
+    MATCHING_COMPLETED,
+
+    // 면접 질문 생성(답변 제출 및 다음 질문 생성)
+    INTERVIEW_QUESTION_REQUESTED,
+    INTERVIEW_QUESTION_GENERATED,
+
+    // 면접 스크립트 저장
+    INTERVIEW_TRANSCRIPT_SAVE_REQUESTED,
+    INTERVIEW_TRANSCRIPT_SAVED,
+
+    // 인터뷰 내용으로 리포트 생성
+    INTERVIEW_REPORT_REQUESTED,
+    INTERVIEW_REPORT_COMPLETED
+}
