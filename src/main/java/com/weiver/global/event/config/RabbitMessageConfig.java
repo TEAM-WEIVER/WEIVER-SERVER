@@ -1,7 +1,9 @@
 package com.weiver.global.event.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.AcknowledgeMode;
+import org.springframework.amqp.core.ReturnedMessage;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.listener.ConditionalRejectingErrorHandler;
@@ -12,6 +14,7 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+@Slf4j
 @Configuration
 public class RabbitMessageConfig {
 
@@ -40,6 +43,25 @@ public class RabbitMessageConfig {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
         template.setMessageConverter(messageConverter);
         template.setMandatory(true);
+        template.setConfirmCallback((correlationData, ack, cause) -> {
+            if (ack) {
+                return;
+            }
+
+            log.error(
+                    "RabbitMQ publisher confirm failed. correlationId={}, cause={}",
+                    correlationData != null ? correlationData.getId() : null,
+                    cause
+            );
+        });
+        template.setReturnsCallback(returned -> log.error(
+                "RabbitMQ message returned. exchange={}, routingKey={}, replyCode={}, replyText={}, messageId={}",
+                returned.getExchange(),
+                returned.getRoutingKey(),
+                returned.getReplyCode(),
+                returned.getReplyText(),
+                messageId(returned)
+        ));
         return template;
     }
 
@@ -56,5 +78,9 @@ public class RabbitMessageConfig {
         factory.setDefaultRequeueRejected(false);
         factory.setErrorHandler(new ConditionalRejectingErrorHandler());
         return factory;
+    }
+
+    private String messageId(ReturnedMessage returned) {
+        return returned.getMessage().getMessageProperties().getMessageId();
     }
 }
