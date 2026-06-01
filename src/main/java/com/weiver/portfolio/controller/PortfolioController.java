@@ -21,7 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "포트폴리오(Portfolio) API", description = "구직자의 포트폴리오 파일(PDF 등) 및 외부 링크 저장/조회 API입니다.")
 @RestController
-@RequestMapping("/portfolios")
+@RequestMapping("/api/portfolios")
 @RequiredArgsConstructor
 public class PortfolioController {
 

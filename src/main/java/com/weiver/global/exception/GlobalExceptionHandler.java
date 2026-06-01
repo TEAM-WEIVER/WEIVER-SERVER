@@ -40,11 +40,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpServletRequest request,
             HttpServletResponse response) {
 
+        // Sentry 전송 제외: 의도된 비즈니스 예외는 WARN 레벨로 기록하고 기존 에러 응답을 유지한다.
         log.warn("[BusinessException] errorCode={}, message={}, path={}",
                 ex.getCode().code, ex.getMessage(), request.getRequestURI());
 
         // 토큰 재사용 감지 시 리프레시 토큰 쿠키 만료
-        if(ex.getCode() == ErrorCode.TOKEN_REUSE_DETECTED) {
+        if (ex.getCode() == ErrorCode.TOKEN_REUSE_DETECTED) {
             ResponseCookie expiredRefreshTokenCookie = cookieProvider.createExpiredRefreshTokenCookie();
             response.addHeader(HttpHeaders.SET_COOKIE, expiredRefreshTokenCookie.toString());
         }
@@ -54,6 +55,25 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                 .body(ErrorResponse.of(
                         ex.getCode(),
                         ex.getMessage(),
+                        request.getRequestURI(),
+                        List.of()
+                ));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ErrorResponse> handleUnexpectedException(
+            Exception ex,
+            HttpServletRequest request) {
+
+        // Sentry 전송 대상: 예측하지 못한 시스템 예외는 ERROR 레벨과 예외 객체를 함께 기록한다.
+        log.error("[UnhandledException] message={}, path={}",
+                ex.getMessage(), request.getRequestURI(), ex);
+
+        return ResponseEntity
+                .status(ErrorCode.INTERNAL_SERVER_ERROR.httpStatus)
+                .body(ErrorResponse.of(
+                        ErrorCode.INTERNAL_SERVER_ERROR,
+                        "서버 내부 오류가 발생했습니다.",
                         request.getRequestURI(),
                         List.of()
                 ));
@@ -125,7 +145,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode status,
             WebRequest request) {
 
-        return toResponseObject(ErrorCode.MALFORMED_JSON,getPath(request), List.of());
+        return toResponseObject(ErrorCode.MALFORMED_JSON, getPath(request), List.of());
     }
 
     @Override
@@ -156,8 +176,23 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpStatusCode statusCode,
             WebRequest request) {
 
-        log.error("[UnhandledException] message={}", ex.getMessage(), ex);
-        return toResponseObject(ErrorCode.INTERNAL_SERVER_ERROR, getPath(request), List.of());
+        String path = getPath(request);
+
+        if (statusCode.is5xxServerError()) {
+            // Sentry 전송 대상: Spring 내부 처리 중 발생한 5xx 예외는 ERROR 레벨로 스택 트레이스를 남긴다.
+            log.error("[UnhandledException] message={}, path={}", ex.getMessage(), path, ex);
+            return toResponseObject(
+                    ErrorCode.INTERNAL_SERVER_ERROR,
+                    "서버 내부 오류가 발생했습니다.",
+                    path,
+                    List.of()
+            );
+        }
+
+        // Sentry 전송 제외: Spring MVC 4xx 계열 예외는 클라이언트 요청 문제로 보고 WARN 레벨로 기록한다.
+        log.warn("[SpringClientException] status={}, message={}, path={}",
+                statusCode.value(), ex.getMessage(), path);
+        return toResponseObject(ErrorCode.BAD_REQUEST, path, List.of());
     }
 
     // ===================== private 헬퍼 =====================
@@ -180,6 +215,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity
                 .status(errorCode.httpStatus)
                 .body(ErrorResponse.of(errorCode, path, details));
+    }
+
+    private ResponseEntity<Object> toResponseObject(
+            ErrorCode errorCode,
+            String message,
+            String path,
+            List<ErrorDetail> details) {
+
+        return ResponseEntity
+                .status(errorCode.httpStatus)
+                .body(ErrorResponse.of(errorCode, message, path, details));
     }
 
     private String getPath(WebRequest request) {

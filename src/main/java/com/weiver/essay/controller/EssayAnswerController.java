@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "자기소개서(Essay) API", description = "구직자의 자기소개서 조회, 저장 및 수정 API입니다.")
 @RestController
-@RequestMapping("/essay-answers")
+@RequestMapping("/api/essay-answers")
 @RequiredArgsConstructor
 public class EssayAnswerController {
 
