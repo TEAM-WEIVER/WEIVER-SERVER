@@ -186,3 +186,15 @@ logging:
     org.springframework.web: DEBUG
     org.springframework.security: DEBUG
     org.hibernate.orm.jdbc.bind: TRACE
+
+# =============================================================================
+# Sentry 설정
+# =============================================================================
+sentry:
+  dsn: ${SENTRY_DSN} # 💡 GitHub Secrets나 서버 환경 변수로 주입받아야 합니다.
+  environment: production
+  traces-sample-rate: 1.0 # 트레이싱(성능 모니터링) 샘플링 비율 (1.0 = 100% 수집. 트래픽이 많아지면 0.1 정도로 낮추는 것을 권장)
+  send-default-pii: false # 사용자 IP, 쿠키 등 민감한 개인정보(PII) 기본 전송 차단 (보안 강화)
+  logging:
+    minimum-breadcrumb-level: info # 에러 발생 직전에 어떤 INFO 로그들이 찍혔는지 함께 수집하여 디버깅을 돕습니다.
+    minimum-event-level: error # ERROR 레벨의 로그만 실제 Sentry 이슈로 전송합니다.
