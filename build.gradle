@@ -110,7 +110,7 @@ dependencies {
     // ----------------------------------------------------------------------
     implementation 'org.springframework.boot:spring-boot-starter-aop'
 
-    implementation 'io.sentry:sentry-spring-boot-starter:7.3.0'
+    implementation 'io.sentry:sentry-spring-boot-starter:8.43.0'
 
     // ----------------------------------------------------------------------
     // 8. Utilities
@@ -199,6 +199,10 @@ tasks.withType(Test).configureEach {
         showExceptions = true
         showCauses = true
     }
+}
+
+tasks.named('generateSentryBundleIdJava') {
+    mustRunAfter tasks.named('compileJava')
 }
 
 bootJar {

@@ -62,7 +62,7 @@ public class HttpLoggingFilter extends OncePerRequestFilter {
         int status = response.getStatus();
 
         if(status >= 500) {
-            log.error(
+            log.warn(
                     "[HTTP RESPONSE] method={} uri={} status={} duration={}ms",
                     request.getMethod(),
                     request.getRequestURI(),
