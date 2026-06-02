@@ -4,6 +4,8 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -43,6 +45,24 @@ public class ErrorResponse {
                 .status("error")
                 .httpStatus(errorCode.httpStatus.value())
                 .errorCode(errorCode.code)
+                .message(message)
+                .timestamp(LocalDateTime.now()
+                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"))
+                )
+                .path(path)
+                .errors(errors)
+                .build();
+    }
+
+    public static ErrorResponse of(HttpStatusCode httpStatus, String path, List<ErrorDetail> errors) {
+        HttpStatus status = HttpStatus.resolve(httpStatus.value());
+        String errorCode = status != null ? status.name() : "HTTP_" + httpStatus.value();
+        String message = status != null ? status.getReasonPhrase() : "HTTP Status " + httpStatus.value();
+
+        return ErrorResponse.builder()
+                .status("error")
+                .httpStatus(httpStatus.value())
+                .errorCode(errorCode)
                 .message(message)
                 .timestamp(LocalDateTime.now()
                         .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"))

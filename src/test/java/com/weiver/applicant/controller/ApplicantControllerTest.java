@@ -176,7 +176,7 @@ class ApplicantControllerTest {
         // [주의] addFilters = false 상태에서 커스텀 객체를 안 주입하면
         // 컨트롤러의 파라미터가 아예 null이 됩니다.
         // 컨트롤러에서 `if(principal == null) throw UNAUTHORIZED;` 처리가 되어있어야 통과합니다!
-        mockMvc.perform(get("/applicants")
+        mockMvc.perform(get("/api/applicants")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isUnauthorized());
@@ -188,19 +188,19 @@ class ApplicantControllerTest {
         // given
         String publicId = "1";
 
-        String requestDtoJson = "{\"AwardDTO\":[{\"awardId\":999, \"awardDate\":\"2025-11-25\", \"awardName\":\"해킹상\", \"issuer\":\"KISA\"}]}";
+        String requestDtoJson = "{\"AwardUpdateDTO\":[{\"awardId\":999, \"awardDate\":\"2025-11-25\", \"awardName\":\"해킹상\", \"issuer\":\"KISA\"}]}";
 
         doThrow(new BusinessException(ErrorCode.AWARD_NOT_FOUND))
                 .when(awardService).updateAwardInfo(eq(publicId), any());
 
         // when, then
-        mockMvc.perform(put("/applicants/award")
+        mockMvc.perform(put("/api/applicants/award")
                         .with(customAuth("1")) // ⬅️ 변경!
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestDtoJson))
                 .andDo(print())
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("AWARD_NOT_FOUND"));
     }
 
     @Test

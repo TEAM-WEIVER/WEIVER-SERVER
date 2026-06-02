@@ -108,7 +108,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             WebRequest request) {
 
         log.warn("[NoResourceFound] path={}", ex.getMessage());
-        return toResponseObject(ErrorCode.BAD_REQUEST, getPath(request), List.of());
+        return toResponseObject(status, getPath(request), List.of());
     }
 
     @Override
@@ -192,7 +192,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         // Sentry 전송 제외: Spring MVC 4xx 계열 예외는 클라이언트 요청 문제로 보고 WARN 레벨로 기록한다.
         log.warn("[SpringClientException] status={}, message={}, path={}",
                 statusCode.value(), ex.getMessage(), path);
-        return toResponseObject(ErrorCode.BAD_REQUEST, path, List.of());
+        return toResponseObject(statusCode, path, List.of());
     }
 
     // ===================== private 헬퍼 =====================
@@ -226,6 +226,16 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity
                 .status(errorCode.httpStatus)
                 .body(ErrorResponse.of(errorCode, message, path, details));
+    }
+
+    private ResponseEntity<Object> toResponseObject(
+            HttpStatusCode statusCode,
+            String path,
+            List<ErrorDetail> details) {
+
+        return ResponseEntity
+                .status(statusCode)
+                .body(ErrorResponse.of(statusCode, path, details));
     }
 
     private String getPath(WebRequest request) {
