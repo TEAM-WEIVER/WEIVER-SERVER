@@ -176,3 +176,10 @@ logging:
     org.springframework.web: DEBUG
     org.springframework.security: DEBUG
     org.hibernate.orm.jdbc.bind: TRACE
+
+# =============================================================================
+# Sentry 설정 (Local)
+# =============================================================================
+sentry:
+  dsn: ""
+  environment: local

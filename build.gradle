@@ -2,6 +2,7 @@ plugins {
     id 'java'
     id 'org.springframework.boot' version '3.5.13'
     id 'io.spring.dependency-management' version '1.1.7'
+    id "io.sentry.jvm.gradle" version "6.9.0" // Sentry Gradle Plugin
 }
 
 group = 'com.weiver'
@@ -109,6 +110,8 @@ dependencies {
     // ----------------------------------------------------------------------
     implementation 'org.springframework.boot:spring-boot-starter-aop'
 
+    implementation 'io.sentry:sentry-spring-boot-starter:8.43.0'
+
     // ----------------------------------------------------------------------
     // 8. Utilities
     // ----------------------------------------------------------------------
@@ -198,10 +201,25 @@ tasks.withType(Test).configureEach {
     }
 }
 
+tasks.named('generateSentryBundleIdJava') {
+    mustRunAfter tasks.named('compileJava')
+}
+
 bootJar {
     archiveFileName = 'app.jar'
 }
 
 jar {
     enabled = false
+}
+
+sentry {
+    // Generates a JVM (Java, Kotlin, etc.) source bundle and uploads your source code to Sentry.
+    // This enables source context, allowing you to see your source
+    // code as part of your stack traces in Sentry.
+    includeSourceContext = true
+
+    org = "weiver"
+    projectName = "java-spring-boot"
+    authToken = System.getenv("SENTRY_AUTH_TOKEN")
 }

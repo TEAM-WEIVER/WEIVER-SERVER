@@ -129,8 +129,8 @@ class ApplicantControllerTest {
         given(applicantService.searchApplicant(publicId)).willReturn(mockResponseDTO);
 
         // when, then
-        mockMvc.perform(get("/applicants")
-                        .with(customAuth("2222")) // ⬅️ 변경: 찰떡같이 붙는 커스텀 인증!
+        mockMvc.perform(get("/api/applicants")
+                        .with(customAuth("2222"))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -155,14 +155,14 @@ class ApplicantControllerTest {
         );
 
         // when, then
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/applicants/info")
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/applicants/info")
                         .file(requestDtoPart)
                         .file(profileImagePart)
                         .with(request -> {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .with(customAuth("2222")) // ⬅️ 변경!
+                        .with(customAuth("2222"))
                 )
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -173,10 +173,7 @@ class ApplicantControllerTest {
     @Test
     @DisplayName("엣지 케이스 : Principal이 없을 대 UNAUTHORIZED 에러 발생")
     void searchApplicant_WithoutPrincipal_ThrowsUnauthorized() throws Exception {
-        // [주의] addFilters = false 상태에서 커스텀 객체를 안 주입하면
-        // 컨트롤러의 파라미터가 아예 null이 됩니다.
-        // 컨트롤러에서 `if(principal == null) throw UNAUTHORIZED;` 처리가 되어있어야 통과합니다!
-        mockMvc.perform(get("/applicants")
+        mockMvc.perform(get("/api/applicants")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isUnauthorized());
@@ -188,19 +185,19 @@ class ApplicantControllerTest {
         // given
         String publicId = "1";
 
-        String requestDtoJson = "{\"AwardDTO\":[{\"awardId\":999, \"awardDate\":\"2025-11-25\", \"awardName\":\"해킹상\", \"issuer\":\"KISA\"}]}";
+        String requestDtoJson = "{\"AwardUpdateDTO\":[{\"awardId\":999, \"awardDate\":\"2025-11-25\", \"awardName\":\"해킹상\", \"issuer\":\"KISA\"}]}";
 
         doThrow(new BusinessException(ErrorCode.AWARD_NOT_FOUND))
                 .when(awardService).updateAwardInfo(eq(publicId), any());
 
         // when, then
-        mockMvc.perform(put("/applicants/award")
-                        .with(customAuth("1")) // ⬅️ 변경!
+        mockMvc.perform(put("/api/applicants/award")
+                        .with(customAuth("1"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(requestDtoJson))
                 .andDo(print())
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errorCode").value("VALIDATION_FAILED"));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.errorCode").value("AWARD_NOT_FOUND"));
     }
 
     @Test
@@ -221,7 +218,7 @@ class ApplicantControllerTest {
         doNothing().when(applicantService).updateApplicantInfo(eq(publicId), any(), any());
 
         // when, then
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/applicants/info")
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/applicants/info")
                         .file(requestDtoPart)
                         .with(request -> {
                             request.setMethod(HttpMethod.PUT.name());
@@ -247,13 +244,13 @@ class ApplicantControllerTest {
         );
 
         // when, then
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/applicants/info")
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/applicants/info")
                         .file(requestDtoPart)
                         .with(request -> {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .with(customAuth("1"))) // ⬅️ 변경!
+                        .with(customAuth("1")))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value("error"));
@@ -282,14 +279,14 @@ class ApplicantControllerTest {
                 .when(applicantService).updateApplicantInfo(eq(publicId), any(), any());
 
         // when, then
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/applicants/info")
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/applicants/info")
                         .file(requestDtoPart)
                         .file(maliciousFilePart)
                         .with(request -> {
                             request.setMethod(HttpMethod.PUT.name());
                             return request;
                         })
-                        .with(customAuth("2222"))) // ⬅️ 변경!
+                        .with(customAuth("2222")))
                 .andDo(print())
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("지원하지 않는 파일 형식입니다."));

@@ -30,7 +30,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
         "- 최종적으로 **저장 버튼을 누르는 순간, 화면에 남아있는 전체 데이터 리스트를 한 번에 배열에 담아 전송**해야 합니다.\n" +
         "- **서버 동작 방식:** 프론트에서 보낸 배열에 없는 기존 데이터는 사용자가 화면에서 지운 것으로 간주하고 **서버가 DB에서 자동 삭제 처리**합니다.")
 @RestController
-@RequestMapping("/applicants")
+@RequestMapping("/api/applicants")
 @RequiredArgsConstructor
 public class ApplicantController {
 
