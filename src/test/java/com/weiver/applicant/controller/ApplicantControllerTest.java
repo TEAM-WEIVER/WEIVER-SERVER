@@ -129,7 +129,7 @@ class ApplicantControllerTest {
         given(applicantService.searchApplicant(publicId)).willReturn(mockResponseDTO);
 
         // when, then
-        mockMvc.perform(get("/applicants")
+        mockMvc.perform(get("/api/applicants")
                         .with(customAuth("2222")) // ⬅️ 변경: 찰떡같이 붙는 커스텀 인증!
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
@@ -155,7 +155,7 @@ class ApplicantControllerTest {
         );
 
         // when, then
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/applicants/info")
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/applicants/info")
                         .file(requestDtoPart)
                         .file(profileImagePart)
                         .with(request -> {
@@ -221,7 +221,7 @@ class ApplicantControllerTest {
         doNothing().when(applicantService).updateApplicantInfo(eq(publicId), any(), any());
 
         // when, then
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/applicants/info")
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/applicants/info")
                         .file(requestDtoPart)
                         .with(request -> {
                             request.setMethod(HttpMethod.PUT.name());
@@ -247,7 +247,7 @@ class ApplicantControllerTest {
         );
 
         // when, then
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/applicants/info")
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/applicants/info")
                         .file(requestDtoPart)
                         .with(request -> {
                             request.setMethod(HttpMethod.PUT.name());
@@ -282,7 +282,7 @@ class ApplicantControllerTest {
                 .when(applicantService).updateApplicantInfo(eq(publicId), any(), any());
 
         // when, then
-        mockMvc.perform(MockMvcRequestBuilders.multipart("/applicants/info")
+        mockMvc.perform(MockMvcRequestBuilders.multipart("/api/applicants/info")
                         .file(requestDtoPart)
                         .file(maliciousFilePart)
                         .with(request -> {

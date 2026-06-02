@@ -185,7 +185,7 @@ logging:
     com.weiver: DEBUG
     org.springframework.web: DEBUG
     org.springframework.security: DEBUG
-    org.hibernate.orm.jdbc.bind: TRACE
+    org.hibernate.orm.jdbc.bind: DEBUG
 
 # =============================================================================
 # Sentry 설정
