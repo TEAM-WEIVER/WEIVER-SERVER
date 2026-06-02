@@ -201,9 +201,6 @@ tasks.withType(Test).configureEach {
     }
 }
 
-tasks.named('generateSentryBundleIdJava') {
-    mustRunAfter tasks.named('compileJava')
-}
 
 bootJar {
     archiveFileName = 'app.jar'
@@ -222,4 +219,20 @@ sentry {
     org = "weiver"
     projectName = "java-spring-boot"
     authToken = System.getenv("SENTRY_AUTH_TOKEN")
+}
+
+afterEvaluate {
+    def sentryTasks = [
+            'generateSentryBundleIdJava',
+            'sentryCollectSourcesJava',
+            'uploadSentrySourceContextJava'
+    ]
+
+    sentryTasks.each { taskName ->
+        if (tasks.findByName(taskName)) {
+            tasks.named(taskName) {
+                mustRunAfter tasks.named('compileJava')
+            }
+        }
+    }
 }
