@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import org.springframework.http.HttpStatusCode;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -27,6 +28,21 @@ public class ErrorResponse {
         return ErrorResponse.builder()
                 .status("error")
                 .httpStatus(errorCode.httpStatus.value())
+                .errorCode(errorCode.code)
+                .message(errorCode.defaultMessage)
+                .timestamp(LocalDateTime.now()
+                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss"))
+                )
+                .path(path)
+                .errors(errors)
+                .build();
+    }
+
+    // 실제 HttpStatusCode를 사용하는 팩토리 (Spring MVC 예외의 실제 상태 코드 반영용)
+    public static ErrorResponse of(HttpStatusCode httpStatus, ErrorCode errorCode, String path, List<ErrorDetail> errors) {
+        return ErrorResponse.builder()
+                .status("error")
+                .httpStatus(httpStatus.value())
                 .errorCode(errorCode.code)
                 .message(errorCode.defaultMessage)
                 .timestamp(LocalDateTime.now()
