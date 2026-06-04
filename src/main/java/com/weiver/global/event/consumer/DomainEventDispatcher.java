@@ -18,7 +18,17 @@ public class DomainEventDispatcher {
     public DomainEventDispatcher(List<DomainEventHandler> handlerList) {
         this.handlers = new EnumMap<>(EventType.class);
         for(DomainEventHandler handler : handlerList) {
-            this.handlers.put(handler.support(), handler);
+            DomainEventHandler previous = this.handlers.putIfAbsent(handler.support(), handler);
+            if (previous != null) {
+                throw new IllegalStateException(
+                        "Duplicate domain event handler registration. eventType="
+                                + handler.support()
+                                + ", existingHandler="
+                                + previous.getClass().getName()
+                                + ", duplicateHandler="
+                                + handler.getClass().getName()
+                );
+            }
         }
     }
 
