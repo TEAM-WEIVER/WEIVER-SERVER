@@ -8,16 +8,23 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class DomainEventPublisher {
 
+    private static final long PUBLISH_CONFIRM_TIMEOUT_SECONDS = 10L;
+
     private final RabbitTemplate rabbitTemplate;
     private final RabbitMqProperties properties;
 
     public void publish(EventEnvelope<?> envelope) {
+        validateEnvelope(envelope);
+
         String routingKey = EventRoutingKeys.from(envelope.eventType());
         CorrelationData correlationData = new CorrelationData(envelope.eventId());
 
@@ -28,12 +35,13 @@ public class DomainEventPublisher {
                 correlationData
         );
 
-        correlationData.getFuture().whenComplete((confirm, ex) -> {
+        correlationData.getFuture().orTimeout(PUBLISH_CONFIRM_TIMEOUT_SECONDS, TimeUnit.SECONDS).whenComplete((confirm, ex) -> {
             if (ex != null) {
                 log.error("RabbitMQ publish confirm failed. eventId={}, eventType={}, routingKey={}",
                         envelope.eventId(),
                         envelope.eventType(),
-                        routingKey
+                        routingKey,
+                        ex
                 );
                 return;
             }
@@ -56,5 +64,17 @@ public class DomainEventPublisher {
                     routingKey
             );
         });
+    }
+
+    private void validateEnvelope(EventEnvelope<?> envelope) {
+        if (envelope == null) {
+            throw new IllegalArgumentException("Event envelope must not be null");
+        }
+        if (!StringUtils.hasText(envelope.eventId())) {
+            throw new IllegalArgumentException("event_id is required for publishing");
+        }
+        if (envelope.eventType() == null) {
+            throw new IllegalArgumentException("event_type is required for publishing");
+        }
     }
 }
