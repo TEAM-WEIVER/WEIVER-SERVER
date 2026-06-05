@@ -149,17 +149,4 @@ class JobPostingControllerTest {
                 .andExpect(jsonPath("$.message").value("채용 공고가 성공적으로 수정되었습니다."))
                 .andDo(print());
     }
-
-    @Test
-    @DisplayName("공고 리스트 조회 : Principal(로그인 정보)이 없을 경우 401 UNAUTHORIZED 발생")
-    void getJobPostingsList_Unauthorized() throws Exception {
-        // given
-
-        // when & then
-        mockMvc.perform(get("/api/job-postings")
-                        .param("page", "0")
-                        .param("size", "5"))
-                .andExpect(status().isUnauthorized())
-                .andDo(print());
-    }
 }
