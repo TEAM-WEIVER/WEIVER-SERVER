@@ -1,6 +1,5 @@
 package com.weiver.matching.repository;
 
-import com.weiver.applicant.domain.Applicant;
 import com.weiver.matching.domain.MatchResult;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
