@@ -11,4 +11,5 @@ import java.util.Optional;
 public interface CultureReportRepository extends JpaRepository<CultureReport, Long> {
     Optional<CultureReport> findByApplicant(Applicant applicant);
     Optional<CultureReport> findByApplicant_PublicId(String applicantPublicId);
+    Optional<CultureReport> findByApplicant_ApplicantId(Long applicantId);
 }

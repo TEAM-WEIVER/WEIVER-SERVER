@@ -11,7 +11,13 @@ import lombok.*;
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "match_results")
+@Table(
+        name = "match_results",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uq_match_result_jd_applicant",
+                columnNames = {"jd_id", "applicant_id"}
+        )
+)
 public class MatchResult extends BaseTimeEntity {
 
     @Id

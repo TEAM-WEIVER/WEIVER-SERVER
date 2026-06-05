@@ -14,6 +14,10 @@ public interface MatchResultRepository extends JpaRepository<MatchResult, Long>,
 
     Optional<MatchResult> findByJobPosting_JdIdAndApplicant_PublicId(Long jdId, String applicantPublicId);
 
+    Optional<MatchResult> findByJobPosting_JdIdAndApplicant_ApplicantId(Long jdId, Long applicantId);
+
+    void deleteByJobPosting_JdId(Long jdId);
+
     boolean existsByJobPosting_JdIdAndApplicant_PublicIdAndJobPosting_Company_PublicId(
             Long jdId, String applicantPublicId, String companyPublicId
     );

@@ -2,6 +2,7 @@ package com.weiver.analysis.domain;
 
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.global.common.BaseTimeEntity;
+import com.weiver.interview.domain.InterviewSession;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -22,7 +23,6 @@ public class DetailAnalysisReport extends BaseTimeEntity {
     @Column(name = "report_id")
     private Long reportId;
 
-
     /**
      * /worker/evaluate_interview response 저장
      * */
@@ -41,5 +41,10 @@ public class DetailAnalysisReport extends BaseTimeEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "applicant_id", nullable = false)
     private Applicant applicant;
+
+    @ToString.Exclude
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "interview_session_id", referencedColumnName = "interview_session_id", unique = true)
+    private InterviewSession interviewSession;
 
 }
