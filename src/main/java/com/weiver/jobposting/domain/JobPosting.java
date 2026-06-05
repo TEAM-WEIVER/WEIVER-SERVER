@@ -1,7 +1,9 @@
 package com.weiver.jobposting.domain;
 
 import com.weiver.company.domain.Company;
+import com.weiver.global.common.BaseTimeEntity;
 import com.weiver.jobposting.dto.request.JobPostingUpdateDTO;
+import com.weiver.jobposting.type.JdAnalysisStatus;
 import com.weiver.jobposting.type.JobPostingStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -9,6 +11,7 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 @Entity
@@ -17,7 +20,7 @@ import java.util.List;
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "job_postings")
-public class JobPosting {
+public class JobPosting extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -67,6 +70,17 @@ public class JobPosting {
     @Column(name = "status", nullable = false)
     private JobPostingStatus status;
 
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "jd_analysis_status", length = 50)
+    private JdAnalysisStatus jdAnalysisStatus = JdAnalysisStatus.PENDING;
+
+    @Column(name = "jd_analysis_requested_at")
+    private OffsetDateTime jdAnalysisRequestedAt;
+
+    @Column(name = "jd_analyzed_at")
+    private OffsetDateTime jdAnalyzedAt;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
@@ -96,5 +110,19 @@ public class JobPosting {
 
     public void updateStatus(JobPostingStatus status){
         this.status = status;
+    }
+
+    public void markJdAnalysisRequested() {
+        this.jdAnalysisStatus = JdAnalysisStatus.REQUESTED;
+        this.jdAnalysisRequestedAt = OffsetDateTime.now();
+    }
+
+    public void markJdAnalysisCompleted() {
+        this.jdAnalysisStatus = JdAnalysisStatus.COMPLETED;
+        this.jdAnalyzedAt = OffsetDateTime.now();
+    }
+
+    public void markJdAnalysisFailed() {
+        this.jdAnalysisStatus = JdAnalysisStatus.FAILED;
     }
 }

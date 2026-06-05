@@ -2,6 +2,7 @@ package com.weiver.applicant.domain;
 
 import com.weiver.applicant.dto.request.put.ApplicantInfoRequestDTO;
 import com.weiver.applicant.type.ApplicantStatus;
+import com.weiver.applicant.type.ProfileSyncStatus;
 import com.weiver.global.common.BaseTimeEntity;
 import com.weiver.global.common.UserRole;
 import jakarta.persistence.*;
@@ -9,6 +10,7 @@ import lombok.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Getter
@@ -66,9 +68,18 @@ public class Applicant extends BaseTimeEntity {
     private String address;  // 주소
 
     @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "profile_sync_status", length = 50)
+    private ProfileSyncStatus profileSyncStatus = ProfileSyncStatus.PENDING;
+
+    @Column(name = "profile_synced_at")
+    private OffsetDateTime profileSyncedAt;
+
+    @Builder.Default
     @Column(nullable = false)
     private boolean deleted = false;
 
+    @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
     /**
@@ -95,5 +106,18 @@ public class Applicant extends BaseTimeEntity {
 
     public void resetPendingPassword(String encodedPassword) {
         this.password = encodedPassword;
+    }
+
+    public void markProfileSyncRequested() {
+        this.profileSyncStatus = ProfileSyncStatus.REQUESTED;
+    }
+
+    public void markProfileSyncCompleted(OffsetDateTime syncedAt) {
+        this.profileSyncStatus = ProfileSyncStatus.COMPLETED;
+        this.profileSyncedAt = syncedAt;
+    }
+
+    public void markProfileSyncFailed() {
+        this.profileSyncStatus = ProfileSyncStatus.FAILED;
     }
 }
