@@ -13,8 +13,8 @@ import com.weiver.applicant.service.ApplicantService;
 import com.weiver.applicant.service.WorkExperienceService;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.interview.dto.response.InterviewTurnDTO;
 import com.weiver.interview.service.InterviewSessionService;
-import com.weiver.interview.type.InterviewType;
 import com.weiver.jobposting.domain.JobPosting;
 import com.weiver.matching.domain.MatchResult;
 import com.weiver.matching.dto.response.*;
@@ -63,6 +63,7 @@ class MatchResultReportServiceTest {
     void getCardSummary_ReturnsCorrectCardSummary() {
         // given
         MatchResult matchResult = MatchResult.builder()
+                .skillScore(95.0f)
                 .matchingRate(95.0f)
                 .note("훌륭한 지원자입니다.")
                 .build();
@@ -82,7 +83,7 @@ class MatchResultReportServiceTest {
 
         // then
         assertThat(response.memo()).isEqualTo("훌륭한 지원자입니다.");
-        assertThat(response.cardDetailDTO().skillScore()).isEqualTo(95.0f);
+        assertThat(response.cardDetailDTO().skillScore()).isEqualTo(95);
         assertThat(response.profileDetailDTO().name()).isEqualTo("홍길동");
     }
 
@@ -257,11 +258,14 @@ class MatchResultReportServiceTest {
         // given
         MatchResult matchResult = MatchResult.builder().build();
         PortfolioDetailDTO portfolioDto = new PortfolioDetailDTO("s3://file", "github", null, null);
-        List<InterviewScriptDTO> techScripts = List.of(new InterviewScriptDTO("Q", "A"));
+        List<InterviewTurnDTO> interviewTurns = List.of(
+                new InterviewTurnDTO("S_01_00", 1, "Q", "A"),
+                new InterviewTurnDTO("C_01_00", 2, "CQ", "CA")
+        );
 
         givenValidatedMatchResult(matchResult);
         given(portfolioService.getApplicantPortfolio(APPLICANT_PUBLIC_ID)).willReturn(portfolioDto);
-        given(interviewSessionService.getInterviewScripts(APPLICANT_PUBLIC_ID, InterviewType.TECH.name())).willReturn(techScripts);
+        given(interviewSessionService.getLatestInterviewTurns(APPLICANT_PUBLIC_ID)).willReturn(interviewTurns);
 
         // when
         DocumentTabSummaryDTO response = matchResultReportService.getDocumentTabSummary(JD_ID, APPLICANT_PUBLIC_ID, COMPANY_PUBLIC_ID);
@@ -269,6 +273,7 @@ class MatchResultReportServiceTest {
         // then
         assertThat(response.portfolioDetailDTO().portfolioFileUrl()).isEqualTo("s3://file");
         assertThat(response.techInterviewScripts()).hasSize(1);
+        assertThat(response.cultureInterviewScripts()).hasSize(1);
     }
 
     @Test

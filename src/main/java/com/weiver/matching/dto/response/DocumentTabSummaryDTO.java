@@ -1,6 +1,7 @@
 package com.weiver.matching.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.weiver.interview.dto.response.InterviewTurnDTO;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.util.List;
@@ -12,15 +13,15 @@ public record DocumentTabSummaryDTO(
         PortfolioDetailDTO portfolioDetailDTO,
 
         @Schema(description = "기술면접 스크립트 질문/답변 목록입니다.")
-        List<InterviewScriptDTO> techInterviewScripts,
+        List<InterviewTurnDTO> techInterviewScripts,
 
         @Schema(description = "인성 또는 컬처핏 면접 스크립트 질문/답변 목록입니다.")
-        List<InterviewScriptDTO> cultureInterviewScripts
+        List<InterviewTurnDTO> cultureInterviewScripts
 ) {
     public static DocumentTabSummaryDTO of(
             PortfolioDetailDTO portfolioDetailDTO,
-            List<InterviewScriptDTO> techInterviewScripts,
-            List<InterviewScriptDTO> cultureInterviewScripts
+            List<InterviewTurnDTO> techInterviewScripts,
+            List<InterviewTurnDTO> cultureInterviewScripts
     ) {
         return new DocumentTabSummaryDTO(
                 portfolioDetailDTO,

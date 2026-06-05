@@ -10,8 +10,8 @@ import com.weiver.applicant.service.ApplicantService;
 import com.weiver.applicant.service.WorkExperienceService;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.interview.dto.response.InterviewTurnDTO;
 import com.weiver.interview.service.InterviewSessionService;
-import com.weiver.interview.type.InterviewType;
 import com.weiver.jobposting.domain.JobPosting;
 import com.weiver.matching.domain.MatchResult;
 import com.weiver.matching.dto.response.*;
@@ -32,6 +32,9 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class MatchResultReportService {
+
+    private static final String SKILL_QUESTION_PREFIX = "S_";
+    private static final String CULTURE_QUESTION_PREFIX = "C_";
 
     private final ApplicantService applicantService;
     private final ReportService reportService;
@@ -151,10 +154,12 @@ public class MatchResultReportService {
                 portfolioDetailDTO = new PortfolioDetailDTO(null, null, null, null);
             } else {
                 throw e;
-            }        }
+            }
+        }
 
-        List<InterviewScriptDTO> techScripts = interviewSessionService.getInterviewScripts(applicantPublicId, InterviewType.TECH.name());
-        List<InterviewScriptDTO> cultureScripts = interviewSessionService.getInterviewScripts(applicantPublicId, InterviewType.CULTURE.name());
+        List<InterviewTurnDTO> interviewTurns = interviewSessionService.getLatestInterviewTurns(applicantPublicId);
+        List<InterviewTurnDTO> techScripts = filterInterviewTurnsByQuestionPrefix(interviewTurns, SKILL_QUESTION_PREFIX);
+        List<InterviewTurnDTO> cultureScripts = filterInterviewTurnsByQuestionPrefix(interviewTurns, CULTURE_QUESTION_PREFIX);
 
         return DocumentTabSummaryDTO.of(
                 portfolioDetailDTO,
@@ -162,6 +167,20 @@ public class MatchResultReportService {
                 cultureScripts
         );
 
+    }
+
+    private List<InterviewTurnDTO> filterInterviewTurnsByQuestionPrefix(
+            List<InterviewTurnDTO> interviewTurns,
+            String questionPrefix
+    ) {
+        if (interviewTurns == null) {
+            return List.of();
+        }
+
+        return interviewTurns.stream()
+                .filter(turn -> turn.questionCode() != null)
+                .filter(turn -> turn.questionCode().startsWith(questionPrefix))
+                .toList();
     }
 
 
