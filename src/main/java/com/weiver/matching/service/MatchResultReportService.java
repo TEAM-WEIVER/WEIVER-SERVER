@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -178,6 +179,7 @@ public class MatchResultReportService {
         }
 
         return interviewTurns.stream()
+                .filter(Objects::nonNull)
                 .filter(turn -> turn.questionCode() != null)
                 .filter(turn -> turn.questionCode().startsWith(questionPrefix))
                 .toList();

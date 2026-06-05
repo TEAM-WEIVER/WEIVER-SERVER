@@ -43,8 +43,8 @@ public class DetailAnalysisReport extends BaseTimeEntity {
     private Applicant applicant;
 
     @ToString.Exclude
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "interview_session_id", referencedColumnName = "interview_session_id", unique = true)
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "interview_session_id", referencedColumnName = "interview_session_id", nullable = false, unique = true)
     private InterviewSession interviewSession;
 
 }

@@ -72,7 +72,7 @@ public class JobPosting extends BaseTimeEntity {
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
-    @Column(name = "jd_analysis_status", length = 50)
+    @Column(name = "jd_analysis_status", nullable = false, length = 50)
     private JdAnalysisStatus jdAnalysisStatus = JdAnalysisStatus.PENDING;
 
     @Column(name = "jd_analysis_requested_at")
@@ -113,16 +113,34 @@ public class JobPosting extends BaseTimeEntity {
     }
 
     public void markJdAnalysisRequested() {
+        if (this.jdAnalysisStatus == JdAnalysisStatus.REQUESTED) {
+            return;
+        }
+        if (this.jdAnalysisStatus == JdAnalysisStatus.COMPLETED) {
+            throw new IllegalStateException("Completed JD analysis cannot be requested again.");
+        }
         this.jdAnalysisStatus = JdAnalysisStatus.REQUESTED;
         this.jdAnalysisRequestedAt = OffsetDateTime.now();
     }
 
     public void markJdAnalysisCompleted() {
+        if (this.jdAnalysisStatus == JdAnalysisStatus.COMPLETED) {
+            return;
+        }
+        if (this.jdAnalysisStatus != JdAnalysisStatus.REQUESTED) {
+            throw new IllegalStateException("JD analysis can be completed only after it has been requested.");
+        }
         this.jdAnalysisStatus = JdAnalysisStatus.COMPLETED;
         this.jdAnalyzedAt = OffsetDateTime.now();
     }
 
     public void markJdAnalysisFailed() {
+        if (this.jdAnalysisStatus == JdAnalysisStatus.FAILED) {
+            return;
+        }
+        if (this.jdAnalysisStatus == JdAnalysisStatus.COMPLETED) {
+            throw new IllegalStateException("Completed JD analysis cannot be marked as failed.");
+        }
         this.jdAnalysisStatus = JdAnalysisStatus.FAILED;
     }
 }

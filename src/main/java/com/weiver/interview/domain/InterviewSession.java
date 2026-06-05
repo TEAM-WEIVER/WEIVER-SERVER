@@ -26,7 +26,7 @@ public class InterviewSession extends BaseTimeEntity {
     private Long interviewId;
 
     @Builder.Default
-    @Column(name = "interview_session_id", unique = true, updatable = false)
+    @Column(name = "interview_session_id", nullable = false, unique = true, updatable = false)
     private UUID interviewSessionId = UUID.randomUUID();
 
     @Builder.Default

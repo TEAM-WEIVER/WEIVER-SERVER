@@ -11,6 +11,7 @@ import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
 @Getter
@@ -69,7 +70,7 @@ public class Applicant extends BaseTimeEntity {
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
-    @Column(name = "profile_sync_status", length = 50)
+    @Column(name = "profile_sync_status", nullable = false, length = 50)
     private ProfileSyncStatus profileSyncStatus = ProfileSyncStatus.PENDING;
 
     @Column(name = "profile_synced_at")
@@ -114,7 +115,7 @@ public class Applicant extends BaseTimeEntity {
 
     public void markProfileSyncCompleted(OffsetDateTime syncedAt) {
         this.profileSyncStatus = ProfileSyncStatus.COMPLETED;
-        this.profileSyncedAt = syncedAt;
+        this.profileSyncedAt = Objects.requireNonNull(syncedAt, "syncedAt must not be null");
     }
 
     public void markProfileSyncFailed() {
