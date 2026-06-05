@@ -35,7 +35,7 @@ public class TechnicalSkillReport extends BaseTimeEntity {
     private List<String> applicationProviderTags; // 유저 제공 스킬 태그
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "applicant_id", nullable = false)
+    @JoinColumn(name = "applicant_id", nullable = false, unique = true)
     @ToString.Exclude
     private Applicant applicant;
 

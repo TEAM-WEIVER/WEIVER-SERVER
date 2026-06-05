@@ -33,7 +33,7 @@ public class CultureReport extends BaseTimeEntity {
     private List<String> culturefitTag; // 컬처핏 리스트
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    @JoinColumn(name = "applicant_id", nullable = false)
+    @JoinColumn(name = "applicant_id", nullable = false, unique = true)
     @ToString.Exclude
     private Applicant applicant;
 

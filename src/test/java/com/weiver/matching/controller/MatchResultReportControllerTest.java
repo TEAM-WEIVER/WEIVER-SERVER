@@ -15,7 +15,7 @@ import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.matching.dto.response.ApplicantCardResponseDTO;
 import com.weiver.matching.dto.response.CardDetailDTO;
 import com.weiver.matching.dto.response.DocumentTabSummaryDTO;
-import com.weiver.matching.dto.response.InterviewScriptDTO;
+import com.weiver.interview.dto.response.InterviewTurnDTO;
 import com.weiver.matching.dto.response.MajorCareerDTO;
 import com.weiver.matching.dto.response.PortfolioDetailDTO;
 import com.weiver.matching.dto.response.ProfileDetailDTO;
@@ -189,8 +189,8 @@ class MatchResultReportControllerTest {
         // given
         DocumentTabSummaryDTO response = new DocumentTabSummaryDTO(
                 new PortfolioDetailDTO("https://file.test/portfolio.pdf", "https://github.com/weiver", null, null),
-                List.of(new InterviewScriptDTO("JPA N+1 문제를 어떻게 해결했나요?", "fetch join을 활용했습니다.")),
-                List.of(new InterviewScriptDTO("갈등 상황을 어떻게 해결했나요?", "근거를 정리해 합의했습니다."))
+                List.of(new InterviewTurnDTO("S_01_00", 1, "JPA N+1 문제를 어떻게 해결했나요?", "fetch join을 활용했습니다.")),
+                List.of(new InterviewTurnDTO("C_01_00", 2, "갈등 상황을 어떻게 해결했나요?", "근거를 정리해 합의했습니다."))
         );
 
         given(matchResultReportService.getDocumentTabSummary(JD_ID, APPLICANT_PUBLIC_ID, COMPANY_PUBLIC_ID))

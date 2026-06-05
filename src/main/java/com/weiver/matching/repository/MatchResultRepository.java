@@ -1,6 +1,5 @@
 package com.weiver.matching.repository;
 
-import com.weiver.applicant.domain.Applicant;
 import com.weiver.matching.domain.MatchResult;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,6 +12,10 @@ public interface MatchResultRepository extends JpaRepository<MatchResult, Long>,
     List<MatchResult> findAllByIsNotifiedFalse();
 
     Optional<MatchResult> findByJobPosting_JdIdAndApplicant_PublicId(Long jdId, String applicantPublicId);
+
+    Optional<MatchResult> findByJobPosting_JdIdAndApplicant_ApplicantId(Long jdId, Long applicantId);
+
+    void deleteByJobPosting_JdId(Long jdId);
 
     boolean existsByJobPosting_JdIdAndApplicant_PublicIdAndJobPosting_Company_PublicId(
             Long jdId, String applicantPublicId, String companyPublicId
