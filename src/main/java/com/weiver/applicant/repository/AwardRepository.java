@@ -10,4 +10,5 @@ import java.util.List;
 @Repository
 public interface AwardRepository extends JpaRepository<Award, Long> {
     List<Award> findAllByApplicant(Applicant applicant);
+    boolean existsByApplicant(Applicant applicant);
 }

@@ -10,4 +10,5 @@ import java.util.List;
 @Repository
 public interface WorkExperienceRepository extends JpaRepository<WorkExperience, Long> {
     List<WorkExperience> findAllByApplicantOrderByStartDateDesc(Applicant applicant);
+    boolean existsByApplicant(Applicant applicant);
 }
