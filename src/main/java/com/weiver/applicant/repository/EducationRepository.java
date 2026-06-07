@@ -10,4 +10,5 @@ import java.util.List;
 @Repository
 public interface EducationRepository extends JpaRepository<Education, Long>{
     List<Education> findAllByApplicant(Applicant applicant);
+    boolean existsByApplicant(Applicant applicant);
 }

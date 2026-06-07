@@ -6,14 +6,17 @@ import com.weiver.applicant.dto.request.post.AwardRequestDTO;
 import com.weiver.applicant.dto.request.post.EducationDetailDTO;
 import com.weiver.applicant.dto.request.post.EducationRequestDTO;
 import com.weiver.applicant.dto.request.put.ApplicantInfoRequestDTO;
+import com.weiver.applicant.dto.response.ApplicantDocumentStatusResponseDTO;
 import com.weiver.applicant.dto.response.ApplicantInfoResponseDTO;
 import com.weiver.applicant.repository.*;
+import com.weiver.essay.repository.EssayAnswerRepository;
 import com.weiver.applicant.type.Degree;
 import com.weiver.applicant.type.EmploymentType;
 import com.weiver.applicant.type.Status;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.s3.service.S3Service;
+import com.weiver.portfolio.repository.PortfolioRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -44,6 +47,8 @@ class ApplicantServiceImplTest {
     @Mock private AwardRepository awardRepository;
     @Mock private CertificateRepository certificateRepository;
     @Mock private WorkExperienceRepository workExperienceRepository;
+    @Mock private EssayAnswerRepository essayAnswerRepository;
+    @Mock private PortfolioRepository portfolioRepository;
     @Mock private S3Service s3Service;
 
     @InjectMocks
@@ -356,5 +361,104 @@ class ApplicantServiceImplTest {
         assertThat(responseDTO.award()).hasSize(1);
         assertThat(responseDTO.workExperience()).hasSize(1);
         assertThat(responseDTO.certificate()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("필수 제출 서류 상태 조회 시 이력서, 자기소개서, 포트폴리오가 모두 작성된 경우 모두 true를 반환한다.")
+    void getDocumentStatus_AllDocumentsCompleted_ReturnsAllTrue() {
+        // Given
+        String publicId = "2222";
+        Applicant applicant = completedBasicInfoApplicant(publicId);
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(educationRepository.existsByApplicant(applicant)).willReturn(true);
+        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
+        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+
+        // When
+        ApplicantDocumentStatusResponseDTO responseDTO = applicantService.getDocumentStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.resumeCompleted()).isTrue();
+        assertThat(responseDTO.essayCompleted()).isTrue();
+        assertThat(responseDTO.portfolioCompleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("필수 제출 서류 상태 조회 시 기본 정보는 있지만 이력서 상세 항목이 없으면 이력서는 false를 반환한다.")
+    void getDocumentStatus_NoResumeDetail_ReturnsResumeFalse() {
+        // Given
+        String publicId = "2222";
+        Applicant applicant = completedBasicInfoApplicant(publicId);
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(educationRepository.existsByApplicant(applicant)).willReturn(false);
+        given(workExperienceRepository.existsByApplicant(applicant)).willReturn(false);
+        given(certificateRepository.existsByApplicant(applicant)).willReturn(false);
+        given(awardRepository.existsByApplicant(applicant)).willReturn(false);
+        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
+        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+
+        // When
+        ApplicantDocumentStatusResponseDTO responseDTO = applicantService.getDocumentStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.resumeCompleted()).isFalse();
+        assertThat(responseDTO.essayCompleted()).isTrue();
+        assertThat(responseDTO.portfolioCompleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("필수 제출 서류 상태 조회 시 기본 필수 정보가 누락되면 이력서 상세 항목이 있어도 이력서는 false를 반환한다.")
+    void getDocumentStatus_MissingBasicInfo_ReturnsResumeFalse() {
+        // Given
+        String publicId = "2222";
+        Applicant applicant = Applicant.builder()
+                .publicId(publicId)
+                .name("이현우")
+                .email("test@example.com")
+                .phoneNumber("")
+                .birthday(LocalDate.of(2000, 1, 1))
+                .build();
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(educationRepository.existsByApplicant(applicant)).willReturn(true);
+        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(false);
+        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+
+        // When
+        ApplicantDocumentStatusResponseDTO responseDTO = applicantService.getDocumentStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.resumeCompleted()).isFalse();
+        assertThat(responseDTO.essayCompleted()).isFalse();
+        assertThat(responseDTO.portfolioCompleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("필수 제출 서류 상태 조회 시 지원자가 존재하지 않으면 APPLICANT_NOT_FOUND 예외가 발생하고 서류 조회는 수행하지 않는다.")
+    void getDocumentStatus_ApplicantNotFound_ThrowsException() {
+        // Given
+        String publicId = "not-found";
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> applicantService.getDocumentStatus(publicId))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(ErrorCode.APPLICANT_NOT_FOUND);
+
+        verifyNoInteractions(educationRepository, workExperienceRepository, certificateRepository,
+                awardRepository, essayAnswerRepository, portfolioRepository);
+    }
+
+    private Applicant completedBasicInfoApplicant(String publicId) {
+        return Applicant.builder()
+                .publicId(publicId)
+                .name("이현우")
+                .email("test@example.com")
+                .phoneNumber("010-1234-5678")
+                .birthday(LocalDate.of(2000, 1, 1))
+                .build();
     }
 }
