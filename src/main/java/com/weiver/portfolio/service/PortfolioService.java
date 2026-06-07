@@ -22,9 +22,9 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class PortfolioService {
 
-    private PortfolioRepository portfolioRepository;
-    private ApplicantRepository applicantRepository;
-    private S3Service s3Service;
+    private final PortfolioRepository portfolioRepository;
+    private final ApplicantRepository applicantRepository;
+    private final S3Service s3Service;
 
     public void savePortfolio(PortfolioRequestDTO requestDTO, MultipartFile file, String publicId) {
         String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "";
