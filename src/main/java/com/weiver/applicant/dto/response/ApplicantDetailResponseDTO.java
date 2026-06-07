@@ -12,7 +12,7 @@ public record ApplicantDetailResponseDTO(
         @Schema(description = "지원자 실명", example = "이현우")
         String name,
 
-        @Schema(description = "생년월일 (YYYY-MM-DD 형식)", example = "2000-01-01")
+        @Schema(description = "생년월일 (YYYY-MM-DD 형식)", example = "2000-01-01", nullable = true)
         String birthday,
 
         @Schema(description = "휴대폰 번호 (하이픈 포함)", example = "010-1234-5678")
@@ -25,7 +25,7 @@ public record ApplicantDetailResponseDTO(
         return new ApplicantDetailResponseDTO(
                 applicant.getPhotoUrl(),
                 applicant.getName(),
-                applicant.getBirthday().toString(),
+                applicant.getBirthday() != null ? applicant.getBirthday().toString() : null,
                 applicant.getPhoneNumber(),
                 applicant.getEmail()
         );
