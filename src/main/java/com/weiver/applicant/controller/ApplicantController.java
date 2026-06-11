@@ -12,6 +12,8 @@ import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.principal.AuthenticatedPrincipal;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -80,7 +82,11 @@ public class ApplicantController {
     )
     @PutMapping(value = "/info", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<Void>> updateApplicantInfo(
-            @Parameter(description = "개인정보 수정 데이터 (JSON)") @RequestPart(value = "requestDTO") @Valid ApplicantInfoRequestDTO requestDTO,
+            @Parameter(
+                    description = "개인정보 수정 데이터 (JSON)",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = ApplicantInfoRequestDTO.class))
+            )
+            @RequestPart(value = "requestDTO") @Valid ApplicantInfoRequestDTO requestDTO,
             @Parameter(description = "프로필 이미지 파일 (.jpg, .png 등)") @RequestPart(value = "profileImage", required = false) MultipartFile profileImage,
             @AuthenticationPrincipal AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);

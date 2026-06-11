@@ -6,6 +6,9 @@ import com.weiver.global.security.csrf.CsrfCookieProperties;
 import com.weiver.global.security.handler.SecurityErrorResponseWriter;
 import com.weiver.global.security.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,7 +22,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfigurationSource;
 
 import java.util.stream.Stream;
@@ -28,6 +33,7 @@ import java.util.stream.Stream;
 @EnableWebSecurity
 @EnableConfigurationProperties(CsrfCookieProperties.class)
 @RequiredArgsConstructor
+@Slf4j
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -39,8 +45,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource));
+
+        CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
+
         http.csrf(csrf -> csrf
                 .csrfTokenRepository(cookieCsrfTokenRepository())
+                .csrfTokenRequestHandler(requestHandler)
                 .ignoringRequestMatchers(
                         Stream.concat(
                                 WhiteListConfig.applicantAuthWhitelist().stream(),
@@ -61,6 +71,7 @@ public class SecurityConfig {
                             securityErrorResponseWriter.write(response, request, ErrorCode.UNAUTHORIZED);
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            logAccessDenied(request, accessDeniedException);
                             securityErrorResponseWriter.write(response, request, ErrorCode.FORBIDDEN);
                         })
                 );
@@ -114,5 +125,51 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    private void logAccessDenied(HttpServletRequest request, Exception exception) {
+        String csrfCookie = findCookieValue(request, csrfCookieProperties.cookieName());
+        String csrfHeader = request.getHeader(csrfCookieProperties.headerName());
+
+        if (exception instanceof CsrfException) {
+            log.warn(
+                    "[SecurityAccessDenied][CSRF] type={}, method={}, path={}, origin={}, referer={}, csrfCookiePresent={}, csrfCookieLength={}, csrfHeaderPresent={}, csrfHeaderLength={}, cookieHeaderPresent={}",
+                    exception.getClass().getSimpleName(),
+                    request.getMethod(),
+                    request.getRequestURI(),
+                    request.getHeader("Origin"),
+                    request.getHeader("Referer"),
+                    csrfCookie != null,
+                    csrfCookie != null ? csrfCookie.length() : 0,
+                    csrfHeader != null,
+                    csrfHeader != null ? csrfHeader.length() : 0,
+                    request.getHeader("Cookie") != null
+            );
+            return;
+        }
+
+        log.warn(
+                "[SecurityAccessDenied] type={}, method={}, path={}, origin={}, referer={}",
+                exception.getClass().getSimpleName(),
+                request.getMethod(),
+                request.getRequestURI(),
+                request.getHeader("Origin"),
+                request.getHeader("Referer")
+        );
+    }
+
+    private String findCookieValue(HttpServletRequest request, String cookieName) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+
+        for (Cookie cookie : cookies) {
+            if (cookieName.equals(cookie.getName())) {
+                return cookie.getValue();
+            }
+        }
+
+        return null;
     }
 }

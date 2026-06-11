@@ -135,7 +135,7 @@ class JobPostingControllerTest {
         String jsonPayload = objectMapper.writeValueAsString(updateDTO);
 
         MockMultipartFile requestDtoPart = new MockMultipartFile(
-                "requestDTO", "", MediaType.APPLICATION_JSON_VALUE, jsonPayload.getBytes(StandardCharsets.UTF_8)
+                "updateDTO", "", MediaType.APPLICATION_JSON_VALUE, jsonPayload.getBytes(StandardCharsets.UTF_8)
         );
 
         mockMvc.perform(multipart("/api/job-postings/{jdId}", jdId)
