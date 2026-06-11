@@ -91,7 +91,7 @@ class JobPostingControllerTest {
         String jsonPayload = objectMapper.writeValueAsString(requestDTO);
 
         MockMultipartFile requestDtoPart = new MockMultipartFile(
-                "updateDTO", "", MediaType.APPLICATION_JSON_VALUE, jsonPayload.getBytes(StandardCharsets.UTF_8)
+                "requestDTO", "", MediaType.APPLICATION_JSON_VALUE, jsonPayload.getBytes(StandardCharsets.UTF_8)
         );
 
         MockMultipartFile imagePart = new MockMultipartFile(
