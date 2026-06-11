@@ -11,6 +11,7 @@ import com.weiver.jobposting.service.JobPostingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -66,8 +67,11 @@ public class JobPostingController {
     )
     @PutMapping(value = "/{jdId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<Void>> updateJobPosting(
-            @Parameter(description = "수정할 공고 정보 (JSON, isEmailBannerDeleted 플래그 포함 필수)")
-            @RequestPart(value = "requestDTO") @Valid JobPostingUpdateDTO updateDTO,
+            @Parameter(
+                    description = "수정할 공고 정보 (JSON, isEmailBannerDeleted 플래그 포함 필수)",
+                    content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = JobPostingUpdateDTO.class))
+            )
+            @RequestPart(value = "updateDTO") @Valid JobPostingUpdateDTO updateDTO,
 
             @Parameter(description = "새로 변경할 배너 이미지 파일 (선택)", content = @Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE))
             @RequestPart(value = "emailBannerImage", required = false) MultipartFile emailBannerImage,
