@@ -28,7 +28,7 @@ public record ApplicantDetailResponseDTO(
         return new ApplicantDetailResponseDTO(
                 applicant.getPhotoUrl(),
                 applicant.getName(),
-                applicant.getAddress() != null ? applicant.getAddress().toString() : null,
+                applicant.getAddress() != null ? applicant.getAddress() : null,
                 applicant.getBirthday() != null ? applicant.getBirthday().toString() : null,
                 applicant.getPhoneNumber(),
                 applicant.getEmail()
