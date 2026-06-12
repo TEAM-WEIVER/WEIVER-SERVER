@@ -97,6 +97,7 @@ class ApplicantControllerTest {
         ApplicantDetailResponseDTO mockApplicantDetail = new ApplicantDetailResponseDTO(
                 "https://weiver-public-bucket.s3.ap-northeast-2.amazonaws.com",
                 "이현우",
+                "경기도 안산시 일동",
                 "2002-02-08",
                 "010-5622-5555",
                 "asdglk@gmail.com"
