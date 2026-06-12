@@ -5,6 +5,7 @@ import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.domain.Certificate;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 
@@ -15,7 +16,7 @@ public record CertificateUpdateDetailDTO(
         Long certificateId,
 
         @Schema(description = "취득 날짜", example = "2025-11-25", type = "string")
-        @NotBlank(message = "취득 날짜는 필수 입력값입니다.")
+        @NotNull(message = "취득 날짜는 필수 입력값입니다.")
         LocalDate acquisitionDate,
 
         @Schema(description = "자격증 이름", example = "SQLD")
