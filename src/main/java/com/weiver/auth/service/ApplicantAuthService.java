@@ -36,7 +36,7 @@ public class ApplicantAuthService {
     private static final Duration VERIFICATION_TOKEN_TTL = Duration.ofMinutes(30);
     private static final Duration SIGNUP_TOKEN_TTL = Duration.ofMinutes(30);
     private static final int MAX_VERIFICATION_ATTEMPTS = 5;
-    // TODO(#99): 프론트엔드/QA 테스트용 임시 이메일 인증 우회 로직입니다.
+
     // 배포 이후 테스트 우회가 필요 없어지면 TEST_EMAIL_* 상수, isTestEmail(), send/verify 분기, 관련 테스트를 함께 삭제하세요.
     private static final String TEST_EMAIL_DOMAIN = "weiver.test";
     private static final String TEST_EMAIL_VERIFICATION_CODE = "000000";
