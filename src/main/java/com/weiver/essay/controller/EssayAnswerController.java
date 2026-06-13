@@ -16,9 +16,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -49,36 +48,38 @@ public class EssayAnswerController {
     }
 
     @Operation(
-            summary = "자기소개서 내용 수정",
-            description = "이미 작성한 자기소개서의 내용을 수정합니다.<br>" +
-                    "**보안:** URL의 `answerId`와 현재 로그인한 사용자의 ID를 검증하고, 본인의 자기소개서만 수정할 수 있습니다."
+            summary = "자기소개서 전체 수정",
+            description = """
+                    UI 기획상 개별 문항 저장이나 자동 저장 기능이 없으므로 **PUT 방식을 통한 전체 덮어쓰기**로 동작합니다.
+
+                    **[필독 주의사항: 전체 덮어쓰기 방식]** 부분 수정이 불가능합니다. 내용이 변경되지 않은 문항을 포함하여, 화면에 존재하는 3개 문항의 모든 답변 데이터를 배열에 담아 한 번에 전송해야 합니다.
+                    """
     )
-    @PatchMapping("/{answerId}")
-    public ResponseEntity<ApiResponse<Void>> updateEssayanswer(
+    @PutMapping
+    public ResponseEntity<ApiResponse<Void>> updateEssayanswers(
             @RequestBody @Valid EssayAnswerUpdateRequestDTO requestDTO,
-            @Parameter(description = "수정할 자기소개서의 고유 ID (PK)", example = "1") @PathVariable long answerId,
             @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if (principal == null) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
 
-        essayAnswerService.updateEssayAnswer(requestDTO, principal.publicId(), answerId);
+        essayAnswerService.updateEssayAnswers(requestDTO, principal.publicId());
 
         return ResponseEntity.ok(ApiResponse.success("자기소개서 수정 성공했습니다."));
     }
 
     @Operation(
-            summary = "내 자기소개서 조회",
-            description = "마이페이지 또는 자기소개서 관리 화면에서 현재 로그인한 구직자의 자기소개서 내용을 조회합니다."
+            summary = "내 자기소개서 전체 조회",
+            description = "작성된 자기소개서 문항과 답변 리스트를 전체 조회합니다."
     )
     @GetMapping
-    public ResponseEntity<ApiResponse<EssayAnswerResponseDTO>> searchEssayanswer(
+    public ResponseEntity<ApiResponse<EssayAnswerResponseDTO>> getEssayAnswers(
             @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if (principal == null) {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
 
-        EssayAnswerResponseDTO responseDTO = essayAnswerService.searchEssayAnswer(principal.publicId());
+        EssayAnswerResponseDTO responseDTO = essayAnswerService.getEssayAnswers(principal.publicId());
 
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }

@@ -6,7 +6,9 @@ import com.weiver.essay.domain.EssayAnswer;
 import com.weiver.essay.domain.EssayQuestion;
 import com.weiver.essay.dto.request.EssayAnswerItemDTO;
 import com.weiver.essay.dto.request.EssayAnswerRequestDTO;
+import com.weiver.essay.dto.request.EssayAnswerUpdateItemDTO;
 import com.weiver.essay.dto.request.EssayAnswerUpdateRequestDTO;
+import com.weiver.essay.dto.response.EssayAnswerItemResponseDTO;
 import com.weiver.essay.dto.response.EssayAnswerResponseDTO;
 import com.weiver.essay.repository.EssayAnswerRepository;
 import com.weiver.essay.repository.EssayQuestionRepository;
@@ -39,29 +41,24 @@ public class EssayAnswerService {
         essayAnswerRepository.saveAll(essayAnswers);
     }
 
-    public void updateEssayAnswer(EssayAnswerUpdateRequestDTO requestDTO, String publicId, long answerId) {
-
-        EssayAnswer essayAnswer = essayAnswerRepository.findById(answerId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ESSAY_ANSWER_NOT_FOUND));
-
-        if (!essayAnswer.getApplicant().getPublicId().equals(publicId)) {
-            throw new BusinessException(ErrorCode.FORBIDDEN);
-        }
-
-        if(requestDTO != null){
-            essayAnswer.updateAnswer(requestDTO);
-        }
+    public void updateEssayAnswers(EssayAnswerUpdateRequestDTO requestDTO, String publicId) {
+        requestDTO.answers().forEach(answerItem -> updateEssayAnswer(answerItem, publicId));
     }
 
     @Transactional(readOnly = true)
-    public EssayAnswerResponseDTO searchEssayAnswer(String publicId) {
+    public EssayAnswerResponseDTO getEssayAnswers(String publicId) {
         Applicant applicant = getApplicant(publicId);
 
-        EssayAnswer essayAnswer = essayAnswerRepository.findByApplicant(applicant)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ESSAY_ANSWER_NOT_FOUND));
+        List<EssayAnswer> essayAnswers = essayAnswerRepository.findAllByApplicantWithQuestionOrderBySequence(applicant);
+        if (essayAnswers.isEmpty()) {
+            throw new BusinessException(ErrorCode.ESSAY_ANSWER_NOT_FOUND);
+        }
 
-        EssayAnswerResponseDTO responseDTO = EssayAnswerResponseDTO.from(essayAnswer);
-        return responseDTO;
+        List<EssayAnswerItemResponseDTO> answers = essayAnswers.stream()
+                .map(EssayAnswerItemResponseDTO::from)
+                .toList();
+
+        return new EssayAnswerResponseDTO(answers);
     }
 
     private Applicant getApplicant(String publicId) {
@@ -79,5 +76,16 @@ public class EssayAnswerService {
                 .applicant(applicant)
                 .essayQuestion(essayQuestion)
                 .build();
+    }
+
+    private void updateEssayAnswer(EssayAnswerUpdateItemDTO answerItem, String publicId) {
+        EssayAnswer essayAnswer = essayAnswerRepository.findById(answerItem.answerId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.ESSAY_ANSWER_NOT_FOUND));
+
+        if (!essayAnswer.getApplicant().getPublicId().equals(publicId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
+
+        essayAnswer.updateAnswer(answerItem);
     }
 }

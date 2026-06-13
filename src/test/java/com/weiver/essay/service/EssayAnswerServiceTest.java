@@ -6,6 +6,7 @@ import com.weiver.essay.domain.EssayAnswer;
 import com.weiver.essay.domain.EssayQuestion;
 import com.weiver.essay.dto.request.EssayAnswerItemDTO;
 import com.weiver.essay.dto.request.EssayAnswerRequestDTO;
+import com.weiver.essay.dto.request.EssayAnswerUpdateItemDTO;
 import com.weiver.essay.dto.request.EssayAnswerUpdateRequestDTO;
 import com.weiver.essay.dto.response.EssayAnswerResponseDTO;
 import com.weiver.essay.repository.EssayAnswerRepository;
@@ -45,28 +46,18 @@ class EssayAnswerServiceTest {
     private EssayAnswerService essayAnswerService;
 
     @Test
-    @DisplayName("자기소개서 저장 정상 수행")
+    @DisplayName("자기소개서 답변 목록 저장 성공")
     void saveEssayAnswer_Success() {
         // Given
-        long applicantId = 1L;
         String publicId = "3333";
-        Applicant applicant = Applicant.builder()
-                .applicantId(applicantId)
-                .publicId(publicId)
-                .build();
-        long questionId = 1L;
-        EssayQuestion essayQuestion = EssayQuestion.builder()
-                .questionId(questionId)
-                .sequence(1)
-                .maxLength(500)
-                .question("지원 동기는 무엇인가요?")
-                .build();
+        Applicant applicant = createApplicant(publicId);
+        EssayQuestion question = createQuestion(1L, 1);
         EssayAnswerRequestDTO requestDTO = new EssayAnswerRequestDTO(List.of(
-                new EssayAnswerItemDTO(questionId, "안녕. 날 뽑아봐.")
+                new EssayAnswerItemDTO(1L, "지원 동기입니다.")
         ));
 
         given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
-        given(essayQuestionRepository.findById(questionId)).willReturn(Optional.of(essayQuestion));
+        given(essayQuestionRepository.findById(1L)).willReturn(Optional.of(question));
 
         // When
         essayAnswerService.saveEssayAnswer(requestDTO, publicId);
@@ -76,96 +67,7 @@ class EssayAnswerServiceTest {
     }
 
     @Test
-    @DisplayName("자기소개서 수정 정상 수행")
-    void updateEssayAnswer_Success() {
-        // Given
-        long applicantId = 1L;
-        long answerId = 100L;
-        String publicId = "3333";
-
-        Applicant me = Applicant.builder()
-                .applicantId(applicantId)
-                .publicId(publicId)
-                .build();
-
-        EssayAnswer myEssay = EssayAnswer.builder()
-                .answerId(answerId)
-                .answer("안녕. 날 뽑아봐.")
-                .applicant(me)
-                .build();
-
-        EssayAnswerUpdateRequestDTO updateDTO = new EssayAnswerUpdateRequestDTO("안녕, 나 수정했어.");
-
-        given(essayAnswerRepository.findById(answerId)).willReturn(Optional.of(myEssay));
-
-        // When
-        essayAnswerService.updateEssayAnswer(updateDTO, publicId, answerId);
-
-        // Then
-        assertThat(myEssay.getAnswer()).isEqualTo("안녕, 나 수정했어.");
-    }
-
-    @Test
-    @DisplayName("자기소개서 수정 예외 발생 - 다른 사람의 자소서를 수정하려고 할 때 (FORBIDDEN)")
-    void updateEssayAnswer_Forbidden_ThrowsException() {
-        // Given
-        long myApplicantId = 1L;
-        String myPublicId = "3333";
-        String hackerPublicId = "2222";
-        long answerId = 100L;
-
-        Applicant me = Applicant.builder()
-                .applicantId(myApplicantId)
-                .publicId(myPublicId)
-                .build();
-
-        // 진짜 주인이 있는 자소서 객체 생성
-        EssayAnswer myEssay = EssayAnswer.builder()
-                .answerId(answerId)
-                .answer("내 소중한 자소서")
-                .applicant(me)
-                .build();
-
-        EssayAnswerUpdateRequestDTO updateDTO = new EssayAnswerUpdateRequestDTO("해커가 마음대로 바꾼 내용");
-
-        given(essayAnswerRepository.findById(answerId)).willReturn(Optional.of(myEssay));
-
-        // When & Then
-        assertThatThrownBy(() -> essayAnswerService.updateEssayAnswer(updateDTO, hackerPublicId, answerId))
-                .isInstanceOf(BusinessException.class)
-                .extracting("code")
-                .isEqualTo(ErrorCode.FORBIDDEN);
-    }
-
-    @Test
-    @DisplayName("자기소개서 조회 정상 수행")
-    void searchEssayAnswer_Success() {
-        // Given
-        long applicantId = 1L;
-        String publicId = "3333";
-        Applicant applicant = Applicant.builder()
-                .applicantId(applicantId)
-                .publicId(publicId)
-                .build();
-
-        EssayAnswer essayAnswer = EssayAnswer.builder()
-                .answerId(10L)
-                .answer("이것은 내 자소서입니다.")
-                .applicant(applicant)
-                .build();
-
-        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
-        given(essayAnswerRepository.findByApplicant(applicant)).willReturn(Optional.of(essayAnswer));
-
-        // When
-        EssayAnswerResponseDTO responseDTO = essayAnswerService.searchEssayAnswer(publicId);
-
-        // Then
-        assertThat(responseDTO.answer()).isEqualTo("이것은 내 자소서입니다.");
-    }
-
-    @Test
-    @DisplayName("엣지 케이스: 존재하지 않는 회원의 ID로 자소서 저장 시 APPLICANT_NOT_FOUND 예외 발생")
+    @DisplayName("존재하지 않는 구직자 ID로 자기소개서 저장 시 예외 발생")
     void saveEssayAnswer_ApplicantNotFound_ThrowsException() {
         // Given
         String invalidPublicId = "2222";
@@ -175,7 +77,7 @@ class EssayAnswerServiceTest {
 
         given(applicantRepository.findByPublicId(invalidPublicId)).willReturn(Optional.empty());
 
-        // When & Then!
+        // When & Then
         assertThatThrownBy(() -> essayAnswerService.saveEssayAnswer(requestDTO, invalidPublicId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
@@ -183,72 +85,149 @@ class EssayAnswerServiceTest {
     }
 
     @Test
-    @DisplayName("엣지 케이스: 존재하지 않는 자소서를 수정하려고 할 때 ESSAY_ANSWER_NOT_FOUND 예외 발생")
-    void updateEssayAnswer_EssayNotFound_ThrowsException() {
+    @DisplayName("존재하지 않는 문항 ID로 자기소개서 저장 시 예외 발생")
+    void saveEssayAnswer_QuestionNotFound_ThrowsException() {
         // Given
         String publicId = "3333";
-        long invalidAnswerId = 999L;
-        EssayAnswerUpdateRequestDTO updateDTO = new EssayAnswerUpdateRequestDTO("수정할 내용");
-
-        given(essayAnswerRepository.findById(invalidAnswerId)).willReturn(Optional.empty());
-
-        // When & Then
-        assertThatThrownBy(() -> essayAnswerService.updateEssayAnswer(updateDTO, publicId, invalidAnswerId))
-                .isInstanceOf(BusinessException.class)
-                .extracting("code")
-                .isEqualTo(ErrorCode.ESSAY_ANSWER_NOT_FOUND);
-    }
-
-    @Test
-    @DisplayName("엣지 케이스: 자소서 수정 시 DTO의 내용이 null일 경우 기존 데이터를 덮어 씌우면 안됨")
-    void updateEssayAnswer_NullContent_KeepsExistingData() {
-        // Given
-        long applicantId = 1L;
-        String publicId = "3333";
-        long answerId = 100L;
-        Applicant me = Applicant.builder()
-                .applicantId(applicantId)
-                .publicId(publicId)
-                .build();
-
-        // 기존 자소서 내용
-        EssayAnswer myEssay = EssayAnswer.builder()
-                .answerId(answerId)
-                .answer("내 소중한 기존 자소서 내용")
-                .applicant(me)
-                .build();
-
-        EssayAnswerUpdateRequestDTO nullUpdateDTO = new EssayAnswerUpdateRequestDTO(null);
-
-        given(essayAnswerRepository.findById(answerId)).willReturn(Optional.of(myEssay));
-
-        // When
-        essayAnswerService.updateEssayAnswer(nullUpdateDTO, publicId, answerId);
-
-        // Then
-        assertThat(myEssay.getAnswer()).isEqualTo("내 소중한 기존 자소서 내용");
-    }
-
-    @Test
-    @DisplayName("엣지 케이스: 회원은 존재하지만, " +
-            "아직 자소서를 한 번도 작성하지 않은 상태에서 조회 시 ESSAY_ANSWER_NOT_FOUND 예외 발생")
-    void searchEssayAnswer_NotWrittenYet_ThrowsException() {
-        // Given
-        long applicantId = 1L;
-        String publicId = "3333";
-        Applicant applicant = Applicant.builder()
-                .applicantId(applicantId)
-                .publicId(publicId)
-                .build();
+        Applicant applicant = createApplicant(publicId);
+        EssayAnswerRequestDTO requestDTO = new EssayAnswerRequestDTO(List.of(
+                new EssayAnswerItemDTO(999L, "지원 동기입니다.")
+        ));
 
         given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
-
-        given(essayAnswerRepository.findByApplicant(applicant)).willReturn(Optional.empty());
+        given(essayQuestionRepository.findById(999L)).willReturn(Optional.empty());
 
         // When & Then
-        assertThatThrownBy(() -> essayAnswerService.searchEssayAnswer(publicId))
+        assertThatThrownBy(() -> essayAnswerService.saveEssayAnswer(requestDTO, publicId))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(ErrorCode.ESSAY_QUESTION_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("자기소개서 문항과 답변 리스트 조회 성공")
+    void getEssayAnswers_Success() {
+        // Given
+        String publicId = "3333";
+        Applicant applicant = createApplicant(publicId);
+        EssayQuestion question1 = createQuestion(1L, 1);
+        EssayQuestion question2 = createQuestion(2L, 2);
+        List<EssayAnswer> essayAnswers = List.of(
+                createAnswer(10L, "지원 동기입니다.", applicant, question1),
+                createAnswer(11L, "직무 역량입니다.", applicant, question2)
+        );
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(essayAnswerRepository.findAllByApplicantWithQuestionOrderBySequence(applicant)).willReturn(essayAnswers);
+
+        // When
+        EssayAnswerResponseDTO responseDTO = essayAnswerService.getEssayAnswers(publicId);
+
+        // Then
+        assertThat(responseDTO.answers()).hasSize(2);
+        assertThat(responseDTO.answers().get(0).answerId()).isEqualTo(10L);
+        assertThat(responseDTO.answers().get(0).questionId()).isEqualTo(1L);
+        assertThat(responseDTO.answers().get(0).sequence()).isEqualTo(1);
+        assertThat(responseDTO.answers().get(0).answer()).isEqualTo("지원 동기입니다.");
+    }
+
+    @Test
+    @DisplayName("작성된 자기소개서가 없으면 조회 시 예외 발생")
+    void getEssayAnswers_NotWrittenYet_ThrowsException() {
+        // Given
+        String publicId = "3333";
+        Applicant applicant = createApplicant(publicId);
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(essayAnswerRepository.findAllByApplicantWithQuestionOrderBySequence(applicant)).willReturn(List.of());
+
+        // When & Then
+        assertThatThrownBy(() -> essayAnswerService.getEssayAnswers(publicId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
                 .isEqualTo(ErrorCode.ESSAY_ANSWER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("자기소개서 전체 수정 성공")
+    void updateEssayAnswers_Success() {
+        // Given
+        String publicId = "3333";
+        Applicant applicant = createApplicant(publicId);
+        EssayQuestion question = createQuestion(1L, 1);
+        EssayAnswer essayAnswer = createAnswer(10L, "기존 답변입니다.", applicant, question);
+        EssayAnswerUpdateRequestDTO requestDTO = new EssayAnswerUpdateRequestDTO(List.of(
+                new EssayAnswerUpdateItemDTO(10L, "수정된 답변입니다.")
+        ));
+
+        given(essayAnswerRepository.findById(10L)).willReturn(Optional.of(essayAnswer));
+
+        // When
+        essayAnswerService.updateEssayAnswers(requestDTO, publicId);
+
+        // Then
+        assertThat(essayAnswer.getAnswer()).isEqualTo("수정된 답변입니다.");
+    }
+
+    @Test
+    @DisplayName("다른 구직자의 자기소개서 수정 시 예외 발생")
+    void updateEssayAnswers_Forbidden_ThrowsException() {
+        // Given
+        Applicant owner = createApplicant("3333");
+        EssayQuestion question = createQuestion(1L, 1);
+        EssayAnswer essayAnswer = createAnswer(10L, "기존 답변입니다.", owner, question);
+        EssayAnswerUpdateRequestDTO requestDTO = new EssayAnswerUpdateRequestDTO(List.of(
+                new EssayAnswerUpdateItemDTO(10L, "해커가 바꾼 내용")
+        ));
+
+        given(essayAnswerRepository.findById(10L)).willReturn(Optional.of(essayAnswer));
+
+        // When & Then
+        assertThatThrownBy(() -> essayAnswerService.updateEssayAnswers(requestDTO, "2222"))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(ErrorCode.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 답변 ID 수정 시 예외 발생")
+    void updateEssayAnswers_EssayNotFound_ThrowsException() {
+        // Given
+        EssayAnswerUpdateRequestDTO requestDTO = new EssayAnswerUpdateRequestDTO(List.of(
+                new EssayAnswerUpdateItemDTO(999L, "수정할 내용")
+        ));
+
+        given(essayAnswerRepository.findById(999L)).willReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> essayAnswerService.updateEssayAnswers(requestDTO, "3333"))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(ErrorCode.ESSAY_ANSWER_NOT_FOUND);
+    }
+
+    private Applicant createApplicant(String publicId) {
+        return Applicant.builder()
+                .applicantId(1L)
+                .publicId(publicId)
+                .build();
+    }
+
+    private EssayQuestion createQuestion(Long questionId, Integer sequence) {
+        return EssayQuestion.builder()
+                .questionId(questionId)
+                .sequence(sequence)
+                .maxLength(500)
+                .question(sequence + "번 문항")
+                .build();
+    }
+
+    private EssayAnswer createAnswer(Long answerId, String answer, Applicant applicant, EssayQuestion essayQuestion) {
+        return EssayAnswer.builder()
+                .answerId(answerId)
+                .answer(answer)
+                .applicant(applicant)
+                .essayQuestion(essayQuestion)
+                .build();
     }
 }
