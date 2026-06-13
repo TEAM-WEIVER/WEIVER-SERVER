@@ -23,10 +23,15 @@ public class EssayAnswer extends BaseTimeEntity {
     @Column(name = "answer", columnDefinition = "TEXT", nullable = false)
     private String answer;  // 답변
 
-    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "applicant_id", nullable = false)
     @ToString.Exclude
     private Applicant applicant;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "question_id", nullable = false)
+    @ToString.Exclude
+    private EssayQuestion essayQuestion;
 
     /**
      * 편의메소드
