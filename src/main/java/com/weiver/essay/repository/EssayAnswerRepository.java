@@ -12,7 +12,6 @@ import java.util.Optional;
 
 @Repository
 public interface EssayAnswerRepository extends JpaRepository<EssayAnswer, Long> {
-    Optional<EssayAnswer> findByApplicant(Applicant applicant);
     boolean existsByApplicant(Applicant applicant);
 
     @Query("""

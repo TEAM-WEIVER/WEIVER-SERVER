@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -20,5 +21,6 @@ public record EssayAnswerUpdateRequestDTO(
                         """
         )
         @NotEmpty
+        @Size(min = 3, max = 3, message = "자기소개서 3개 문항의 전체 답변을 모두 전송해야 합니다.")
         List<@NotNull @Valid EssayAnswerUpdateItemDTO> answers
 ) {}

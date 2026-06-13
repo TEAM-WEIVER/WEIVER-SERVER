@@ -34,6 +34,10 @@ public class EssayAnswerService {
     public void saveEssayAnswer(EssayAnswerRequestDTO requestDTO, String publicId) {
         Applicant applicant = getApplicant(publicId);
 
+        if (essayAnswerRepository.existsByApplicant(applicant)) {
+            throw new BusinessException(ErrorCode.ESSAY_ANSWER_ALREADY_EXISTS);
+        }
+
         List<EssayAnswer> essayAnswers = requestDTO.answers().stream()
                 .map(answerItem -> createEssayAnswer(answerItem, applicant))
                 .toList();
