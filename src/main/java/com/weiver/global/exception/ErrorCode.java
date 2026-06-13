@@ -60,6 +60,7 @@ public enum ErrorCode {
 
     // ===================== ESSAY-ANSWER =====================
     ESSAY_ANSWER_NOT_FOUND("ESSAY_ANSWER_NOT_FOUND", HttpStatus.NOT_FOUND, "자기소개서를 찾을 수 없습니다."),
+    ESSAY_QUESTION_NOT_FOUND("ESSAY_QUESTION_NOT_FOUND", HttpStatus.NOT_FOUND, "자기소개서 문항을 찾을 수 없습니다."),
 
     // ===================== NOTIFICATION =====================
     NOTIFICATION_NOT_FOUND("NOTIFICATION_NOT_FOUND", HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다."),

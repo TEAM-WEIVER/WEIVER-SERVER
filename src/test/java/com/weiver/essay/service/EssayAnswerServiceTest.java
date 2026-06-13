@@ -3,10 +3,13 @@ package com.weiver.essay.service;
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.essay.domain.EssayAnswer;
+import com.weiver.essay.domain.EssayQuestion;
+import com.weiver.essay.dto.request.EssayAnswerItemDTO;
 import com.weiver.essay.dto.request.EssayAnswerRequestDTO;
 import com.weiver.essay.dto.request.EssayAnswerUpdateRequestDTO;
 import com.weiver.essay.dto.response.EssayAnswerResponseDTO;
 import com.weiver.essay.repository.EssayAnswerRepository;
+import com.weiver.essay.repository.EssayQuestionRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +19,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -30,6 +34,9 @@ class EssayAnswerServiceTest {
 
     @Mock
     private EssayAnswerRepository essayAnswerRepository;
+
+    @Mock
+    private EssayQuestionRepository essayQuestionRepository;
 
     @Mock
     private ApplicantRepository applicantRepository;
@@ -47,15 +54,25 @@ class EssayAnswerServiceTest {
                 .applicantId(applicantId)
                 .publicId(publicId)
                 .build();
-        EssayAnswerRequestDTO requestDTO = new EssayAnswerRequestDTO("안녕. 날 뽑아봐.");
+        long questionId = 1L;
+        EssayQuestion essayQuestion = EssayQuestion.builder()
+                .questionId(questionId)
+                .sequence(1)
+                .maxLength(500)
+                .question("지원 동기는 무엇인가요?")
+                .build();
+        EssayAnswerRequestDTO requestDTO = new EssayAnswerRequestDTO(List.of(
+                new EssayAnswerItemDTO(questionId, "안녕. 날 뽑아봐.")
+        ));
 
         given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(essayQuestionRepository.findById(questionId)).willReturn(Optional.of(essayQuestion));
 
         // When
         essayAnswerService.saveEssayAnswer(requestDTO, publicId);
 
         // Then
-        verify(essayAnswerRepository, times(1)).save(any(EssayAnswer.class));
+        verify(essayAnswerRepository, times(1)).saveAll(any());
     }
 
     @Test
@@ -152,7 +169,9 @@ class EssayAnswerServiceTest {
     void saveEssayAnswer_ApplicantNotFound_ThrowsException() {
         // Given
         String invalidPublicId = "2222";
-        EssayAnswerRequestDTO requestDTO = new EssayAnswerRequestDTO("지원 동기입니다.");
+        EssayAnswerRequestDTO requestDTO = new EssayAnswerRequestDTO(List.of(
+                new EssayAnswerItemDTO(1L, "지원 동기입니다.")
+        ));
 
         given(applicantRepository.findByPublicId(invalidPublicId)).willReturn(Optional.empty());
 
