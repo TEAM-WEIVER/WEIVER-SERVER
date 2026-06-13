@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -35,6 +36,10 @@ public class ApplicantAuthService {
     private static final Duration VERIFICATION_TOKEN_TTL = Duration.ofMinutes(30);
     private static final Duration SIGNUP_TOKEN_TTL = Duration.ofMinutes(30);
     private static final int MAX_VERIFICATION_ATTEMPTS = 5;
+    // TODO(#99): 프론트엔드/QA 테스트용 임시 이메일 인증 우회 로직입니다.
+    // 배포 이후 테스트 우회가 필요 없어지면 TEST_EMAIL_* 상수, isTestEmail(), send/verify 분기, 관련 테스트를 함께 삭제하세요.
+    private static final String TEST_EMAIL_DOMAIN = "weiver.test";
+    private static final String TEST_EMAIL_VERIFICATION_CODE = "000000";
 
     private final ApplicantRepository applicantRepository;
     private final ApplicantAgreementRepository applicantAgreementRepository;
@@ -57,6 +62,12 @@ public class ApplicantAuthService {
                     throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
                 });
 
+        if (isTestEmail(email)) {
+            emailVerificationRepository.deleteCode(email);
+            emailVerificationRepository.deleteAttemptCount(email);
+            return;
+        }
+
         String code = codeGenerator.generateCode();
 
         emailVerificationRepository.deleteAttemptCount(email);
@@ -72,6 +83,16 @@ public class ApplicantAuthService {
 
     public ApplicantEmailVerifyResponseDTO verifyEmailCode(ApplicantEmailVerifyRequestDTO request) {
         String email = request.email();
+
+        if (isTestEmail(email)) {
+            if (!TEST_EMAIL_VERIFICATION_CODE.equals(request.code())) {
+                throw new BusinessException(ErrorCode.INVALID_VERIFICATION_CODE);
+            }
+
+            emailVerificationRepository.deleteCode(email);
+            emailVerificationRepository.deleteAttemptCount(email);
+            return issueVerificationToken(email);
+        }
 
         // 1) 코드 존재 여부만 확인 (소비하지 않음 - 시도 횟수 한도 내에선 재시도 허용)
         String savedCode = emailVerificationRepository.findCodeByEmail(email)
@@ -93,11 +114,25 @@ public class ApplicantAuthService {
         }
 
         // 5) 일치 - 코드/카운터 정리 + verificationToken 발급
-        String verificationToken = UUID.randomUUID().toString();
-        emailVerificationRepository.saveVerifiedToken(verificationToken, email, VERIFICATION_TOKEN_TTL);
         emailVerificationRepository.deleteCode(email);
         emailVerificationRepository.deleteAttemptCount(email);
 
+        return issueVerificationToken(email);
+    }
+
+    private boolean isTestEmail(String email) {
+        int atIndex = email.lastIndexOf("@");
+        if (atIndex < 0 || atIndex == email.length() - 1) {
+            return false;
+        }
+
+        String domain = email.substring(atIndex + 1).toLowerCase(Locale.ROOT);
+        return TEST_EMAIL_DOMAIN.equals(domain);
+    }
+
+    private ApplicantEmailVerifyResponseDTO issueVerificationToken(String email) {
+        String verificationToken = UUID.randomUUID().toString();
+        emailVerificationRepository.saveVerifiedToken(verificationToken, email, VERIFICATION_TOKEN_TTL);
         return new ApplicantEmailVerifyResponseDTO(verificationToken);
     }
 
