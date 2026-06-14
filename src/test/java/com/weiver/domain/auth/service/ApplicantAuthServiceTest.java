@@ -130,6 +130,26 @@ public class ApplicantAuthServiceTest {
     }
 
     @Test
+    @DisplayName("테스트 도메인 이메일이면 인증번호 생성/저장/메일 발송 없이 성공한다.")
+    public void sendEmailCode_testBypassEmailSkipsEmailSend() {
+        // given
+        String email = "qa@weiver.test";
+        ApplicantEmailSendRequestDTO request = new ApplicantEmailSendRequestDTO(email);
+
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.empty());
+
+        // when
+        applicantAuthService.sendEmailCode(request);
+
+        // then
+        verify(emailVerificationRepository).deleteCode(email);
+        verify(emailVerificationRepository).deleteAttemptCount(email);
+        verify(codeGenerator, never()).generateCode();
+        verify(emailVerificationRepository, never()).saveCode(anyString(), anyString(), any(Duration.class));
+        verify(emailVerificationService, never()).sendVerificationCode(anyString(), anyString());
+    }
+
+    @Test
     @DisplayName("메일 발송 실패 시 저장한 코드를 삭제하고 EMAIL_SEND_FAILED 예외 발생")
     public void sendEmailCode_mailSendFails() {
         // given
@@ -172,6 +192,43 @@ public class ApplicantAuthServiceTest {
         verify(emailVerificationRepository).saveVerifiedToken(eq(response.verificationToken()), eq(email), any(Duration.class));
         verify(emailVerificationRepository).deleteCode(email);
         verify(emailVerificationRepository).deleteAttemptCount(email);
+    }
+
+    @Test
+    @DisplayName("테스트 도메인 이메일은 고정 인증번호로 verificationToken을 발급한다.")
+    public void verifyEmailCode_testBypassEmailSuccess() {
+        // given
+        String email = "qa@weiver.test";
+        String code = "000000";
+        ApplicantEmailVerifyRequestDTO request = new ApplicantEmailVerifyRequestDTO(email, code);
+
+        // when
+        ApplicantEmailVerifyResponseDTO response = applicantAuthService.verifyEmailCode(request);
+
+        // then
+        assertThat(response.verificationToken()).isNotBlank();
+        verify(emailVerificationRepository).deleteCode(email);
+        verify(emailVerificationRepository).deleteAttemptCount(email);
+        verify(emailVerificationRepository).saveVerifiedToken(eq(response.verificationToken()), eq(email), any(Duration.class));
+        verify(emailVerificationRepository, never()).findCodeByEmail(anyString());
+        verify(emailVerificationRepository, never()).incrementAttemptCount(anyString(), any(Duration.class));
+    }
+
+    @Test
+    @DisplayName("테스트 도메인 이메일도 고정 인증번호가 틀리면 INVALID_VERIFICATION_CODE 예외")
+    public void verifyEmailCode_testBypassEmailInvalidCode() {
+        // given
+        String email = "qa@weiver.test";
+        ApplicantEmailVerifyRequestDTO request = new ApplicantEmailVerifyRequestDTO(email, "111111");
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.verifyEmailCode(request))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage(ErrorCode.INVALID_VERIFICATION_CODE.defaultMessage);
+
+        verify(emailVerificationRepository, never()).findCodeByEmail(anyString());
+        verify(emailVerificationRepository, never()).incrementAttemptCount(anyString(), any(Duration.class));
+        verify(emailVerificationRepository, never()).saveVerifiedToken(anyString(), anyString(), any(Duration.class));
     }
 
     @Test
