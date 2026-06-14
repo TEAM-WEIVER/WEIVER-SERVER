@@ -2,7 +2,7 @@ package com.weiver.essay.domain;
 
 
 import com.weiver.applicant.domain.Applicant;
-import com.weiver.essay.dto.request.EssayAnswerUpdateRequestDTO;
+import com.weiver.essay.dto.request.EssayAnswerUpdateItemDTO;
 import com.weiver.global.common.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -23,18 +23,21 @@ public class EssayAnswer extends BaseTimeEntity {
     @Column(name = "answer", columnDefinition = "TEXT", nullable = false)
     private String answer;  // 답변
 
-    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "applicant_id", nullable = false)
     @ToString.Exclude
     private Applicant applicant;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "question_id", nullable = false)
+    @ToString.Exclude
+    private EssayQuestion essayQuestion;
+
     /**
      * 편의메소드
      * */
-    public void updateAnswer(EssayAnswerUpdateRequestDTO requestDTO){
-        if(requestDTO.answer() != null) {
-            this.answer = requestDTO.answer();
-        }
+    public void updateAnswer(EssayAnswerUpdateItemDTO requestDTO){
+        this.answer = requestDTO.answer();
     }
 
 }
