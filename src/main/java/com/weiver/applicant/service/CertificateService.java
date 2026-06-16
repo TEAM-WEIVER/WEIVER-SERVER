@@ -5,6 +5,7 @@ import com.weiver.applicant.domain.Certificate;
 import com.weiver.applicant.dto.request.post.CertificateRequestDTO;
 import com.weiver.applicant.dto.request.put.CertificateUpdateDetailDTO;
 import com.weiver.applicant.dto.request.put.CertificateUpdateRequestDTO;
+import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.applicant.repository.CertificateRepository;
 import com.weiver.global.exception.BusinessException;
@@ -26,12 +27,14 @@ public class CertificateService {
 
     private final CertificateRepository certificateRepository;
     private final ApplicantRepository applicantRepository;
+    private final ApplicantProfileEventService applicantProfileEventService;
 
     public void saveCertificateInfo(String publicId, CertificateRequestDTO requestDTO) {
         Applicant applicant = getApplicant(publicId);
         List<Certificate> certificateList = requestDTO.toEntityList(applicant);
 
         certificateRepository.saveAll(certificateList);
+        applicantProfileEventService.publishProfileChanged(applicant.getApplicantId());
     }
 
 
@@ -71,6 +74,8 @@ public class CertificateService {
         if (!toSave.isEmpty()) {
             certificateRepository.saveAll(toSave);
         }
+
+        applicantProfileEventService.publishProfileChanged(applicant.getApplicantId());
     }
 
 

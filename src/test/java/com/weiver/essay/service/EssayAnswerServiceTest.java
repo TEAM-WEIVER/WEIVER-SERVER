@@ -1,6 +1,7 @@
 package com.weiver.essay.service;
 
 import com.weiver.applicant.domain.Applicant;
+import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.essay.domain.EssayAnswer;
 import com.weiver.essay.domain.EssayQuestion;
@@ -41,6 +42,9 @@ class EssayAnswerServiceTest {
 
     @Mock
     private ApplicantRepository applicantRepository;
+
+    @Mock
+    private ApplicantProfileEventService applicantProfileEventService;
 
     @InjectMocks
     private EssayAnswerService essayAnswerService;

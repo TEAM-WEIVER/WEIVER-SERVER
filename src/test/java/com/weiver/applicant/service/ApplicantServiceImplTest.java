@@ -8,6 +8,7 @@ import com.weiver.applicant.dto.request.post.EducationRequestDTO;
 import com.weiver.applicant.dto.request.put.ApplicantInfoRequestDTO;
 import com.weiver.applicant.dto.response.ApplicantDocumentStatusResponseDTO;
 import com.weiver.applicant.dto.response.ApplicantInfoResponseDTO;
+import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.*;
 import com.weiver.essay.repository.EssayAnswerRepository;
 import com.weiver.applicant.type.Degree;
@@ -50,6 +51,7 @@ class ApplicantServiceImplTest {
     @Mock private EssayAnswerRepository essayAnswerRepository;
     @Mock private PortfolioRepository portfolioRepository;
     @Mock private S3Service s3Service;
+    @Mock private ApplicantProfileEventService applicantProfileEventService;
 
     @InjectMocks
     private ApplicantService applicantService;

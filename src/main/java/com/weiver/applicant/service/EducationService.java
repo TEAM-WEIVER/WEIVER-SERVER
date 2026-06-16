@@ -5,6 +5,7 @@ import com.weiver.applicant.domain.Education;
 import com.weiver.applicant.dto.request.post.EducationRequestDTO;
 import com.weiver.applicant.dto.request.put.EducationUpdateDetailDTO;
 import com.weiver.applicant.dto.request.put.EducationUpdateRequestDTO;
+import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.applicant.repository.EducationRepository;
 import com.weiver.global.exception.BusinessException;
@@ -26,6 +27,7 @@ public class EducationService {
 
     private final EducationRepository educationRepository;
     private final ApplicantRepository applicantRepository;
+    private final ApplicantProfileEventService applicantProfileEventService;
 
     public void saveEducationInfo(String publicId, EducationRequestDTO requestDTO) {
 
@@ -34,6 +36,7 @@ public class EducationService {
         List<Education> educationList = requestDTO.toEntityList(applicant);
 
         educationRepository.saveAll(educationList);
+        applicantProfileEventService.publishProfileChanged(applicant.getApplicantId());
     }
 
 
@@ -78,6 +81,8 @@ public class EducationService {
         if (!toSave.isEmpty()) {
             educationRepository.saveAll(toSave);
         }
+
+        applicantProfileEventService.publishProfileChanged(applicant.getApplicantId());
     }
 
 
