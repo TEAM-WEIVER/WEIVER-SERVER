@@ -9,8 +9,6 @@ import com.weiver.essay.repository.EssayAnswerRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.s3.service.S3Service;
-import com.weiver.matching.dto.response.PortfolioDetailDTO;
-import com.weiver.matching.dto.response.ProfileDetailDTO;
 import com.weiver.portfolio.repository.PortfolioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

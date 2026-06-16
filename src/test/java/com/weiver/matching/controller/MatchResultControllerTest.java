@@ -1,6 +1,5 @@
 package com.weiver.matching.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.weiver.analysis.type.CulturefitStyle;
 import com.weiver.global.common.UserRole;
 import com.weiver.global.security.cookie.CookieProvider;
@@ -47,9 +46,6 @@ class MatchResultControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @MockitoBean
     private MatchResultService matchResultService;
