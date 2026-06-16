@@ -8,6 +8,7 @@ import com.weiver.jobposting.domain.EmailTemplate;
 import com.weiver.jobposting.domain.JobPosting;
 import com.weiver.jobposting.dto.request.JobPostingRequestDTO;
 import com.weiver.jobposting.dto.request.JobPostingUpdateDTO;
+import com.weiver.jobposting.event.JobPostingEventService;
 import com.weiver.jobposting.repository.EmailTemplateRepository;
 import com.weiver.jobposting.repository.JobPostingRepository;
 import com.weiver.jobposting.type.JobPostingStatus;
@@ -36,6 +37,7 @@ class JobPostingServiceTest {
     @Mock private JobPostingRepository jobPostingRepository;
     @Mock private CompanyRepository companyRepository;
     @Mock private S3Service s3Service;
+    @Mock private JobPostingEventService jobPostingEventService;
 
     @Test
     @DisplayName("공고 생성 성공: 임시저장이면 상태가 DRAFT이고 이미지가 없으면 S3를 호출하지 않는다")
