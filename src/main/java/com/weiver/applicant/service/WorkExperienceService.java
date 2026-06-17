@@ -5,6 +5,7 @@ import com.weiver.applicant.domain.WorkExperience;
 import com.weiver.applicant.dto.request.post.WorkExperienceRequestDTO;
 import com.weiver.applicant.dto.request.put.WorkExperienceUpdateDetailDTO;
 import com.weiver.applicant.dto.request.put.WorkExperienceUpdateRequestDTO;
+import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.applicant.repository.WorkExperienceRepository;
 import com.weiver.global.exception.BusinessException;
@@ -27,6 +28,7 @@ public class WorkExperienceService {
 
     private final WorkExperienceRepository workExperienceRepository;
     private final ApplicantRepository applicantRepository;
+    private final ApplicantProfileEventService applicantProfileEventService;
 
 
     public void saveWorkExperienceInfo(String publicId, WorkExperienceRequestDTO requestDTO) {
@@ -35,6 +37,7 @@ public class WorkExperienceService {
         List<WorkExperience> experienceList = requestDTO.toEntityList(applicant);
 
         workExperienceRepository.saveAll(experienceList);
+        applicantProfileEventService.publishProfileChanged(applicant.getApplicantId());
     }
 
     public void updateWorkExperienceInfo(String publicId, WorkExperienceUpdateRequestDTO requestDTO) {
@@ -73,6 +76,8 @@ public class WorkExperienceService {
         if (!toSave.isEmpty()) {
             workExperienceRepository.saveAll(toSave);
         }
+
+        applicantProfileEventService.publishProfileChanged(applicant.getApplicantId());
     }
 
     /**

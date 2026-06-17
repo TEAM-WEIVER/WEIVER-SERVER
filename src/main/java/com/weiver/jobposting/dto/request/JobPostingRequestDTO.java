@@ -58,6 +58,7 @@ public record JobPostingRequestDTO(
                 .title(this.title)
                 .status(status)
                 .jobCategory(this.jobCategory)
+                .detailedJob(this.detailedJob)
                 .deadline(this.deadline)
                 .jobDescription(this.jobDescription)
                 .qualifications(this.qualifications)

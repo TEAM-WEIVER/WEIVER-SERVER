@@ -12,6 +12,7 @@ import com.weiver.jobposting.dto.request.JobPostingUpdateDTO;
 import com.weiver.jobposting.dto.response.JobPostingPageResponseDTO;
 import com.weiver.jobposting.dto.response.JobPostingResponseDTO;
 import com.weiver.jobposting.dto.response.JobPostingsDetails;
+import com.weiver.jobposting.event.JobPostingEventService;
 import com.weiver.jobposting.repository.EmailTemplateRepository;
 import com.weiver.jobposting.repository.JobPostingRepository;
 import com.weiver.jobposting.type.JobPostingStatus;
@@ -28,6 +29,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -41,6 +43,7 @@ public class JobPostingService {
     private final JobPostingRepository jobPostingRepository;
     private final CompanyRepository companyRepository;
     private final S3Service s3Service;
+    private final JobPostingEventService jobPostingEventService;
 
     /**
      * 기업 공고 통합 생성 API
@@ -48,6 +51,7 @@ public class JobPostingService {
     public void saveJobPosting(Boolean isTemp, String publicId, JobPostingRequestDTO requestDTO,
                                MultipartFile bannerImage){
 
+        boolean temporary = Boolean.TRUE.equals(isTemp);
         String bannerImageUrl = null;
         if (bannerImage != null && !bannerImage.isEmpty()) {
             bannerImageUrl = s3Service.publicUpload(bannerImage, "email-banners");
@@ -57,7 +61,7 @@ public class JobPostingService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMPANY_NOT_FOUND));
 
         JobPostingStatus status = JobPostingStatus.ACTIVE;
-        if(isTemp){
+        if(temporary){
             status = JobPostingStatus.DRAFT;
         }
         JobPosting jobPosting = requestDTO.toJobPosting(company, status);
@@ -66,6 +70,10 @@ public class JobPostingService {
 
         EmailTemplate emailTemplate = requestDTO.toEmailTemplate(savedJobPosting, bannerImageUrl);
         emailTemplateRepository.save(emailTemplate);
+
+        if (!temporary) {
+            jobPostingEventService.publishJdAnalysisRequested(savedJobPosting);
+        }
     }
 
     /**
@@ -82,6 +90,8 @@ public class JobPostingService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "공고 수정 권한이 없습니다.");
         }
 
+        boolean shouldRequestJdAnalysis = jobPosting.getStatus() == JobPostingStatus.ACTIVE
+                && isJdAnalysisTargetChanged(jobPosting, updateDTO);
 
         String finalBannerUrl = emailTemplate.getEmailBannerUrl();
 
@@ -101,6 +111,10 @@ public class JobPostingService {
 
         jobPosting.updateJobPosting(updateDTO);
         emailTemplate.updateEmailTemplate(updateDTO, finalBannerUrl);
+
+        if (shouldRequestJdAnalysis) {
+            jobPostingEventService.publishJdAnalysisRequested(jobPosting);
+        }
     }
     
     /**
@@ -168,5 +182,16 @@ public class JobPostingService {
         }
 
         jobPostingRepository.delete(jobPosting);
+    }
+
+    private boolean isJdAnalysisTargetChanged(JobPosting jobPosting, JobPostingUpdateDTO updateDTO) {
+        return !Objects.equals(jobPosting.getTitle(), updateDTO.title())
+                || !Objects.equals(jobPosting.getJobCategory(), updateDTO.jobCategory())
+                || !Objects.equals(jobPosting.getDetailedJob(), updateDTO.detailedJob())
+                || !Objects.equals(jobPosting.getJobDescription(), updateDTO.jobDescription())
+                || !Objects.equals(jobPosting.getRequirements(), updateDTO.requirements())
+                || !Objects.equals(jobPosting.getQualifications(), updateDTO.qualifications())
+                || !Objects.equals(jobPosting.getPreferredQualifications(), updateDTO.preferredQualifications())
+                || !Objects.equals(jobPosting.getRequiredTech(), updateDTO.requiredTechs());
     }
 }

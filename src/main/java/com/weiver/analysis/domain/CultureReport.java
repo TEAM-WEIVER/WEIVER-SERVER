@@ -16,7 +16,13 @@ import java.util.List;
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
-@Table(name = "culture_reports")
+@Table(
+        name = "culture_reports",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uq_culture_reports_applicant_id",
+                columnNames = "applicant_id"
+        )
+)
 public class CultureReport extends BaseTimeEntity {
 
     @Id
@@ -39,6 +45,11 @@ public class CultureReport extends BaseTimeEntity {
 
     public void assignApplicant(Applicant applicant) {
         this.applicant = applicant;
+    }
+
+    public void updateAnalysis(CulturefitStyle culturefitStyle, List<String> culturefitTag) {
+        this.culturefitStyles = culturefitStyle;
+        this.culturefitTag = culturefitTag;
     }
 
 }

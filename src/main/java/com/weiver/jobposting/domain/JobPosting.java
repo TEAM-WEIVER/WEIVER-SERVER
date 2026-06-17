@@ -13,6 +13,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Entity
 @Getter
@@ -113,34 +114,21 @@ public class JobPosting extends BaseTimeEntity {
     }
 
     public void markJdAnalysisRequested() {
-        if (this.jdAnalysisStatus == JdAnalysisStatus.REQUESTED) {
-            return;
-        }
-        if (this.jdAnalysisStatus == JdAnalysisStatus.COMPLETED) {
-            throw new IllegalStateException("Completed JD analysis cannot be requested again.");
-        }
         this.jdAnalysisStatus = JdAnalysisStatus.REQUESTED;
         this.jdAnalysisRequestedAt = OffsetDateTime.now();
+        this.jdAnalyzedAt = null;
     }
 
     public void markJdAnalysisCompleted() {
-        if (this.jdAnalysisStatus == JdAnalysisStatus.COMPLETED) {
-            return;
-        }
-        if (this.jdAnalysisStatus != JdAnalysisStatus.REQUESTED) {
-            throw new IllegalStateException("JD analysis can be completed only after it has been requested.");
-        }
+        markJdAnalysisCompleted(OffsetDateTime.now());
+    }
+
+    public void markJdAnalysisCompleted(OffsetDateTime analyzedAt) {
         this.jdAnalysisStatus = JdAnalysisStatus.COMPLETED;
-        this.jdAnalyzedAt = OffsetDateTime.now();
+        this.jdAnalyzedAt = Objects.requireNonNull(analyzedAt, "analyzedAt must not be null");
     }
 
     public void markJdAnalysisFailed() {
-        if (this.jdAnalysisStatus == JdAnalysisStatus.FAILED) {
-            return;
-        }
-        if (this.jdAnalysisStatus == JdAnalysisStatus.COMPLETED) {
-            throw new IllegalStateException("Completed JD analysis cannot be marked as failed.");
-        }
         this.jdAnalysisStatus = JdAnalysisStatus.FAILED;
     }
 }

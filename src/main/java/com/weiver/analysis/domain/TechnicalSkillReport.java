@@ -15,7 +15,13 @@ import java.util.List;
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Entity
-@Table(name = "technical_skill_reports")
+@Table(
+        name = "technical_skill_reports",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uq_technical_skill_reports_applicant_id",
+                columnNames = "applicant_id"
+        )
+)
 public class TechnicalSkillReport extends BaseTimeEntity {
 
     /**
@@ -34,6 +40,12 @@ public class TechnicalSkillReport extends BaseTimeEntity {
     @Column(name = "application_provider_tags", columnDefinition = "jsonb")
     private List<String> applicationProviderTags; // 유저 제공 스킬 태그
 
+    @Column(name = "job") // 대분류(ex. DEVELOPER)
+    private String job;
+
+    @Column(name = "role") // 소분류(ex. BACKEND)
+    private String role;
+
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
     @JoinColumn(name = "applicant_id", nullable = false, unique = true)
     @ToString.Exclude
@@ -41,6 +53,12 @@ public class TechnicalSkillReport extends BaseTimeEntity {
 
     public void assignApplicant(Applicant applicant) {
         this.applicant = applicant;
+    }
+
+    public void updateAnalysis(List<String> skillTags, String job, String role) {
+        this.skillTags = skillTags;
+        this.job = job;
+        this.role = role;
     }
 
 }
