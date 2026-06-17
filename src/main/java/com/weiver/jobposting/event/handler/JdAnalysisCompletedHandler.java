@@ -7,6 +7,7 @@ import com.weiver.analysis.repository.JdAnalysisResultRepository;
 import com.weiver.global.event.consumer.DomainEventHandler;
 import com.weiver.global.event.dto.EventEnvelope;
 import com.weiver.global.event.dto.EventType;
+import com.weiver.global.event.exception.NonRetryableEventException;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.jobposting.domain.JobPosting;
@@ -37,13 +38,12 @@ public class JdAnalysisCompletedHandler implements DomainEventHandler {
                 envelope.data(),
                 JdAnalysisCompletedData.class
         );
+        validate(data);
 
         JobPosting jobPosting = jobPostingRepository.findById(data.jdId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.JOB_POSTING_NOT_FOUND));
 
-        Long companyId = data.companyId() != null
-                ? data.companyId()
-                : jobPosting.getCompany().getCompanyId();
+        Long companyId = jobPosting.getCompany().getCompanyId();
 
         jdAnalysisResultRepository.findByJobPosting_JdId(jobPosting.getJdId())
                 .ifPresentOrElse(
@@ -57,5 +57,11 @@ public class JdAnalysisCompletedHandler implements DomainEventHandler {
                 );
 
         jobPosting.markJdAnalysisCompleted(envelope.occurredAt());
+    }
+
+    private void validate(JdAnalysisCompletedData data) {
+        if (data.jdId() == null) {
+            throw new NonRetryableEventException("jd_id is required");
+        }
     }
 }

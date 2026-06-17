@@ -51,6 +51,7 @@ public class JobPostingService {
     public void saveJobPosting(Boolean isTemp, String publicId, JobPostingRequestDTO requestDTO,
                                MultipartFile bannerImage){
 
+        boolean temporary = Boolean.TRUE.equals(isTemp);
         String bannerImageUrl = null;
         if (bannerImage != null && !bannerImage.isEmpty()) {
             bannerImageUrl = s3Service.publicUpload(bannerImage, "email-banners");
@@ -60,7 +61,7 @@ public class JobPostingService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.COMPANY_NOT_FOUND));
 
         JobPostingStatus status = JobPostingStatus.ACTIVE;
-        if(isTemp){
+        if(temporary){
             status = JobPostingStatus.DRAFT;
         }
         JobPosting jobPosting = requestDTO.toJobPosting(company, status);
@@ -70,7 +71,7 @@ public class JobPostingService {
         EmailTemplate emailTemplate = requestDTO.toEmailTemplate(savedJobPosting, bannerImageUrl);
         emailTemplateRepository.save(emailTemplate);
 
-        if (!isTemp) {
+        if (!temporary) {
             jobPostingEventService.publishJdAnalysisRequested(savedJobPosting);
         }
     }

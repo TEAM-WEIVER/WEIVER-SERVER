@@ -19,7 +19,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -43,9 +45,7 @@ public class MatchingCompletedHandler implements DomainEventHandler {
                 envelope.data(),
                 MatchingCompletedData.class
         );
-        if (data.matches() == null) {
-            throw new NonRetryableEventException("matches is required");
-        }
+        validate(data);
 
         JobPosting jobPosting = jobPostingRepository.findById(data.jdId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.JOB_POSTING_NOT_FOUND));
@@ -73,5 +73,24 @@ public class MatchingCompletedHandler implements DomainEventHandler {
                 .matchingRate(match.finalScore())
                 .aiSummary(match.reason())
                 .build();
+    }
+
+    private void validate(MatchingCompletedData data) {
+        if (data.jdId() == null) {
+            throw new NonRetryableEventException("jd_id is required");
+        }
+        if (data.matches() == null) {
+            throw new NonRetryableEventException("matches is required");
+        }
+
+        Set<Long> applicantIds = new HashSet<>();
+        for (MatchingCompletedData.MatchData match : data.matches()) {
+            if (match.applicantId() == null) {
+                throw new NonRetryableEventException("matches.applicant_id is required");
+            }
+            if (!applicantIds.add(match.applicantId())) {
+                throw new NonRetryableEventException("Duplicate applicant_id in matches: " + match.applicantId());
+            }
+        }
     }
 }

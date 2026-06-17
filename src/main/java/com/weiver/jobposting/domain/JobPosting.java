@@ -13,6 +13,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Entity
 @Getter
@@ -124,7 +125,7 @@ public class JobPosting extends BaseTimeEntity {
 
     public void markJdAnalysisCompleted(OffsetDateTime analyzedAt) {
         this.jdAnalysisStatus = JdAnalysisStatus.COMPLETED;
-        this.jdAnalyzedAt = analyzedAt;
+        this.jdAnalyzedAt = Objects.requireNonNull(analyzedAt, "analyzedAt must not be null");
     }
 
     public void markJdAnalysisFailed() {

@@ -49,7 +49,7 @@ class JdAnalysisCompletedHandlerTest {
                 .build();
         JdAnalysisCompletedData data = new JdAnalysisCompletedData(
                 10L,
-                2L,
+                999L,
                 "original jd text",
                 List.of(0.1, 0.2, 0.3)
         );

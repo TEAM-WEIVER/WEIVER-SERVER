@@ -10,6 +10,7 @@ import com.weiver.applicant.type.ProfileSyncStatus;
 import com.weiver.global.event.consumer.DomainEventHandler;
 import com.weiver.global.event.dto.EventEnvelope;
 import com.weiver.global.event.dto.EventType;
+import com.weiver.global.event.exception.NonRetryableEventException;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -37,19 +38,29 @@ public class ApplicantProfileSyncCompletedHandler implements DomainEventHandler 
                 envelope.data(),
                 ApplicantProfileSyncCompletedData.class
         );
+        validate(data);
 
         Applicant applicant = applicantRepository.findById(data.applicantId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
 
-        if (Boolean.FALSE.equals(data.synced())) {
-            applicant.markProfileSyncFailed();
+        if (applicant.getProfileSyncStatus() == ProfileSyncStatus.COMPLETED) {
             return;
         }
-        if (applicant.getProfileSyncStatus() == ProfileSyncStatus.COMPLETED) {
+        if (Boolean.FALSE.equals(data.synced())) {
+            applicant.markProfileSyncFailed();
             return;
         }
 
         applicant.markProfileSyncCompleted(envelope.occurredAt());
         applicantAnalysisEventService.publishApplicantAnalysisRequested(applicant.getApplicantId());
+    }
+
+    private void validate(ApplicantProfileSyncCompletedData data) {
+        if (data.applicantId() == null) {
+            throw new NonRetryableEventException("applicant_id is required");
+        }
+        if (data.synced() == null) {
+            throw new NonRetryableEventException("synced is required");
+        }
     }
 }

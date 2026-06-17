@@ -46,12 +46,19 @@ public class ApplicantAnalysisCompletedHandler implements DomainEventHandler {
                 envelope.data(),
                 ApplicantAnalysisCompletedData.class
         );
+        validate(data);
 
         Applicant applicant = applicantRepository.findById(data.applicantId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
 
         upsertTechnicalSkillReport(applicant, data);
         upsertCultureReportIfPresent(applicant, data);
+    }
+
+    private void validate(ApplicantAnalysisCompletedData data) {
+        if (data.applicantId() == null) {
+            throw new NonRetryableEventException("applicant_id is required");
+        }
     }
 
     /**

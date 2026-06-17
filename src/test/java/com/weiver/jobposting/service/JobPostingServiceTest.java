@@ -64,6 +64,30 @@ class JobPostingServiceTest {
     }
 
     @Test
+    @DisplayName("공고 생성 성공: isTemp가 null이면 ACTIVE로 저장하고 JD 분석 요청을 발행한다")
+    void saveJobPosting_NullIsTemp_RequestsJdAnalysis() {
+        // given
+        String publicId = "2222";
+        JobPostingRequestDTO requestDTO = mock(JobPostingRequestDTO.class);
+        Company company = mock(Company.class);
+        JobPosting jobPosting = mock(JobPosting.class);
+        EmailTemplate emailTemplate = mock(EmailTemplate.class);
+
+        given(companyRepository.findByPublicId(publicId)).willReturn(Optional.of(company));
+        given(requestDTO.toJobPosting(company, JobPostingStatus.ACTIVE)).willReturn(jobPosting);
+        given(jobPostingRepository.save(jobPosting)).willReturn(jobPosting);
+        given(requestDTO.toEmailTemplate(jobPosting, null)).willReturn(emailTemplate);
+
+        // when
+        jobPostingService.saveJobPosting(null, publicId, requestDTO, null);
+
+        // then
+        verify(jobPostingRepository).save(jobPosting);
+        verify(emailTemplateRepository).save(emailTemplate);
+        verify(jobPostingEventService).publishJdAnalysisRequested(jobPosting);
+    }
+
+    @Test
     @DisplayName("공고 생성 실패: 존재하지 않는 회사 ID인 경우 예외 발생")
     void saveJobPosting_CompanyNotFound() {
         // given

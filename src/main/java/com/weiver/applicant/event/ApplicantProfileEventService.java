@@ -18,6 +18,8 @@ import com.weiver.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.YearMonth;
 import java.util.List;
@@ -48,8 +50,8 @@ public class ApplicantProfileEventService {
                 EventIds.newEventId()
         );
 
-        domainEventPublisher.publish(envelope);
         applicant.markProfileSyncRequested();
+        publishAfterCommit(envelope);
     }
 
     /**
@@ -106,5 +108,20 @@ public class ApplicantProfileEventService {
 
     private String format(YearMonth yearMonth) {
         return yearMonth != null ? yearMonth.toString() : null;
+    }
+
+    private void publishAfterCommit(EventEnvelope<?> envelope) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()
+                || !TransactionSynchronizationManager.isSynchronizationActive()) {
+            domainEventPublisher.publish(envelope);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                domainEventPublisher.publish(envelope);
+            }
+        });
     }
 }

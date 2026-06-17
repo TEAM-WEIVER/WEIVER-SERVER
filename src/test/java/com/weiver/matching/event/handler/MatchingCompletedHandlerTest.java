@@ -6,6 +6,7 @@ import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.global.event.dto.EventEnvelope;
 import com.weiver.global.event.dto.EventType;
+import com.weiver.global.event.exception.NonRetryableEventException;
 import com.weiver.jobposting.domain.JobPosting;
 import com.weiver.jobposting.repository.JobPostingRepository;
 import com.weiver.matching.domain.MatchResult;
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
@@ -81,6 +83,28 @@ class MatchingCompletedHandlerTest {
         assertThat(saved.get(0).getFinalScore()).isEqualTo(89.0f);
         assertThat(saved.get(0).getMatchingRate()).isEqualTo(89.0f);
         assertThat(saved.get(0).getAiSummary()).isEqualTo("요약");
+    }
+
+    @Test
+    @DisplayName("매칭 완료 payload에 같은 applicant_id가 중복되면 non-retryable 예외가 발생한다")
+    void handle_ThrowsNonRetryable_WhenApplicantIdIsDuplicated() {
+        MatchingCompletedHandler handler = new MatchingCompletedHandler(
+                objectMapper,
+                jobPostingRepository,
+                applicantRepository,
+                matchResultRepository
+        );
+        MatchingCompletedData data = new MatchingCompletedData(
+                10L,
+                List.of(
+                        new MatchingCompletedData.MatchData(1L, 87.5f, 91.0f, 89.0f, "요약 1"),
+                        new MatchingCompletedData.MatchData(1L, 80.0f, 82.0f, 81.0f, "요약 2")
+                )
+        );
+
+        assertThatThrownBy(() -> handler.handle(envelope(data)))
+                .isInstanceOf(NonRetryableEventException.class)
+                .hasMessage("Duplicate applicant_id in matches: 1");
     }
 
     private EventEnvelope<JsonNode> envelope(MatchingCompletedData data) {
