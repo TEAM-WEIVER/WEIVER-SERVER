@@ -47,7 +47,7 @@ public class ReportService {
      * 매칭 결과 검증 - 해당 공고에 대한 매칭 결과가 존재하는지 검증 (DetailAnalysisReport 존재 여부로 검증)
      * */
     public DetailAnalysisReport getDetailAnalysisReport(String applicantPublicId) {
-        return detailAnalysisReportRepository.findByApplicant_PublicId(applicantPublicId)
+        return detailAnalysisReportRepository.findTopByApplicant_PublicIdOrderByCreateTimeDesc(applicantPublicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.MATCH_NOT_FOUND));
     }
 

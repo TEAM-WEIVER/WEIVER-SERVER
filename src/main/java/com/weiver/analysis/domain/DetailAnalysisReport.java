@@ -47,4 +47,8 @@ public class DetailAnalysisReport extends BaseTimeEntity {
     @JoinColumn(name = "interview_session_id", referencedColumnName = "interview_session_id", nullable = false, unique = true)
     private InterviewSession interviewSession;
 
+    public void updateAnalysis(Map<String, Object> skillAnalysis, Map<String, Object> cultureAnalysis) {
+        this.skillAnalysis = skillAnalysis;
+        this.cultureAnalysis = cultureAnalysis;
+    }
 }

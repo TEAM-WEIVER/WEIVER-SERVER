@@ -7,6 +7,6 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface DetailAnalysisReportRepository extends JpaRepository<DetailAnalysisReport, Long> {
-    Optional<DetailAnalysisReport> findByApplicant_PublicId(String applicantPublicId);
+    Optional<DetailAnalysisReport> findTopByApplicant_PublicIdOrderByCreateTimeDesc(String applicantPublicId);
     Optional<DetailAnalysisReport> findByInterviewSession_InterviewSessionId(UUID interviewSessionId);
 }
