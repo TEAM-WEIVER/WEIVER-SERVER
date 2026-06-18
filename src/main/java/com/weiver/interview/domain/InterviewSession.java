@@ -78,11 +78,6 @@ public class InterviewSession extends BaseTimeEntity {
         return transcript != null ? transcript : List.of();
     }
 
-    public boolean hasTurn(String questionCode, Integer sequence) {
-        return getTranscript().stream()
-                .anyMatch(turn -> matches(turn, questionCode, sequence));
-    }
-
     public boolean appendQuestion(String questionCode, Integer sequence, String question) {
         List<InterviewTurnDTO> turns = new ArrayList<>(getTranscript());
         boolean duplicated = turns.stream()
