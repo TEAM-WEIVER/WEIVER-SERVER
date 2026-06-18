@@ -18,14 +18,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws-sockjs")
+        registry.addEndpoint("/ws")
                 .setAllowedOrigins(
                         "https://www.piuda.site",
                         "https://weiver.local.piuda.site:3000",
                         "http://localhost:3000"
                 );
 
-        registry.addEndpoint("/ws")
+        registry.addEndpoint("/ws-sockjs")
                 .setAllowedOrigins(
                         "https://www.piuda.site",
                         "https://weiver.local.piuda.site:3000",

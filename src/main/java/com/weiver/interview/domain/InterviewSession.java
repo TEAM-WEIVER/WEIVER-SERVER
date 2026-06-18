@@ -103,7 +103,7 @@ public class InterviewSession extends BaseTimeEntity {
 
         for (int i = 0; i < turns.size(); i++) {
             InterviewTurnDTO turn = turns.get(i);
-            if (matches(turn, questionCode, sequence)) {
+            if (matchesExactly(turn, questionCode, sequence)) {
                 InterviewTurnDTO updated = turn.withAnswer(answer);
                 turns.set(i, updated);
                 this.transcript = turns;
@@ -122,5 +122,14 @@ public class InterviewSession extends BaseTimeEntity {
 
         return Objects.equals(turn.questionCode(), questionCode)
                 || Objects.equals(turn.sequence(), sequence);
+    }
+
+    private boolean matchesExactly(InterviewTurnDTO turn, String questionCode, Integer sequence) {
+        if (turn == null) {
+            return false;
+        }
+
+        return Objects.equals(turn.questionCode(), questionCode)
+                && Objects.equals(turn.sequence(), sequence);
     }
 }

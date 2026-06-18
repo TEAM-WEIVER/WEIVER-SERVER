@@ -8,7 +8,9 @@ import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.global.event.dto.EventEnvelope;
 import com.weiver.global.event.dto.EventType;
+import com.weiver.global.event.exception.NonRetryableEventException;
 import com.weiver.global.event.publisher.DomainEventPublisher;
+import com.weiver.global.exception.BusinessException;
 import com.weiver.interview.domain.InterviewSession;
 import com.weiver.interview.dto.request.InterviewAnswerSubmitRequest;
 import com.weiver.interview.dto.request.InterviewStartRequest;
@@ -36,6 +38,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -96,6 +99,7 @@ class InterviewFlowServiceTest {
         assertThat(data.sequence()).isEqualTo(1);
         assertThat(data.lastQuestionCode()).isNull();
         assertThat(data.lastInterview().question()).isNull();
+        assertThat(data.lastInterview().answer()).isNull();
         assertThat(data.job()).isEqualTo("DEVELOPER");
         assertThat(data.role()).isEqualTo("BACKEND");
     }
@@ -149,6 +153,49 @@ class InterviewFlowServiceTest {
         assertThat(data.lastQuestionCode()).isEqualTo("S_01_00");
         assertThat(data.lastInterview().question()).isEqualTo("첫 질문");
         assertThat(data.lastInterview().answer()).isEqualTo("첫 답변");
+    }
+
+    @Test
+    @DisplayName("답변 제출 재시도 중 이미 다음 질문 대기 상태면 다음 질문 요청 이벤트를 재발행하지 않는다")
+    void submitAnswer_DoesNotRepublishQuestionRequestWhenAlreadyWaiting() {
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = session(sessionId, applicant, InterviewSessionStatus.WAITING_FOR_QUESTION,
+                List.of(new InterviewTurnDTO("S_01_00", 1, "첫 질문", "첫 답변")));
+
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        interviewFlowService.submitAnswer(
+                sessionId,
+                APPLICANT_PUBLIC_ID,
+                new InterviewAnswerSubmitRequest("S_01_00", 1, "수정 답변")
+        );
+
+        assertThat(session.getTranscript().get(0).answer()).isEqualTo("수정 답변");
+        assertThat(session.getSessionStatus()).isEqualTo(InterviewSessionStatus.WAITING_FOR_QUESTION);
+        verifyNoInteractions(domainEventPublisher);
+    }
+
+    @Test
+    @DisplayName("답변 제출 대상은 questionCode와 sequence가 모두 일치해야 한다")
+    void submitAnswer_RequiresExactQuestionCodeAndSequenceMatch() {
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = session(sessionId, applicant, InterviewSessionStatus.QUESTION_READY,
+                List.of(InterviewTurnDTO.questionOnly("S_01_00", 1, "첫 질문")));
+
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        assertThatThrownBy(() -> interviewFlowService.submitAnswer(
+                sessionId,
+                APPLICANT_PUBLIC_ID,
+                new InterviewAnswerSubmitRequest("S_01_00", 2, "잘못된 답변")
+        ))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("답변 대상 질문을 찾을 수 없습니다.");
+
+        assertThat(session.getTranscript().get(0).answer()).isNull();
+        verifyNoInteractions(domainEventPublisher);
     }
 
     @Test
@@ -231,8 +278,26 @@ class InterviewFlowServiceTest {
     }
 
     @Test
-    @DisplayName("report 완료 이벤트 수신 시 DetailAnalysisReport를 interview_session_id 기준으로 insert한다")
-    void handleReportCompleted_InsertsDetailAnalysisReport() {
+    @DisplayName("transcript 저장 완료 이벤트는 transcript 저장 요청 상태에서만 처리한다")
+    void handleTranscriptSaved_RejectsOutOfOrderEvent() {
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = session(sessionId, applicant, InterviewSessionStatus.QUESTION_READY, List.of());
+
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        assertThatThrownBy(() -> interviewFlowService.handleTranscriptSaved(
+                new InterviewTranscriptSavedData(1L, sessionId, true)
+        ))
+                .isInstanceOf(NonRetryableEventException.class)
+                .hasMessage("interview transcript saved event is out of order");
+
+        verifyNoInteractions(domainEventPublisher);
+    }
+
+    @Test
+    @DisplayName("nested evaluation map 수신 시 DetailAnalysisReport를 interview_session_id 기준으로 insert한다")
+    void handleReportCompleted_InsertsDetailAnalysisReportWithNestedEvaluation() {
         Applicant applicant = applicant();
         UUID sessionId = UUID.randomUUID();
         InterviewSession session = session(sessionId, applicant, InterviewSessionStatus.REPORT_REQUESTED, List.of());
@@ -264,8 +329,8 @@ class InterviewFlowServiceTest {
     }
 
     @Test
-    @DisplayName("report 완료 이벤트가 중복 수신되면 기존 DetailAnalysisReport를 update한다")
-    void handleReportCompleted_UpdatesExistingDetailAnalysisReport() {
+    @DisplayName("flat skill evaluation map 수신 시 전체 evaluation을 skillAnalysis로 update한다")
+    void handleReportCompleted_UpdatesExistingDetailAnalysisReportWithFlatSkillEvaluation() {
         Applicant applicant = applicant();
         UUID sessionId = UUID.randomUUID();
         InterviewSession session = session(sessionId, applicant, InterviewSessionStatus.REPORT_COMPLETED, List.of());
@@ -293,6 +358,29 @@ class InterviewFlowServiceTest {
         verify(detailAnalysisReportRepository, never()).save(any());
         assertThat(existing.getSkillAnalysis()).isEqualTo(evaluation);
         assertThat(existing.getCultureAnalysis()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("report 완료 이벤트는 report 요청 이후 상태에서만 처리한다")
+    void handleReportCompleted_RejectsOutOfOrderEvent() {
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = session(sessionId, applicant, InterviewSessionStatus.TRANSCRIPT_SAVE_REQUESTED, List.of());
+
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        assertThatThrownBy(() -> interviewFlowService.handleReportCompleted(new InterviewReportCompletedData(
+                1L,
+                sessionId,
+                "홍길동",
+                List.of(),
+                List.of(),
+                Map.of("criteria_summary", Map.of())
+        )))
+                .isInstanceOf(NonRetryableEventException.class)
+                .hasMessage("interview report completed event is out of order");
+
+        verifyNoInteractions(detailAnalysisReportRepository);
     }
 
     private Applicant applicant() {

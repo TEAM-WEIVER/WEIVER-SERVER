@@ -93,6 +93,7 @@ public class InterviewFlowService {
             throw new BusinessException(ErrorCode.INTERVIEW_ALREADY_COMPLETED);
         }
 
+        boolean alreadyWaitingForQuestion = session.getSessionStatus() == InterviewSessionStatus.WAITING_FOR_QUESTION;
         InterviewTurnDTO answeredTurn = session.updateAnswer(
                 request.questionCode(),
                 request.sequence(),
@@ -100,6 +101,10 @@ public class InterviewFlowService {
         );
         if (answeredTurn == null) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "답변 대상 질문을 찾을 수 없습니다.");
+        }
+
+        if (alreadyWaitingForQuestion) {
+            return InterviewWebSocketMessageResponse.answerAccepted(session.getInterviewSessionId());
         }
 
         session.updateStatus(InterviewSessionStatus.WAITING_FOR_QUESTION);
@@ -164,6 +169,9 @@ public class InterviewFlowService {
         if (isTranscriptAlreadyProcessed(session.getSessionStatus())) {
             return;
         }
+        if (session.getSessionStatus() != InterviewSessionStatus.TRANSCRIPT_SAVE_REQUESTED) {
+            throw new NonRetryableEventException("interview transcript saved event is out of order");
+        }
         if (!Boolean.TRUE.equals(data.saved())) {
             throw new NonRetryableEventException("interview transcript was not saved");
         }
@@ -190,6 +198,11 @@ public class InterviewFlowService {
 
         InterviewSession session = getSession(data.interviewSessionId());
         validateEventApplicant(session, data.applicantId());
+
+        if (session.getSessionStatus() != InterviewSessionStatus.REPORT_REQUESTED
+                && session.getSessionStatus() != InterviewSessionStatus.REPORT_COMPLETED) {
+            throw new NonRetryableEventException("interview report completed event is out of order");
+        }
 
         Applicant applicant = applicantRepository.findById(data.applicantId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
@@ -382,6 +395,7 @@ public class InterviewFlowService {
     }
 
     private ReportAnalysis resolveAnalysis(Map<String, Object> evaluation) {
+        // AI 서버 전환기 호환을 위해 nested(skill_analysis/culture_analysis)와 flat skill map을 모두 수용한다.
         Map<String, Object> skillAnalysis = mapValue(evaluation.get("skill_analysis"));
         Map<String, Object> cultureAnalysis = mapValue(evaluation.get("culture_analysis"));
 
