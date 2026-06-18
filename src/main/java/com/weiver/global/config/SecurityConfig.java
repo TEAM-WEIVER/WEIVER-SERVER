@@ -53,8 +53,11 @@ public class SecurityConfig {
                 .csrfTokenRequestHandler(requestHandler)
                 .ignoringRequestMatchers(
                         Stream.concat(
-                                WhiteListConfig.applicantAuthWhitelist().stream(),
-                                WhiteListConfig.companyAuthWhitelist().stream()
+                                Stream.concat(
+                                        WhiteListConfig.applicantAuthWhitelist().stream(),
+                                        WhiteListConfig.companyAuthWhitelist().stream()
+                                ),
+                                Stream.of("/ws", "/ws/**", "/ws-sockjs", "/ws-sockjs/**")
                         ).toArray(String[]::new)
                 )
         );
@@ -81,6 +84,10 @@ public class SecurityConfig {
                         .requestMatchers(WhiteListConfig.swaggerWhitelist().toArray(String[]::new)).permitAll()
                         .requestMatchers(WhiteListConfig.serverWhitelist().toArray(String[]::new)).permitAll()
                         .requestMatchers(WhiteListConfig.authWhitelist().toArray(String[]::new)).permitAll()
+                        .requestMatchers("/ws").permitAll()
+                        .requestMatchers("/ws/**").permitAll()
+                        .requestMatchers("/ws-sockjs").permitAll()
+                        .requestMatchers("/ws-sockjs/**").permitAll()
 
                         .requestMatchers(
                                 HttpMethod.POST,
