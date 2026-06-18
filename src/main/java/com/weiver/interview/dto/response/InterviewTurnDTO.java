@@ -17,4 +17,12 @@ public record InterviewTurnDTO(
 
         @Schema(description = "면접 답변", example = "프로젝트에서 주문 생성과 결제 승인 로직을 분리하면서 REQUIRED와 REQUIRES_NEW 전파 옵션의 차이를 경험했습니다.")
         String answer
-) {}
+) {
+    public static InterviewTurnDTO questionOnly(String questionCode, Integer sequence, String question) {
+        return new InterviewTurnDTO(questionCode, sequence, question, null);
+    }
+
+    public InterviewTurnDTO withAnswer(String answer) {
+        return new InterviewTurnDTO(questionCode, sequence, question, answer);
+    }
+}
