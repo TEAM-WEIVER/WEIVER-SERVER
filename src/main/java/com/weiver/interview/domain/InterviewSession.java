@@ -9,7 +9,9 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Entity
@@ -47,8 +49,9 @@ public class InterviewSession extends BaseTimeEntity {
     private String currentQuestion;
 
     @JdbcTypeCode(SqlTypes.JSON)
+    @Builder.Default
     @Column(name = "transcript", nullable = false, columnDefinition = "jsonb")
-    private List<InterviewTurnDTO> transcript;
+    private List<InterviewTurnDTO> transcript = new ArrayList<>();
 
     @Column(name = "video_url")
     private String videoUrl;
@@ -69,5 +72,55 @@ public class InterviewSession extends BaseTimeEntity {
 
     public void updateStatus(InterviewSessionStatus sessionStatus) {
         this.sessionStatus = sessionStatus;
+    }
+
+    public List<InterviewTurnDTO> getTranscript() {
+        return transcript != null ? transcript : List.of();
+    }
+
+    public boolean hasTurn(String questionCode, Integer sequence) {
+        return getTranscript().stream()
+                .anyMatch(turn -> matches(turn, questionCode, sequence));
+    }
+
+    public boolean appendQuestion(String questionCode, Integer sequence, String question) {
+        List<InterviewTurnDTO> turns = new ArrayList<>(getTranscript());
+        boolean duplicated = turns.stream()
+                .anyMatch(turn -> matches(turn, questionCode, sequence));
+
+        if (duplicated) {
+            return false;
+        }
+
+        turns.add(InterviewTurnDTO.questionOnly(questionCode, sequence, question));
+        this.transcript = turns;
+        updateCurrentQuestion(sequence, questionCode, question);
+        return true;
+    }
+
+    public InterviewTurnDTO updateAnswer(String questionCode, Integer sequence, String answer) {
+        List<InterviewTurnDTO> turns = new ArrayList<>(getTranscript());
+
+        for (int i = 0; i < turns.size(); i++) {
+            InterviewTurnDTO turn = turns.get(i);
+            if (matches(turn, questionCode, sequence)) {
+                InterviewTurnDTO updated = turn.withAnswer(answer);
+                turns.set(i, updated);
+                this.transcript = turns;
+                updateCurrentQuestion(updated.sequence(), updated.questionCode(), updated.question());
+                return updated;
+            }
+        }
+
+        return null;
+    }
+
+    private boolean matches(InterviewTurnDTO turn, String questionCode, Integer sequence) {
+        if (turn == null) {
+            return false;
+        }
+
+        return Objects.equals(turn.questionCode(), questionCode)
+                || Objects.equals(turn.sequence(), sequence);
     }
 }
