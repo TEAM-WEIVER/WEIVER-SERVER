@@ -136,12 +136,7 @@ public class InterviewFlowService {
             session.updateStatus(InterviewSessionStatus.TRANSCRIPT_SAVE_REQUESTED);
             sendInterviewMessage(
                     session,
-                    InterviewWebSocketMessageResponse.statusChanged(
-                            "TRANSCRIPT_SAVE_REQUESTED",
-                            session.getInterviewSessionId(),
-                            session.getSessionStatus(),
-                            "면접이 종료되어 transcript 저장을 요청했습니다."
-                    )
+                    InterviewWebSocketMessageResponse.interviewFinished(session.getInterviewSessionId())
             );
             return;
         }
@@ -179,15 +174,6 @@ public class InterviewFlowService {
         session.updateStatus(InterviewSessionStatus.TRANSCRIPT_SAVED);
         publishReportRequested(session);
         session.updateStatus(InterviewSessionStatus.REPORT_REQUESTED);
-        sendInterviewMessage(
-                session,
-                InterviewWebSocketMessageResponse.statusChanged(
-                        "REPORT_REQUESTED",
-                        session.getInterviewSessionId(),
-                        session.getSessionStatus(),
-                        "transcript 저장이 완료되어 최종 리포트 생성을 요청했습니다."
-                )
-        );
     }
 
     /**
@@ -220,15 +206,6 @@ public class InterviewFlowService {
                 );
 
         session.updateStatus(InterviewSessionStatus.REPORT_COMPLETED);
-        sendInterviewMessage(
-                session,
-                InterviewWebSocketMessageResponse.statusChanged(
-                        "REPORT_COMPLETED",
-                        session.getInterviewSessionId(),
-                        session.getSessionStatus(),
-                        "최종 리포트 생성이 완료되었습니다."
-                )
-        );
     }
 
     /**

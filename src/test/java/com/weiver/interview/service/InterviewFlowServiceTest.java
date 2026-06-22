@@ -16,6 +16,7 @@ import com.weiver.interview.dto.request.InterviewAnswerSubmitRequest;
 import com.weiver.interview.dto.request.InterviewStartRequest;
 import com.weiver.interview.dto.response.InterviewStartResponse;
 import com.weiver.interview.dto.response.InterviewTurnDTO;
+import com.weiver.interview.dto.response.InterviewWebSocketMessageResponse;
 import com.weiver.interview.event.dto.InterviewQuestionGeneratedData;
 import com.weiver.interview.event.dto.InterviewQuestionRequestedData;
 import com.weiver.interview.event.dto.InterviewReportCompletedData;
@@ -40,6 +41,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -221,7 +223,7 @@ class InterviewFlowServiceTest {
     }
 
     @Test
-    @DisplayName("E_ 질문이 생성되면 면접을 종료하고 transcript 저장 요청 이벤트를 발행한다")
+    @DisplayName("E_ 질문이 생성되면 면접 종료 메시지를 보내고 transcript 저장 요청 이벤트를 발행한다")
     void handleQuestionGenerated_PublishesTranscriptSaveRequestForEndQuestion() {
         Applicant applicant = applicant();
         UUID sessionId = UUID.randomUUID();
@@ -255,6 +257,19 @@ class InterviewFlowServiceTest {
         assertThat(data.skillInterview().turns().get(0).answer()).isEqualTo("기술 답변");
         assertThat(data.cultureInterview().turns()).hasSize(1);
         assertThat(data.cultureInterview().turns().get(0).question()).isEqualTo("컬처 질문");
+
+        ArgumentCaptor<InterviewWebSocketMessageResponse> messageCaptor =
+                ArgumentCaptor.forClass(InterviewWebSocketMessageResponse.class);
+        verify(messagingTemplate).convertAndSendToUser(
+                eq(APPLICANT_PUBLIC_ID),
+                eq("/queue/interviews"),
+                messageCaptor.capture()
+        );
+
+        InterviewWebSocketMessageResponse message = messageCaptor.getValue();
+        assertThat(message.type()).isEqualTo("INTERVIEW_FINISHED");
+        assertThat(message.status()).isEqualTo(InterviewSessionStatus.FINISHED.name());
+        assertThat(message.interviewSessionId()).isEqualTo(sessionId);
     }
 
     @Test
@@ -275,6 +290,7 @@ class InterviewFlowServiceTest {
 
         EventEnvelope<?> envelope = eventCaptor.getValue();
         assertThat(envelope.eventType()).isEqualTo(EventType.INTERVIEW_REPORT_REQUESTED);
+        verifyNoInteractions(messagingTemplate);
     }
 
     @Test
@@ -326,6 +342,7 @@ class InterviewFlowServiceTest {
         assertThat(saved.getSkillAnalysis()).isEqualTo(skillAnalysis);
         assertThat(saved.getCultureAnalysis()).isEqualTo(cultureAnalysis);
         assertThat(session.getSessionStatus()).isEqualTo(InterviewSessionStatus.REPORT_COMPLETED);
+        verifyNoInteractions(messagingTemplate);
     }
 
     @Test
@@ -358,6 +375,7 @@ class InterviewFlowServiceTest {
         verify(detailAnalysisReportRepository, never()).save(any());
         assertThat(existing.getSkillAnalysis()).isEqualTo(evaluation);
         assertThat(existing.getCultureAnalysis()).isEmpty();
+        verifyNoInteractions(messagingTemplate);
     }
 
     @Test
