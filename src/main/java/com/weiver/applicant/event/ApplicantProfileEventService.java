@@ -24,7 +24,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.StringUtils;
 
 import java.time.YearMonth;
-import java.util.List;
 
 @Service
 @Transactional
