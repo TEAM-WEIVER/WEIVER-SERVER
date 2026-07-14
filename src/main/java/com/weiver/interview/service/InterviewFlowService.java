@@ -33,6 +33,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
@@ -213,8 +214,7 @@ public class InterviewFlowService {
      */
     private void publishQuestionRequested(InterviewSession session, InterviewTurnDTO lastTurn, Integer nextSequence) {
         Applicant applicant = session.getApplicant();
-        TechnicalSkillReport technicalSkillReport = technicalSkillReportRepository.findByApplicant(applicant)
-                .orElse(null);
+        TechnicalSkillReport technicalSkillReport = getCompletedAnalysis(applicant);
 
         InterviewQuestionRequestedData data = new InterviewQuestionRequestedData(
                 applicant.getApplicantId(),
@@ -222,8 +222,8 @@ public class InterviewFlowService {
                 session.getInterviewSessionId(),
                 lastTurn != null ? lastTurn.questionCode() : null,
                 nextSequence,
-                technicalSkillReport != null ? technicalSkillReport.getJob() : null,
-                technicalSkillReport != null ? technicalSkillReport.getRole() : null,
+                technicalSkillReport.getJob(),
+                technicalSkillReport.getRole(),
                 new InterviewQuestionRequestedData.LastInterviewData(
                         lastTurn != null ? lastTurn.question() : null,
                         lastTurn != null ? lastTurn.answer() : null
@@ -235,6 +235,16 @@ public class InterviewFlowService {
                 data,
                 EventIds.newEventId()
         ));
+    }
+
+    private TechnicalSkillReport getCompletedAnalysis(Applicant applicant) {
+        TechnicalSkillReport report = technicalSkillReportRepository.findByApplicant(applicant)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_ANALYSIS_NOT_COMPLETED));
+
+        if (!StringUtils.hasText(report.getJob()) || !StringUtils.hasText(report.getRole())) {
+            throw new BusinessException(ErrorCode.APPLICANT_ANALYSIS_NOT_COMPLETED);
+        }
+        return report;
     }
 
     /**

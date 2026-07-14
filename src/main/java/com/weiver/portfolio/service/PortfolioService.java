@@ -1,6 +1,7 @@
 package com.weiver.portfolio.service;
 
 import com.weiver.applicant.domain.Applicant;
+import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -25,18 +26,26 @@ public class PortfolioService {
     private final PortfolioRepository portfolioRepository;
     private final ApplicantRepository applicantRepository;
     private final S3Service s3Service;
+    private final ApplicantProfileEventService applicantProfileEventService;
 
     public void savePortfolio(PortfolioRequestDTO requestDTO, MultipartFile file, String publicId) {
-        String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "";
-        Long fileSize = file.getSize();
-        String fileType = org.springframework.util.StringUtils.getFilenameExtension(fileName);
-
-        String fileKey = s3Service.privateUpload(file, "portfolios");
-
         Applicant applicant = getApplicant(publicId);
+
+        String fileName = null;
+        Long fileSize = null;
+        String fileType = null;
+        String fileKey = null;
+        if (file != null && !file.isEmpty()) {
+            fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "";
+            fileSize = file.getSize();
+            fileType = StringUtils.getFilenameExtension(fileName);
+            fileKey = s3Service.privateUpload(file, "portfolios");
+        }
+
         Portfolio portfolio = requestDTO.toEntity(applicant, fileSize, fileName, fileType, fileKey);
 
         portfolioRepository.save(portfolio);
+        applicantProfileEventService.publishProfileChanged(applicant.getApplicantId());
     }
 
 
@@ -66,6 +75,7 @@ public class PortfolioService {
         }
 
         portfolio.updateLinks(requestDTO);
+        applicantProfileEventService.publishProfileChanged(portfolio.getApplicant().getApplicantId());
     }
 
     @Transactional(readOnly = true)
