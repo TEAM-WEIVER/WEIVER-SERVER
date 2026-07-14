@@ -18,24 +18,24 @@ public record ApplicantProfileChangedData(
 ) {
     public record EducationData(
             Long id,
-            String degree,
+            @JsonProperty("education_level") String degree,
             @JsonProperty("school_name") String schoolName,
             String major,
             BigDecimal gpa,
             @JsonProperty("start_date") String startDate,
             @JsonProperty("end_date") String endDate,
-            String status
+            @JsonProperty("graduation_status") String status
     ) {
     }
 
     public record ExperienceData(
             Long id,
-            @JsonProperty("company_name") String companyName,
+            @JsonProperty("experience_name") String companyName,
             @JsonProperty("start_date") LocalDate startDate,
             @JsonProperty("end_date") LocalDate endDate,
             @JsonProperty("employment_type") String employmentType,
-            String position,
-            String duties,
+            @JsonProperty("position_title") String position,
+            @JsonProperty("responsibilities") String duties,
             @JsonProperty("is_recognized") boolean recognized
     ) {
     }

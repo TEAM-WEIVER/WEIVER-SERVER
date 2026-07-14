@@ -13,13 +13,33 @@ import com.weiver.matching.event.dto.MatchingRequestedData;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Map;
+import java.util.stream.IntStream;
 
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class MatchingEventService {
+
+    private static final Map<String, String> PRIORITY_CODES = Map.ofEntries(
+            Map.entry("성장가능성", "GROWTH_POTENTIAL"),
+            Map.entry("대처능력", "ADAPTABILITY"),
+            Map.entry("일관성", "CONSISTENCY"),
+            Map.entry("협업 및 커뮤니케이션", "COLLABORATION"),
+            Map.entry("협업 및 팀워크", "COLLABORATION"),
+            Map.entry("커뮤니케이션", "COLLABORATION"),
+            Map.entry("문제해결력", "PROBLEM_SOLVING"),
+            Map.entry("논리력", "LOGICAL_THINKING"),
+            Map.entry("논리성", "LOGICAL_THINKING"),
+            Map.entry("자율·혁신", "AUTONOMY_INNOVATION"),
+            Map.entry("성과·영향", "PERFORMANCE_IMPACT"),
+            Map.entry("성취·결과", "PERFORMANCE_IMPACT"),
+            Map.entry("안정·질서", "STABILITY_ORDER"),
+            Map.entry("관계·공동체", "RELATIONSHIP_COMMUNITY")
+    );
 
     private final JobPostingRepository jobPostingRepository;
     private final DomainEventPublisher domainEventPublisher;
@@ -59,8 +79,24 @@ public class MatchingEventService {
                 jobPosting.getCompany().getCompanyId(),
                 jobPosting.getJdId(),
                 safeList(jobPosting.getRequiredTech()),
-                jobPosting.getRequirements()
+                jobPosting.getRequirements(),
+                toPriorityData(jobPosting.getCompetencyPriorities()),
+                toPriorityData(jobPosting.getTraitPriorities())
         );
+    }
+
+    private List<MatchingRequestedData.PriorityData> toPriorityData(List<String> priorities) {
+        List<String> values = safeList(priorities).stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .toList();
+        return IntStream.range(0, values.size())
+                .mapToObj(index -> new MatchingRequestedData.PriorityData(
+                        index + 1,
+                        PRIORITY_CODES.getOrDefault(values.get(index), values.get(index)),
+                        values.get(index)
+                ))
+                .toList();
     }
 
     private List<String> safeList(List<String> values) {

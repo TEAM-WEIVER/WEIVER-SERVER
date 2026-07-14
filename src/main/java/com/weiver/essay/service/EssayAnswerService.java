@@ -1,7 +1,6 @@
 package com.weiver.essay.service;
 
 import com.weiver.applicant.domain.Applicant;
-import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.essay.domain.EssayAnswer;
 import com.weiver.essay.domain.EssayQuestion;
@@ -34,7 +33,6 @@ public class EssayAnswerService {
     private final EssayAnswerRepository essayAnswerRepository;
     private final EssayQuestionRepository essayQuestionRepository;
     private final ApplicantRepository applicantRepository;
-    private final ApplicantProfileEventService applicantProfileEventService;
 
 
     public void saveEssayAnswer(EssayAnswerRequestDTO requestDTO, String publicId) {
@@ -51,7 +49,6 @@ public class EssayAnswerService {
                 .toList();
 
         essayAnswerRepository.saveAll(essayAnswers);
-        applicantProfileEventService.publishProfileChanged(applicant.getApplicantId());
     }
 
     public void updateEssayAnswers(EssayAnswerUpdateRequestDTO requestDTO, String publicId) {
@@ -74,7 +71,6 @@ public class EssayAnswerService {
         }
 
         requestDTO.answers().forEach(answerItem -> updateAnswer(answerItem, existingAnswerMap.get(answerItem.answerId())));
-        applicantProfileEventService.publishProfileChanged(applicant.getApplicantId());
     }
 
     @Transactional(readOnly = true)

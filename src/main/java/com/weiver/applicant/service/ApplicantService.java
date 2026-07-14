@@ -3,7 +3,6 @@ package com.weiver.applicant.service;
 import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.dto.response.*;
-import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.*;
 import com.weiver.essay.repository.EssayAnswerRepository;
 import com.weiver.global.exception.BusinessException;
@@ -33,7 +32,6 @@ public class ApplicantService {
     private final PortfolioRepository portfolioRepository;
     private final WorkExperienceService workExperienceService;
     private final S3Service s3Service;
-    private final ApplicantProfileEventService applicantProfileEventService;
 
     public void updateApplicantInfo(String publicId, ApplicantInfoRequestDTO requestDTO, MultipartFile profileImage) {
 
@@ -51,7 +49,6 @@ public class ApplicantService {
         }
 
         applicant.updateInfo(requestDTO, photoUrl);
-        applicantProfileEventService.publishProfileChanged(applicant.getApplicantId());
     }
 
     @Transactional(readOnly = true)

@@ -101,6 +101,52 @@ class ApplicantAnalysisCompletedHandlerTest {
                 .hasMessage("applicant_id is required");
     }
 
+    @Test
+    @DisplayName("지원자 분석 완료 payload에 job이 없으면 non-retryable 예외가 발생한다")
+    void handle_ThrowsNonRetryable_WhenJobIsMissing() {
+        ApplicantAnalysisCompletedHandler handler = new ApplicantAnalysisCompletedHandler(
+                objectMapper,
+                applicantRepository,
+                technicalSkillReportRepository,
+                cultureReportRepository
+        );
+        ApplicantAnalysisCompletedData data = new ApplicantAnalysisCompletedData(
+                1L,
+                List.of("Java"),
+                null,
+                "BACKEND",
+                null,
+                null
+        );
+
+        assertThatThrownBy(() -> handler.handle(envelope(data)))
+                .isInstanceOf(NonRetryableEventException.class)
+                .hasMessage("job is required");
+    }
+
+    @Test
+    @DisplayName("지원자 분석 완료 payload에 role이 없으면 non-retryable 예외가 발생한다")
+    void handle_ThrowsNonRetryable_WhenRoleIsMissing() {
+        ApplicantAnalysisCompletedHandler handler = new ApplicantAnalysisCompletedHandler(
+                objectMapper,
+                applicantRepository,
+                technicalSkillReportRepository,
+                cultureReportRepository
+        );
+        ApplicantAnalysisCompletedData data = new ApplicantAnalysisCompletedData(
+                1L,
+                List.of("Java"),
+                "DEVELOPER",
+                " ",
+                null,
+                null
+        );
+
+        assertThatThrownBy(() -> handler.handle(envelope(data)))
+                .isInstanceOf(NonRetryableEventException.class)
+                .hasMessage("role is required");
+    }
+
     private EventEnvelope<JsonNode> envelope(ApplicantAnalysisCompletedData data) {
         return new EventEnvelope<>(
                 "event-1",

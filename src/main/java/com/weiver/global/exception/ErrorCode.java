@@ -73,6 +73,7 @@ public enum ErrorCode {
     // ===================== INTERVIEW =====================
     INTERVIEW_SESSION_NOT_FOUND("INTERVIEW_SESSION_NOT_FOUND", HttpStatus.NOT_FOUND, "면접 세션을 찾을 수 없습니다."),
     INTERVIEW_ALREADY_COMPLETED("INTERVIEW_ALREADY_COMPLETED", HttpStatus.CONFLICT, "이미 완료된 면접입니다."),
+    APPLICANT_ANALYSIS_NOT_COMPLETED("APPLICANT_ANALYSIS_NOT_COMPLETED", HttpStatus.CONFLICT, "지원자 분석이 완료되지 않았습니다."),
     INVALID_INTERVIEW_TYPE("INVALID_INTERVIEW_TYPE", HttpStatus.BAD_REQUEST, "잘못된 인터뷰 타입입니다."),
 
     // ===================== MATCHING =====================

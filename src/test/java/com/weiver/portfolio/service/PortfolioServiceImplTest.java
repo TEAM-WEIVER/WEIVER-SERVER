@@ -1,27 +1,35 @@
 package com.weiver.portfolio.service;
 
 import com.weiver.applicant.domain.Applicant;
+import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.s3.service.S3Service;
 import com.weiver.portfolio.domain.Portfolio;
+import com.weiver.portfolio.dto.request.PortfolioRequestDTO;
+import com.weiver.portfolio.dto.request.PortfolioUpdateRequestDTO;
 import com.weiver.portfolio.dto.response.PortfolioResponseDTO;
 import com.weiver.portfolio.repository.PortfolioRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class PortfolioServiceImplTest {
@@ -35,8 +43,79 @@ class PortfolioServiceImplTest {
     @Mock
     private S3Service s3Service;
 
+    @Mock
+    private ApplicantProfileEventService applicantProfileEventService;
+
     @InjectMocks
     private PortfolioService portfolioService;
+
+    @Test
+    @DisplayName("포트폴리오 최초 저장 후 지원자 프로필 동기화 이벤트를 발행한다")
+    void savePortfolio_PublishesApplicantProfileChanged() {
+        String publicId = "3333";
+        Applicant applicant = Applicant.builder().applicantId(1L).publicId(publicId).build();
+        MultipartFile file = mock(MultipartFile.class);
+        PortfolioRequestDTO request = new PortfolioRequestDTO(
+                "https://github.com/weiver",
+                null,
+                null
+        );
+
+        given(file.getOriginalFilename()).willReturn("portfolio.pdf");
+        given(file.getSize()).willReturn(100L);
+        given(s3Service.privateUpload(file, "portfolios")).willReturn("portfolios/portfolio.pdf");
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+
+        portfolioService.savePortfolio(request, file, publicId);
+
+        verify(portfolioRepository).save(any(Portfolio.class));
+        verify(applicantProfileEventService).publishProfileChanged(1L);
+    }
+
+    @Test
+    @DisplayName("파일 없이 링크만 최초 저장해도 지원자 프로필 동기화 이벤트를 발행한다")
+    void savePortfolio_WithoutFile_PublishesApplicantProfileChanged() {
+        String publicId = "3333";
+        Applicant applicant = Applicant.builder().applicantId(1L).publicId(publicId).build();
+        PortfolioRequestDTO request = new PortfolioRequestDTO(
+                "https://github.com/weiver",
+                null,
+                null
+        );
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+
+        portfolioService.savePortfolio(request, null, publicId);
+
+        ArgumentCaptor<Portfolio> portfolioCaptor = ArgumentCaptor.forClass(Portfolio.class);
+        verify(portfolioRepository).save(portfolioCaptor.capture());
+        assertThat(portfolioCaptor.getValue().getFileKey()).isNull();
+        assertThat(portfolioCaptor.getValue().getFileName()).isNull();
+        verifyNoInteractions(s3Service);
+        verify(applicantProfileEventService).publishProfileChanged(1L);
+    }
+
+    @Test
+    @DisplayName("포트폴리오 수정 후 지원자 프로필 동기화 이벤트를 발행한다")
+    void updatePortfolio_PublishesApplicantProfileChanged() {
+        String publicId = "3333";
+        Applicant applicant = Applicant.builder().applicantId(1L).publicId(publicId).build();
+        Portfolio portfolio = Portfolio.builder()
+                .portfolioId(10L)
+                .applicant(applicant)
+                .build();
+        PortfolioUpdateRequestDTO request = new PortfolioUpdateRequestDTO(
+                "https://github.com/weiver-updated",
+                null,
+                null
+        );
+
+        given(portfolioRepository.findById(10L)).willReturn(Optional.of(portfolio));
+
+        portfolioService.updatePortfolio(request, null, publicId, 10L);
+
+        verify(applicantProfileEventService).publishProfileChanged(1L);
+    }
 
     @Test
     @DisplayName("포트폴리오 조회 시 S3 Presigned URL을 발급받아 정상적으로 DTO를 반환한다.")

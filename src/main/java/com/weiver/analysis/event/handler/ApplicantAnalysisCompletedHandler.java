@@ -59,6 +59,12 @@ public class ApplicantAnalysisCompletedHandler implements DomainEventHandler {
         if (data.applicantId() == null) {
             throw new NonRetryableEventException("applicant_id is required");
         }
+        if (!StringUtils.hasText(data.job())) {
+            throw new NonRetryableEventException("job is required");
+        }
+        if (!StringUtils.hasText(data.role())) {
+            throw new NonRetryableEventException("role is required");
+        }
     }
 
     /**

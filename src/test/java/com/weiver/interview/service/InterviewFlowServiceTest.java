@@ -11,6 +11,7 @@ import com.weiver.global.event.dto.EventType;
 import com.weiver.global.event.exception.NonRetryableEventException;
 import com.weiver.global.event.publisher.DomainEventPublisher;
 import com.weiver.global.exception.BusinessException;
+import com.weiver.global.exception.ErrorCode;
 import com.weiver.interview.domain.InterviewSession;
 import com.weiver.interview.dto.request.InterviewAnswerSubmitRequest;
 import com.weiver.interview.dto.request.InterviewStartRequest;
@@ -111,7 +112,7 @@ class InterviewFlowServiceTest {
     void startInterview_AllowsMultipleSessionsForSameApplicant() {
         Applicant applicant = applicant();
         given(applicantRepository.findByPublicId(APPLICANT_PUBLIC_ID)).willReturn(Optional.of(applicant));
-        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.empty());
+        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.of(completedAnalysis()));
 
         interviewFlowService.startInterview(APPLICANT_PUBLIC_ID, new InterviewStartRequest("TECHNICAL"));
         interviewFlowService.startInterview(APPLICANT_PUBLIC_ID, new InterviewStartRequest("TECHNICAL"));
@@ -125,6 +126,24 @@ class InterviewFlowServiceTest {
     }
 
     @Test
+    @DisplayName("지원자 분석이 완료되지 않으면 면접을 시작할 수 없다")
+    void startInterview_RejectsWhenApplicantAnalysisIsNotCompleted() {
+        Applicant applicant = applicant();
+        given(applicantRepository.findByPublicId(APPLICANT_PUBLIC_ID)).willReturn(Optional.of(applicant));
+        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> interviewFlowService.startInterview(
+                APPLICANT_PUBLIC_ID,
+                new InterviewStartRequest("TECHNICAL")
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(ErrorCode.APPLICANT_ANALYSIS_NOT_COMPLETED);
+
+        verifyNoInteractions(domainEventPublisher);
+    }
+
+    @Test
     @DisplayName("답변 제출 시 기존 질문 turn을 overwrite하고 다음 질문 요청 이벤트를 발행한다")
     void submitAnswer_UpdatesTurnAndPublishesNextQuestionRequest() {
         Applicant applicant = applicant();
@@ -133,7 +152,7 @@ class InterviewFlowServiceTest {
                 List.of(InterviewTurnDTO.questionOnly("S_01_00", 1, "첫 질문")));
 
         given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
-        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.empty());
+        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.of(completedAnalysis()));
 
         interviewFlowService.submitAnswer(
                 sessionId,
@@ -406,6 +425,13 @@ class InterviewFlowServiceTest {
                 .applicantId(1L)
                 .publicId(APPLICANT_PUBLIC_ID)
                 .name("홍길동")
+                .build();
+    }
+
+    private TechnicalSkillReport completedAnalysis() {
+        return TechnicalSkillReport.builder()
+                .job("DEVELOPER")
+                .role("BACKEND")
                 .build();
     }
 
