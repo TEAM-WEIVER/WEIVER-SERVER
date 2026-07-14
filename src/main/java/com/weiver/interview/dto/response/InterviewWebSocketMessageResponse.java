@@ -60,20 +60,15 @@ public record InterviewWebSocketMessageResponse(
         );
     }
 
-    public static InterviewWebSocketMessageResponse statusChanged(
-            String type,
-            UUID interviewSessionId,
-            InterviewSessionStatus status,
-            String message
-    ) {
+    public static InterviewWebSocketMessageResponse interviewFinished(UUID interviewSessionId) {
         return new InterviewWebSocketMessageResponse(
-                type,
+                "INTERVIEW_FINISHED",
                 interviewSessionId,
-                status.name(),
+                InterviewSessionStatus.FINISHED.name(),
                 null,
                 null,
                 null,
-                message
+                "면접이 종료되었습니다."
         );
     }
 }
