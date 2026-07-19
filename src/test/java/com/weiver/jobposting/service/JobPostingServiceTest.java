@@ -8,6 +8,7 @@ import com.weiver.jobposting.domain.EmailTemplate;
 import com.weiver.jobposting.domain.JobPosting;
 import com.weiver.jobposting.dto.request.JobPostingRequestDTO;
 import com.weiver.jobposting.dto.request.JobPostingUpdateDTO;
+import com.weiver.jobposting.dto.response.JobPostingPageResponseDTO;
 import com.weiver.jobposting.event.JobPostingEventService;
 import com.weiver.jobposting.repository.EmailTemplateRepository;
 import com.weiver.jobposting.repository.JobPostingRepository;
@@ -16,14 +17,23 @@ import com.weiver.notification.repository.NotificationRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
+import java.util.List;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -34,6 +44,7 @@ class JobPostingServiceTest {
     private JobPostingService jobPostingService;
 
     @Mock private EmailTemplateRepository emailTemplateRepository;
+    @Mock private NotificationRepository notificationRepository;
     @Mock private JobPostingRepository jobPostingRepository;
     @Mock private CompanyRepository companyRepository;
     @Mock private S3Service s3Service;
@@ -167,5 +178,35 @@ class JobPostingServiceTest {
         verify(s3Service, times(1)).deleteFile(existingImageUrl);
         verify(jobPosting, times(1)).updateJobPosting(updateDTO);
         verify(emailTemplate, times(1)).updateEmailTemplate(updateDTO, null);
+    }
+
+    @Test
+    @DisplayName("공고 목록 조회 성공: BaseTimeEntity의 createTime 필드 기준 내림차순으로 정렬한다")
+    void searchJobPostingsList_SortsByCreateTimeDesc() {
+        // given
+        String publicId = "2222";
+        int page = 0;
+        int size = 10;
+
+        JobPosting jobPosting = mock(JobPosting.class);
+        given(jobPosting.getJdId()).willReturn(1L);
+        given(jobPosting.getStatus()).willReturn(JobPostingStatus.ACTIVE);
+
+        Page<JobPosting> jobPostingPage = new PageImpl<>(List.of(jobPosting));
+        given(jobPostingRepository.findByCompany_PublicId(eq(publicId), any(Pageable.class)))
+                .willReturn(jobPostingPage);
+        given(notificationRepository.countNewApplicantsByJdIds(anyList())).willReturn(List.of());
+
+        // when
+        JobPostingPageResponseDTO result = jobPostingService.searchJobPostingsList(publicId, null, page, size);
+
+        // then
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(jobPostingRepository).findByCompany_PublicId(eq(publicId), pageableCaptor.capture());
+
+        Sort.Order order = pageableCaptor.getValue().getSort().getOrderFor("createTime");
+        assertThat(order).isNotNull();
+        assertThat(order.getDirection()).isEqualTo(Sort.Direction.DESC);
+        assertThat(result.content()).hasSize(1);
     }
 }
