@@ -122,7 +122,7 @@ public class JobPostingService {
      * */
     @Transactional(readOnly = true)
     public JobPostingPageResponseDTO searchJobPostingsList(String publicId, JobPostingStatus status, int page, int size){
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createTime"));
 
         Page<JobPosting> jobPostingPage;
         if (status != null) {
