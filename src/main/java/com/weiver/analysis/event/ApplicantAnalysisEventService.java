@@ -24,6 +24,6 @@ public class ApplicantAnalysisEventService {
                 EventIds.newEventId()
         );
 
-        domainEventPublisher.publish(envelope);
+        domainEventPublisher.publishAfterCommit(envelope);
     }
 }

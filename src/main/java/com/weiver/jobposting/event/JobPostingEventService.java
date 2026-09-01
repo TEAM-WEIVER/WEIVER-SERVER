@@ -38,8 +38,10 @@ public class JobPostingEventService {
                 EventIds.newEventId()
         );
 
-        domainEventPublisher.publish(envelope);
+        // 요청 상태는 트랜잭션 안에서 기록하고, 실제 이벤트 발행은 커밋 후로 미룬다.
+        // 외부 트랜잭션이 롤백되면 AI 서버가 존재하지 않는 공고의 분석 요청을 받지 않도록 하기 위함.
         jobPosting.markJdAnalysisRequested();
+        domainEventPublisher.publishAfterCommit(envelope);
     }
 
     /**
