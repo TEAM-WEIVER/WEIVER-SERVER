@@ -1,6 +1,5 @@
 package com.weiver.matching.service;
 
-import com.querydsl.core.Tuple;
 import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.response.*;
 import com.weiver.applicant.repository.*;
@@ -13,6 +12,7 @@ import com.weiver.jobposting.repository.EmailTemplateRepository;
 import com.weiver.jobposting.repository.JobPostingRepository;
 import com.weiver.matching.domain.MatchResult;
 import com.weiver.matching.dto.request.ApplicantSearchCondition;
+import com.weiver.matching.dto.response.ApplicantListPageResponseDTO;
 import com.weiver.matching.dto.response.ApplicantListResponseDTO;
 import com.weiver.matching.repository.MatchResultRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,14 +20,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 
 import java.util.List;
-
-import static com.weiver.analysis.domain.QCultureReport.cultureReport;
-import static com.weiver.analysis.domain.QTechnicalSkillReport.technicalSkillReport;
-import static com.weiver.matching.domain.QMatchResult.matchResult;
-import static java.util.Objects.requireNonNull;
 
 @Service
 @Transactional(readOnly = true)
@@ -47,7 +44,7 @@ public class MatchResultService {
     /**
      * 매핑된 구직자 리스트 조회
      * */
-    public Page<ApplicantListResponseDTO> searchApplicantList(ApplicantSearchCondition condition, Pageable pageable, String publicId) {
+    public ApplicantListPageResponseDTO searchApplicantList(ApplicantSearchCondition condition, Pageable pageable, String publicId) {
 
         boolean isOwner = jobPostingRepository.existsByJdIdAndCompany_PublicId(condition.jdId(), publicId);
 
@@ -55,19 +52,10 @@ public class MatchResultService {
             throw new BusinessException(ErrorCode.FORBIDDEN, "해당 채용 공고에 접근할 권한이 없습니다.");
         }
 
-        Page<Tuple> tuplePage = matchResultRepository.searchApplicantsTuple(condition, pageable);
+        // Tuple/Q타입 매핑은 리포지토리 커스텀 계층에서 처리되어 응답 DTO로 반환된다.
+        Page<ApplicantListResponseDTO> page = matchResultRepository.searchApplicants(condition, pageable);
 
-        // Tuple 순회하면서 DTO 매핑
-        return tuplePage.map(tuple -> {
-            String position = tuple.get(3, String.class);
-
-            return ApplicantListResponseDTO.of(
-                    requireNonNull(tuple.get(matchResult)),
-                    requireNonNull(tuple.get(cultureReport)),
-                    requireNonNull(tuple.get(technicalSkillReport)),
-                    position
-            );
-        });
+        return ApplicantListPageResponseDTO.from(page);
     }
 
     public ApplicantInfoResponseDTO searchApplicantDetail(Long jdId, String applicantPublicId, String companyPublicId) {
@@ -127,7 +115,28 @@ public class MatchResultService {
                 body = body.replace("\n", "<br>");
             }
         }
-        emailSender.send(EmailSendRequest.ofHtml(toEmail, subject, body));
+
+        // 조회/검증/본문 조립까지만 트랜잭션 안에서 수행하고, 외부 I/O인 메일 발송은
+        // 트랜잭션 경계 밖(커밋 후)으로 분리해 DB 커넥션을 붙잡지 않도록 한다.
+        sendAfterCommit(EmailSendRequest.ofHtml(toEmail, subject, body));
+    }
+
+    /**
+     * 활성 트랜잭션이 있으면 커밋 후 메일을 발송하고, 없으면 즉시 발송한다.
+     */
+    private void sendAfterCommit(EmailSendRequest request) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()
+                || !TransactionSynchronizationManager.isSynchronizationActive()) {
+            emailSender.send(request);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                emailSender.send(request);
+            }
+        });
     }
 
     /**

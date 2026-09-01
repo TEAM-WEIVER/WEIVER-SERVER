@@ -1,6 +1,5 @@
 package com.weiver.matching.repository;
 
-import com.querydsl.core.Tuple;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.weiver.analysis.domain.CultureReport;
 import com.weiver.analysis.domain.TechnicalSkillReport;
@@ -14,6 +13,7 @@ import com.weiver.jobposting.domain.JobPosting;
 import com.weiver.jobposting.type.JobPostingStatus;
 import com.weiver.matching.domain.MatchResult;
 import com.weiver.matching.dto.request.ApplicantSearchCondition;
+import com.weiver.matching.dto.response.ApplicantListResponseDTO;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,7 +39,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import static com.weiver.matching.domain.QMatchResult.matchResult;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @Testcontainers
@@ -206,13 +205,10 @@ class MatchResultRepositoryTest {
                 .build();
         Pageable pageable = PageRequest.of(0, 10);
 
-        Page<Tuple> result = matchResultRepositoryCustom.searchApplicantsTuple(condition, pageable);
+        Page<ApplicantListResponseDTO> result = matchResultRepositoryCustom.searchApplicants(condition, pageable);
 
         assertThat(result.getTotalElements()).isEqualTo(2);
-
-        Tuple firstTuple = result.getContent().get(0);
-        MatchResult firstMr = firstTuple.get(matchResult);
-        assertThat(firstMr.getApplicant().getName()).isEqualTo("이현우");
+        assertThat(result.getContent().get(0).applicantName()).isEqualTo("이현우");
     }
 
     @Test
@@ -225,10 +221,10 @@ class MatchResultRepositoryTest {
                 .build();
         Pageable pageable = PageRequest.of(0, 10);
 
-        Page<Tuple> result = matchResultRepositoryCustom.searchApplicantsTuple(condition, pageable);
+        Page<ApplicantListResponseDTO> result = matchResultRepositoryCustom.searchApplicants(condition, pageable);
 
         assertThat(result.getTotalElements()).isEqualTo(1);
-        assertThat(result.getContent().get(0).get(matchResult).getApplicant().getName()).isEqualTo("이현우");
+        assertThat(result.getContent().get(0).applicantName()).isEqualTo("이현우");
     }
 
     @Test
@@ -240,10 +236,10 @@ class MatchResultRepositoryTest {
                 .build();
         Pageable pageable = PageRequest.of(0, 10);
 
-        Page<Tuple> result = matchResultRepositoryCustom.searchApplicantsTuple(condition, pageable);
+        Page<ApplicantListResponseDTO> result = matchResultRepositoryCustom.searchApplicants(condition, pageable);
 
         assertThat(result.getTotalElements()).isEqualTo(1);
-        assertThat(result.getContent().get(0).get(matchResult).getApplicant().getName()).isEqualTo("이현우");
+        assertThat(result.getContent().get(0).applicantName()).isEqualTo("이현우");
     }
 
     @Test
@@ -254,14 +250,14 @@ class MatchResultRepositoryTest {
                 .build();
         Pageable pageable = PageRequest.of(0, 10);
 
-        Page<Tuple> result = matchResultRepositoryCustom.searchApplicantsTuple(condition, pageable);
+        Page<ApplicantListResponseDTO> result = matchResultRepositoryCustom.searchApplicants(condition, pageable);
 
-        List<Tuple> content = result.getContent();
+        List<ApplicantListResponseDTO> content = result.getContent();
 
-        String position1 = content.get(0).get(3, String.class);
+        String position1 = content.get(0).position();
         assertThat(position1).isEqualTo("백엔드 시니어");
 
-        String position2 = content.get(1).get(3, String.class);
+        String position2 = content.get(1).position();
         assertThat(position2).isNull();
     }
 
@@ -274,7 +270,7 @@ class MatchResultRepositoryTest {
                 .build();
         Pageable pageable = PageRequest.of(0, 10);
 
-        Page<Tuple> result = matchResultRepositoryCustom.searchApplicantsTuple(condition, pageable);
+        Page<ApplicantListResponseDTO> result = matchResultRepositoryCustom.searchApplicants(condition, pageable);
 
         assertThat(result.getTotalElements()).isEqualTo(2);
     }

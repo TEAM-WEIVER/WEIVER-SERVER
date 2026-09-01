@@ -124,7 +124,8 @@ public class MatchResultReportService {
         String culturefitStyle = cultureReport.getCulturefitStyles().getDescription();
         String aiSummary = matchResult.getAiSummary();
 
-        String matchStatus = matchResult.getMatchingRate() >= 80 ? "높은 매칭률" : "보통 매칭률";
+        Float matchingRate = matchResult.getMatchingRate();
+        String matchStatus = (matchingRate != null && matchingRate >= 80) ? "높은 매칭률" : "보통 매칭률";
 
         Map<String, Object> cultureAnalysisMap = detailAnalysisReport.getCultureAnalysis();
 

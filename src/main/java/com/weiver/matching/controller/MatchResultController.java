@@ -6,13 +6,12 @@ import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.matching.dto.request.ApplicantSearchCondition;
-import com.weiver.matching.dto.response.ApplicantListResponseDTO;
+import com.weiver.matching.dto.response.ApplicantListPageResponseDTO;
 import com.weiver.matching.service.MatchResultService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -34,7 +33,7 @@ public class MatchResultController {
                     "**[참고]** 기술 스택 다중 필터링 시 `techStacks=React&techStacks=Java` 형태로 요청하세요."
     )
     @GetMapping("/{jdId}/applicants")
-    public ResponseEntity<ApiResponse<Page<ApplicantListResponseDTO>>> searchApplicants(
+    public ResponseEntity<ApiResponse<ApplicantListPageResponseDTO>> searchApplicants(
             @Parameter(description = "채용 공고 고유 ID", example = "1")
             @PathVariable Long jdId,
 
@@ -72,9 +71,9 @@ public class MatchResultController {
 
         PageRequest pageable = PageRequest.of(page, size);
 
-        Page<ApplicantListResponseDTO> responseDTOS = matchResultService.searchApplicantList(condition, pageable, principal.publicId());
+        ApplicantListPageResponseDTO response = matchResultService.searchApplicantList(condition, pageable, principal.publicId());
 
-        return ResponseEntity.ok(ApiResponse.success(responseDTOS));
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
 
