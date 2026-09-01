@@ -60,6 +60,8 @@ class NotificationSchedulerTest {
         // 공고 2개 준비
         JobPosting backendJd = JobPosting.builder().title("백엔드 개발자").company(company).build();
         JobPosting frontendJd = JobPosting.builder().title("프론트엔드 개발자").company(company).build();
+        ReflectionTestUtils.setField(backendJd, "jdId", 1L);
+        ReflectionTestUtils.setField(frontendJd, "jdId", 2L);
 
         // 백엔드 공고에 대한 매칭 3건 (시간을 다르게 세팅)
         MatchResult backendMatch1 = MatchResult.builder().jobPosting(backendJd).build();

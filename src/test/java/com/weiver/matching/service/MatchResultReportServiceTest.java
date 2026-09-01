@@ -3,12 +3,12 @@ package com.weiver.matching.service;
 import com.weiver.analysis.domain.CultureReport;
 import com.weiver.analysis.domain.DetailAnalysisReport;
 import com.weiver.analysis.domain.TechnicalSkillReport;
-import com.weiver.analysis.dto.response.AnalysisReportDto;
+import com.weiver.analysis.dto.response.AnalysisReportDTO;
 import com.weiver.analysis.dto.response.CultureFitSummaryDTO;
 import com.weiver.analysis.service.ReportService;
 import com.weiver.analysis.type.CulturefitStyle;
 import com.weiver.applicant.domain.Applicant;
-import com.weiver.applicant.dto.response.ApplicantProfileDto;
+import com.weiver.applicant.dto.response.ApplicantProfileDTO;
 import com.weiver.applicant.service.ApplicantService;
 import com.weiver.applicant.service.WorkExperienceService;
 import com.weiver.global.exception.BusinessException;
@@ -68,11 +68,11 @@ class MatchResultReportServiceTest {
                 .note("훌륭한 지원자입니다.")
                 .build();
 
-        ApplicantProfileDto profileDto = new ApplicantProfileDto(Applicant.builder().name("홍길동").build(), "3년차 백엔드 개발자");
+        ApplicantProfileDTO profileDto = new ApplicantProfileDTO(Applicant.builder().name("홍길동").build(), "3년차 백엔드 개발자");
 
         CultureReport cultureReport = CultureReport.builder().culturefitStyles(CulturefitStyle.STEADY_SUPPORTER).build();
         TechnicalSkillReport technicalSkillReport = TechnicalSkillReport.builder().skillTags(List.of("Java", "Spring")).build();
-        AnalysisReportDto analysisDto = new AnalysisReportDto(cultureReport, technicalSkillReport);
+        AnalysisReportDTO analysisDto = new AnalysisReportDTO(cultureReport, technicalSkillReport);
 
         givenValidatedMatchResult(matchResult);
         given(applicantService.getApplicantProfile(APPLICANT_PUBLIC_ID)).willReturn(profileDto);

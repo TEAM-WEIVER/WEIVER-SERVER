@@ -14,16 +14,16 @@ import java.util.List;
 @Schema(description = "채용 공고 생성 요청 DTO (multipart/form-data의 requestDTO 파트에 사용)")
 public record JobPostingRequestDTO(
         @Schema(description = "채용 공고 제목", example = "2026년 상반기 백엔드 엔지니어 채용")
-        @NotBlank String title,
+        @NotBlank(message = "채용 공고 제목은 필수입니다.") String title,
 
         @Schema(description = "공고 마감일 (YYYY-MM-DD 형식)", example = "2026-05-31")
-        @NotNull LocalDate deadline,
+        @NotNull(message = "공고 마감일은 필수입니다.") LocalDate deadline,
 
         @Schema(description = "상위 직무 카테고리", example = "개발")
-        @NotBlank String jobCategory,
+        @NotBlank(message = "상위 직무 카테고리는 필수입니다.") String jobCategory,
 
         @Schema(description = "세부 직무", example = "백엔드 개발자")
-        @NotBlank String detailedJob,
+        @NotBlank(message = "세부 직무는 필수입니다.") String detailedJob,
 
         @Schema(description = "주요 업무 소개", example = "대규모 트래픽 처리 및 서버 아키텍처 설계")
         String jobDescription,
@@ -47,10 +47,10 @@ public record JobPostingRequestDTO(
         List<String> traitPriorities,
 
         @Schema(description = "합격/불합격 안내 자동 발송 이메일 제목", example = "[Weaver] 서류 전형 결과 안내")
-        @NotBlank String emailTitle,
+        @NotBlank(message = "안내 이메일 제목은 필수입니다.") String emailTitle,
 
         @Schema(description = "안내 이메일 본문 내용", example = "안녕하세요. Weaver 지원에 감사드립니다...")
-        @NotBlank String emailContent
+        @NotBlank(message = "안내 이메일 본문 내용은 필수입니다.") String emailContent
 
 ) {
     public JobPosting toJobPosting(Company company, JobPostingStatus status){

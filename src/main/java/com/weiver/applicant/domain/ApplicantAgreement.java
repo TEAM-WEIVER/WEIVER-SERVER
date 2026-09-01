@@ -15,8 +15,9 @@ public class ApplicantAgreement extends BaseTimeEntity {
     @Column(name = "applicant_agreement_id")
     private Long applicantAgreementId;
 
+    @ToString.Exclude
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "applicant_id", nullable = false, updatable = true)
+    @JoinColumn(name = "applicant_id", nullable = false)
     private Applicant applicant;
 
     @Column(nullable = false)

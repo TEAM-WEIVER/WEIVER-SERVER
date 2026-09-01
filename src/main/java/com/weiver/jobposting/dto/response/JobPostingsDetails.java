@@ -12,7 +12,7 @@ public record JobPostingsDetails(
         String title,
 
         @Schema(description = "현재 공고 상태 (작성중, 공개중, 마감 등)", example = "공개중",
-                allowableValues = {"GRADUATED", "LEAVE_OF_ABSENCE", "GRADUATION_POSTPONED", "ACTIVE"})
+                allowableValues = {"작성중", "공개중", "마감"})
         String status,
 
         @Schema(description = "상위 직무 카테고리", example = "개발")

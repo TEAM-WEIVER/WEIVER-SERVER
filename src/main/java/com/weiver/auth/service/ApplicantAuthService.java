@@ -19,6 +19,7 @@ import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
 import com.weiver.global.security.jwt.repository.TokenVersionRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -29,6 +30,7 @@ import java.time.Duration;
 import java.util.Locale;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ApplicantAuthService {
@@ -81,6 +83,7 @@ public class ApplicantAuthService {
         try {
             emailVerificationService.sendVerificationCode(email, code);
         } catch (Exception e) {
+            log.warn("[EmailVerification] 인증번호 메일 발송 실패 email={} cause={}", email, e.toString());
             emailVerificationRepository.deleteCode(email);
             throw new BusinessException(ErrorCode.EMAIL_SEND_FAILED);
         }

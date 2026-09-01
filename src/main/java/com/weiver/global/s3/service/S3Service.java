@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -29,10 +30,10 @@ public class S3Service {
     private final S3Template s3Template;
 
     @Value("${spring.cloud.aws.s3.bucket.public}")
-    private String publicBucket;
+    private final String publicBucket;
 
     @Value("${spring.cloud.aws.s3.bucket.private}")
-    private String privateBucket;
+    private final String privateBucket;
 
     private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList(
 
@@ -115,7 +116,7 @@ public class S3Service {
     }
 
     private String extractObjectKey(String fileUrl) throws Exception {
-        URL url = new URL(fileUrl);
+        URL url = URI.create(fileUrl).toURL();
         String objectKey = url.getPath().substring(1);
         return URLDecoder.decode(objectKey, StandardCharsets.UTF_8);
     }

@@ -29,7 +29,7 @@ public class DashboardController {
     @Operation(summary = "기업 정보 카드 조회", description = "대시보드 상단에 표시되는 기업의 기본 정보를 조회합니다.")
     @GetMapping("/company")
     public ResponseEntity<ApiResponse<CompanyDashboardResponseDTO>> getCompanyInfo(
-            @AuthenticationPrincipal AuthenticatedPrincipal principal) {
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         CompanyDashboardResponseDTO responseDTO = dashboardService.getCompanyInfo(principal.publicId());

@@ -1,6 +1,6 @@
 package com.weiver.auth.controller;
 
-import com.weiver.auth.dto.response.CsrfTokenResponse;
+import com.weiver.auth.dto.response.CsrfTokenResponseDTO;
 import com.weiver.auth.dto.response.ReissueResponseDTO;
 import com.weiver.auth.service.AuthService;
 import com.weiver.auth.service.dto.TokenReissueResult;
@@ -95,13 +95,13 @@ public class AuthController {
                     "Axios 등 HTTP 클라이언트 설정에 따라 Cookie 값을 Header로 자동 반영할 수 있습니다."
     )
     @GetMapping("/csrf")
-    public ResponseEntity<ApiResponse<CsrfTokenResponse>> csrf(
+    public ResponseEntity<ApiResponse<CsrfTokenResponseDTO>> csrf(
             @Parameter(hidden = true)
             CsrfToken csrfToken
     ) {
         return ResponseEntity.ok(ApiResponse.success(
                 200,
-                new CsrfTokenResponse(csrfToken.getToken()),
+                new CsrfTokenResponseDTO(csrfToken.getToken()),
                 "CSRF 토큰 발급에 성공했습니다."
         ));
     }

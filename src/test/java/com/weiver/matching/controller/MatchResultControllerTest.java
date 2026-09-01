@@ -144,6 +144,7 @@ class MatchResultControllerTest {
         mockMvc.perform(get("/api/job-postings/{jdId}/applicants", jdId)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"))
                 .andDo(print());
     }
 
@@ -159,6 +160,7 @@ class MatchResultControllerTest {
                         .with(customAuth("company-1"))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("BIND_FAILED"))
                 .andDo(print());
     }
 }

@@ -22,20 +22,10 @@ public class ApplicantSignupTokenRepository {
         );
     }
 
-    public Optional<String> findApplicantPublicId(String signupToken) {
-        return Optional.ofNullable(
-                redisTemplate.opsForValue().get(generateKey(signupToken))
-        );
-    }
-
     public Optional<String> findAndDelete(String signupToken) {
         return Optional.ofNullable(
                 redisTemplate.opsForValue().getAndDelete(generateKey(signupToken))
         );
-    }
-
-    public void delete(String signupToken) {
-        redisTemplate.delete(generateKey(signupToken));
     }
 
     private String generateKey(String signupToken) {

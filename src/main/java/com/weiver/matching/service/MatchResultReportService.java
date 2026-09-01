@@ -5,7 +5,7 @@ import com.weiver.analysis.domain.DetailAnalysisReport;
 import com.weiver.analysis.domain.TechnicalSkillReport;
 import com.weiver.analysis.dto.response.*;
 import com.weiver.analysis.service.ReportService;
-import com.weiver.applicant.dto.response.ApplicantProfileDto;
+import com.weiver.applicant.dto.response.ApplicantProfileDTO;
 import com.weiver.applicant.service.ApplicantService;
 import com.weiver.applicant.service.WorkExperienceService;
 import com.weiver.global.exception.BusinessException;
@@ -64,8 +64,8 @@ public class MatchResultReportService {
 
         MatchResult matchResult = matchResultService.getValidatedMatchResult(jdId, applicantPublicId, companyPublicId);
 
-        ApplicantProfileDto profileDto = applicantService.getApplicantProfile(applicantPublicId);
-        AnalysisReportDto analysisDto = reportService.getApplicantReport(applicantPublicId);
+        ApplicantProfileDTO profileDto = applicantService.getApplicantProfile(applicantPublicId);
+        AnalysisReportDTO analysisDto = reportService.getApplicantReport(applicantPublicId);
 
         ProfileDetailDTO profileDetailDTO = ProfileDetailDTO.of(profileDto.applicant(), profileDto.position());
 
@@ -194,8 +194,8 @@ public class MatchResultReportService {
         if (cultureAnalysisMap == null) return new ArrayList<>();
 
         try {
-            Map<String, Object> cultureAxis = (Map<String, Object>) cultureAnalysisMap.get("culture_axis");
-            Map<String, Object> extractedTraits = (Map<String, Object>) cultureAnalysisMap.get("extracted_culturefit");
+            Map<String, Object> cultureAxis = asMap(cultureAnalysisMap.get("culture_axis"));
+            Map<String, Object> extractedTraits = asMap(cultureAnalysisMap.get("extracted_culturefit"));
 
             if (cultureAxis == null || extractedTraits == null) return new ArrayList<>();
 
@@ -263,14 +263,17 @@ public class MatchResultReportService {
 
         try {
 
-            Map<String, Object> criteriaSummary = (Map<String, Object>) evaluation.get("criteria_summary");            if (criteriaSummary == null) return details;
+            Map<String, Object> criteriaSummary = asMap(evaluation.get("criteria_summary"));
+            if (criteriaSummary == null) return details;
 
             // 전체 6개 역량을 돌면서 DTO로 변환
             for (Map.Entry<String, Object> entry : criteriaSummary.entrySet()) {
                 String competencyKey = entry.getKey();
                 String koreanName = COMPETENCY_NAMES.getOrDefault(competencyKey, competencyKey);
 
-                Map<String, Object> competencyData = (Map<String, Object>) entry.getValue();
+                Map<String, Object> competencyData = asMap(entry.getValue());
+                if (competencyData == null) continue;
+
                 Object avgScoreObj = competencyData.get("average_score");
 
                 if (avgScoreObj instanceof Number) {
@@ -299,7 +302,7 @@ public class MatchResultReportService {
         }
 
         try {
-            Map<String, Object> criteriaSummary = (Map<String, Object>) evaluation.get("criteria_summary");
+            Map<String, Object> criteriaSummary = asMap(evaluation.get("criteria_summary"));
 
             List<CompetencyMatch> matches = new ArrayList<>();
 
@@ -308,7 +311,9 @@ public class MatchResultReportService {
                 String priorityKey = priorities.get(i).toLowerCase();
 
                 if (criteriaSummary != null && criteriaSummary.containsKey(priorityKey)) {
-                    Map<String, Object> competencyData = (Map<String, Object>) criteriaSummary.get(priorityKey);
+                    Map<String, Object> competencyData = asMap(criteriaSummary.get(priorityKey));
+                    if (competencyData == null) continue;
+
                     Object avgScoreObj = competencyData.get("average_score");
 
                     if (avgScoreObj instanceof Number) {
@@ -371,6 +376,15 @@ public class MatchResultReportService {
             return (int) Math.round(num.doubleValue() * 100);
         }
         return 0;
+    }
+
+    /**
+     * jsonb 파싱 결과(Object)를 Map&lt;String, Object&gt;로 안전하게 변환합니다.
+     * Map이 아니면 null을 반환해 호출부에서 널 가드로 처리하게 합니다.
+     */
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> asMap(Object value) {
+        return (value instanceof Map<?, ?> map) ? (Map<String, Object>) map : null;
     }
 
     private record CompetencyMatch(int rank, String name, int percentage) {}

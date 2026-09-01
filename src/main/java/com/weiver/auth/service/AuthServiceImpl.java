@@ -10,8 +10,10 @@ import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
 import com.weiver.global.security.jwt.repository.TokenVersionRepository;
 import com.weiver.global.security.jwt.type.RefreshTokenRotationResult;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
@@ -28,9 +30,19 @@ public class AuthServiceImpl implements AuthService {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);
         }
 
-        String publicId = jwtTokenProvider.getPublicId(accessToken);
-        UserRole userRole = jwtTokenProvider.getRole(accessToken);
-        long ttlMillis = jwtTokenProvider.getRemainingExpiration(accessToken);
+        String publicId;
+        UserRole userRole;
+        long ttlMillis;
+        try {
+            publicId = jwtTokenProvider.getPublicId(accessToken);
+            userRole = jwtTokenProvider.getRole(accessToken);
+            ttlMillis = jwtTokenProvider.getRemainingExpiration(accessToken);
+        } catch (BusinessException e) {
+            // 만료/서명 오류 등 무효 토큰은 클레임을 신뢰할 수 없어 블랙리스트 등록·리프레시 삭제가 무의미하다.
+            // 로그아웃은 무효 토큰이어도 안전하게 종료되는 편이 낫기 때문에 관대하게 처리한다.
+            log.warn("[Logout] 무효 토큰으로 로그아웃 요청되어 관대하게 종료합니다. errorCode={}", e.getCode());
+            return;
+        }
 
         blacklistTokenRepository.save(accessToken, ttlMillis);
         refreshTokenRepository.deleteByPublicId(publicId, userRole);

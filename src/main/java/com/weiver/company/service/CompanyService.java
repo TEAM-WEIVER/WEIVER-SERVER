@@ -11,12 +11,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class CompanyService {
 
     private final CompanyRepository companyRepository;
 
-    @Transactional(readOnly = true)
     public CompanyInfoResponseDTO getMyCompanyInfo(String publicId, UserRole role) {
         if (role != UserRole.COMPANY) {
             throw new BusinessException(ErrorCode.FORBIDDEN, "기업 회원만 접근할 수 있습니다.");

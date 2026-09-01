@@ -38,13 +38,12 @@ public class NotificationScheduler {
             return;
         }
 
-        Map<JobPosting, List<MatchResult>> matchesByJobPosting = unnotifiedMatches.stream()
-                .collect(Collectors.groupingBy(MatchResult::getJobPosting));
+        Map<Long, List<MatchResult>> matchesByJobPostingId = unnotifiedMatches.stream()
+                .collect(Collectors.groupingBy(match -> match.getJobPosting().getJdId()));
 
         List<Notification> newNotifications = new ArrayList<>();
 
-        for (Map.Entry<JobPosting, List<MatchResult>> entry : matchesByJobPosting.entrySet()) {
-            JobPosting jobPosting = entry.getKey();
+        for (Map.Entry<Long, List<MatchResult>> entry : matchesByJobPostingId.entrySet()) {
             List<MatchResult> groupMatches = entry.getValue();
 
             int matchCount = groupMatches.size();
@@ -52,6 +51,8 @@ public class NotificationScheduler {
             MatchResult representativeMatch = groupMatches.stream()
                     .max(Comparator.comparing(MatchResult::getCreateTime))
                     .orElse(groupMatches.get(0));
+
+            JobPosting jobPosting = representativeMatch.getJobPosting();
 
             String message = String.format("[%s] 공고에 %d건의 새로운 매칭이 있습니다.", jobPosting.getTitle(), matchCount);
 

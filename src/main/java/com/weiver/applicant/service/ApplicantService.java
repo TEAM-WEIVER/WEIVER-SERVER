@@ -139,10 +139,10 @@ public class ApplicantService {
     /**
      * 지원자 리포트 카드 조회 - 순수 도메인 데이터만 반환
      * */
-    public ApplicantProfileDto getApplicantProfile(String publicId){
+    public ApplicantProfileDTO getApplicantProfile(String publicId){
         Applicant applicant = getApplicant(publicId);
         String position = workExperienceService.getPositionName(publicId);
-        return new ApplicantProfileDto(applicant, position);
+        return new ApplicantProfileDTO(applicant, position);
     }
 
     public Applicant getApplicant(String publicId) {

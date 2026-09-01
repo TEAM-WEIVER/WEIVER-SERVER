@@ -65,9 +65,12 @@ public class EssayAnswerService {
                 .map(EssayAnswerUpdateItemDTO::answerId)
                 .collect(Collectors.toSet());
 
-        if (requestAnswerIds.size() != requestDTO.answers().size()
-                || !requestAnswerIds.equals(existingAnswerMap.keySet())) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST);
+        if (requestAnswerIds.size() != requestDTO.answers().size()) {
+            throw new BusinessException(ErrorCode.ESSAY_ANSWER_COUNT_MISMATCH);
+        }
+
+        if (!requestAnswerIds.equals(existingAnswerMap.keySet())) {
+            throw new BusinessException(ErrorCode.ESSAY_ANSWER_QUESTION_MISMATCH);
         }
 
         requestDTO.answers().forEach(answerItem -> updateAnswer(answerItem, existingAnswerMap.get(answerItem.answerId())));
@@ -109,7 +112,7 @@ public class EssayAnswerService {
                 .collect(Collectors.toSet());
 
         if (requestQuestionIds.size() != requestDTO.answers().size()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST);
+            throw new BusinessException(ErrorCode.ESSAY_ANSWER_COUNT_MISMATCH);
         }
 
         if (!requiredQuestionMap.keySet().containsAll(requestQuestionIds)) {
@@ -117,7 +120,7 @@ public class EssayAnswerService {
         }
 
         if (!requestQuestionIds.equals(requiredQuestionMap.keySet())) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST);
+            throw new BusinessException(ErrorCode.ESSAY_ANSWER_QUESTION_MISMATCH);
         }
 
         return requiredQuestionMap;
@@ -135,7 +138,7 @@ public class EssayAnswerService {
 
     private void validateAnswerLength(String answer, EssayQuestion essayQuestion) {
         if (answer == null || answer.length() > essayQuestion.getMaxLength()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST);
+            throw new BusinessException(ErrorCode.ESSAY_ANSWER_TOO_LONG);
         }
     }
 
