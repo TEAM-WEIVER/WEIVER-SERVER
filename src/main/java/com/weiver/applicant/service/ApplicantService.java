@@ -4,6 +4,7 @@ import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.dto.response.*;
 import com.weiver.applicant.repository.*;
+import com.weiver.applicant.type.ProfileSyncStatus;
 import com.weiver.essay.repository.EssayAnswerRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -102,6 +103,23 @@ public class ApplicantService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public ApplicantSubmissionStatusResponseDTO getSubmissionStatus(String publicId) {
+        Applicant applicant = getApplicant(publicId);
+
+        boolean submitted = isSubmitted(applicant);
+        boolean resumeCompleted = isResumeCompleted(applicant);
+        boolean essayCompleted = essayAnswerRepository.existsByApplicant(applicant);
+        boolean portfolioCompleted = portfolioRepository.existsByApplicant(applicant);
+
+        return new ApplicantSubmissionStatusResponseDTO(
+                submitted,
+                resumeCompleted,
+                essayCompleted,
+                portfolioCompleted
+        );
+    }
+
     /**
      * 지원자 리포트 카드 조회 - 순수 도메인 데이터만 반환
      * */
@@ -129,5 +147,11 @@ public class ApplicantService {
                 || awardRepository.existsByApplicant(applicant);
 
         return basicInfoCompleted && resumeDetailCompleted;
+    }
+
+    // TODO(PR 리뷰): 제출 여부 판정 기준 확정 필요 — 현재는 COMPLETED(동기화 완료)만 '제출됨'으로 간주한다.
+    // REQUESTED(제출 요청됨)/FAILED(동기화 실패) 상태를 제출로 볼지는 리뷰에서 논의한다.
+    private boolean isSubmitted(Applicant applicant) {
+        return applicant.getProfileSyncStatus() == ProfileSyncStatus.COMPLETED;
     }
 }
