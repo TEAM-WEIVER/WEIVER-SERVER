@@ -11,8 +11,6 @@ import java.util.UUID;
 
 @Repository
 public interface InterviewSessionRepository extends JpaRepository<InterviewSession, Long> {
-    Optional<InterviewSession> findByApplicant_PublicId(String applicantPublicId);
     List<InterviewSession> findAllByApplicantOrderByCreateTimeDesc(Applicant applicant);
     Optional<InterviewSession> findByInterviewSessionId(UUID interviewSessionId);
-    boolean existsByInterviewSessionId(UUID interviewSessionId);
 }
