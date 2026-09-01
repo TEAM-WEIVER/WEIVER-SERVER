@@ -1,4 +1,4 @@
-package com.weiver.global.auth;
+package com.weiver.applicant.service;
 
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.repository.ApplicantRepository;
