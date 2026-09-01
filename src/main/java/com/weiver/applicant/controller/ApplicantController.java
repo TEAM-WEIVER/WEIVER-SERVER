@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -123,7 +124,8 @@ public class ApplicantController {
 
         educationService.saveEducationInfo(principal.publicId(), requestDTO);
 
-        return ResponseEntity.ok(ApiResponse.success("학력 저장에 성공했습니다."));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.<Void>created(null, "학력 저장에 성공했습니다."));
     }
 
     @Operation(
@@ -154,7 +156,8 @@ public class ApplicantController {
 
         awardService.saveAwardInfo(principal.publicId(), requestDTO);
 
-        return ResponseEntity.ok(ApiResponse.success("수상이력 저장에 성공했습니다."));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.<Void>created(null, "수상이력 저장에 성공했습니다."));
     }
 
     @Operation(
@@ -185,7 +188,8 @@ public class ApplicantController {
 
         certificateService.saveCertificateInfo(principal.publicId(), requestDTO);
 
-        return ResponseEntity.ok(ApiResponse.success("자격증 저장에 성공했습니다."));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.<Void>created(null, "자격증 저장에 성공했습니다."));
     }
 
     @Operation(
@@ -216,7 +220,8 @@ public class ApplicantController {
 
         workExperienceService.saveWorkExperienceInfo(principal.publicId(), requestDTO);
 
-        return ResponseEntity.ok(ApiResponse.success("경력 저장에 성공했습니다."));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.<Void>created(null, "경력 저장에 성공했습니다."));
     }
 
     @Operation(

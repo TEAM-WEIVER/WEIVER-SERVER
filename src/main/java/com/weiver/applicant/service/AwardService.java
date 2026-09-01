@@ -9,7 +9,7 @@ import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.applicant.repository.AwardRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

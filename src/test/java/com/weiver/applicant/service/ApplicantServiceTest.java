@@ -42,7 +42,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class ApplicantServiceImplTest {
+class ApplicantServiceTest {
 
     @Mock private ApplicantRepository applicantRepository;
     @Mock private EducationRepository educationRepository;
