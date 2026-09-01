@@ -31,6 +31,10 @@ public class InterviewSession extends BaseTimeEntity {
     @Column(name = "interview_session_id", nullable = false, unique = true, updatable = false)
     private UUID interviewSessionId = UUID.randomUUID();
 
+    @Version
+    @Column(name = "version")
+    private Long version;
+
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "session_status", nullable = false, length = 50)
@@ -116,7 +120,7 @@ public class InterviewSession extends BaseTimeEntity {
         }
 
         return Objects.equals(turn.questionCode(), questionCode)
-                || Objects.equals(turn.sequence(), sequence);
+                && Objects.equals(turn.sequence(), sequence);
     }
 
     private boolean matchesExactly(InterviewTurnDTO turn, String questionCode, Integer sequence) {

@@ -1,16 +1,14 @@
 package com.weiver.dashboard.controller;
 
 import com.weiver.dashboard.dto.response.CompanyDashboardResponseDTO;
+import com.weiver.dashboard.dto.response.DashboardNotificationListResponseDTO;
 import com.weiver.dashboard.service.DashboardService;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.jobposting.dto.response.JobPostingPageResponseDTO;
-import com.weiver.jobposting.service.JobPostingService;
 import com.weiver.jobposting.type.JobPostingStatus;
-import com.weiver.notification.dto.response.NotificationResponseDTO;
-import com.weiver.notification.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,9 +17,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.Map;
-
 @Tag(name = "대시보드 API", description = "기업 대시보드 관련 API")
 @RestController
 @RequestMapping("/api/dashboards")
@@ -29,8 +24,6 @@ import java.util.Map;
 public class DashboardController {
 
     private final DashboardService dashboardService;
-    private final JobPostingService jobPostingService;
-    private final NotificationService notificationService;
 
 
     @Operation(summary = "기업 정보 카드 조회", description = "대시보드 상단에 표시되는 기업의 기본 정보를 조회합니다.")
@@ -64,20 +57,20 @@ public class DashboardController {
 
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        JobPostingPageResponseDTO responseDTO = jobPostingService.searchJobPostingsList(principal.publicId(), status, page, size);
+        JobPostingPageResponseDTO responseDTO = dashboardService.getJobPostingsList(principal.publicId(), status, page, size);
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
 
     @Operation(summary = "알림 목록 조회", description = "현재 로그인한 기업의 알림 목록을 최신순으로 조회합니다.")
     @GetMapping("/notifications")
-    public ResponseEntity<ApiResponse<Map<String, List<NotificationResponseDTO>>>> getNotifications(
+    public ResponseEntity<ApiResponse<DashboardNotificationListResponseDTO>> getNotifications(
             @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
 
         if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        List<NotificationResponseDTO> notifications = notificationService.getCompanyNotifications(principal.publicId());
+        DashboardNotificationListResponseDTO responseDTO = dashboardService.getNotifications(principal.publicId());
 
-        return ResponseEntity.ok(ApiResponse.success(Map.of("NotificationDTO", notifications)));
+        return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
 
     @Operation(summary = "알림 읽음 처리", description = "해당 공고 매칭 지원자 리스트 페이지로 이동 함과 동시에" +
@@ -89,7 +82,7 @@ public class DashboardController {
 
         if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        notificationService.markAsRead(notificationId, principal.publicId());
+        dashboardService.readNotification(notificationId, principal.publicId());
 
         return ResponseEntity.ok(ApiResponse.success(null));
     }
@@ -99,7 +92,9 @@ public class DashboardController {
     public ResponseEntity<ApiResponse<Void>> readAllNotifications(
             @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
 
-        notificationService.markAllAsRead(principal.publicId());
+        if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+
+        dashboardService.readAllNotifications(principal.publicId());
         return ResponseEntity.ok(ApiResponse.success(null));
     }
 }
