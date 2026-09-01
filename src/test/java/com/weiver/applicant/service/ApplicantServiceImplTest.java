@@ -158,7 +158,7 @@ class ApplicantServiceImplTest {
                 .build();
 
         EducationDetailDTO detailDTO = new EducationDetailDTO(
-                "BACHELOR", "한양대학교", "컴퓨터공학", 4.0, YearMonth.of(2020, 3), YearMonth.of(2024, 2), "GRADUATED"
+                Degree.BACHELOR, "한양대학교", "컴퓨터공학", 4.0, YearMonth.of(2020, 3), YearMonth.of(2024, 2), Status.GRADUATED
         );
         EducationRequestDTO realRequestDTO = new EducationRequestDTO(List.of(detailDTO));
 
@@ -192,11 +192,11 @@ class ApplicantServiceImplTest {
                 .build();
 
         EducationDetailDTO highSchoolDTO = new EducationDetailDTO(
-                "HIGH_SCHOOL", "테스트고등학교", "이과", 0.0, YearMonth.of(2017, 3), YearMonth.of(2020, 2), "GRADUATED"
+                Degree.HIGH_SCHOOL, "테스트고등학교", "이과", 0.0, YearMonth.of(2017, 3), YearMonth.of(2020, 2), Status.GRADUATED
         );
 
         EducationDetailDTO universityDTO = new EducationDetailDTO(
-                "BACHELOR", "한양대학교 에리카", "ICT융합학부", 4.0, YearMonth.of(2020, 3), YearMonth.of(2026, 2), "ACTIVE"
+                Degree.BACHELOR, "한양대학교 에리카", "ICT융합학부", 4.0, YearMonth.of(2020, 3), YearMonth.of(2026, 2), Status.ACTIVE
         );
 
         EducationRequestDTO realRequestDTO = new EducationRequestDTO(List.of(highSchoolDTO, universityDTO));

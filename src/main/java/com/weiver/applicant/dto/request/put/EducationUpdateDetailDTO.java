@@ -20,8 +20,8 @@ public record EducationUpdateDetailDTO(
 
         @Schema(description = "학력", example = "ASSOCIATE",
                 allowableValues = {"HIGH_SCHOOL", "ASSOCIATE", "BACHELOR", "MASTER", "DOCTOR"})
-        @NotBlank(message = "학력 유형은 필수 입력값입니다.")
-        String degreeType,
+        @NotNull(message = "학력 유형은 필수 입력값입니다.")
+        Degree degreeType,
 
         @Schema(description = "학교 이름", example = "한양대학교")
         @NotBlank(message = "학교 이름은 필수 입력값입니다.")
@@ -47,18 +47,18 @@ public record EducationUpdateDetailDTO(
 
         @Schema(description = "학력", example = "ACTIVE",
                 allowableValues = {"GRADUATED", "LEAVE_OF_ABSENCE", "GRADUATION_POSTPONED", "ACTIVE"})
-        @NotBlank(message = "학력 상태는 필수 입력값입니다.")
-        String status) {
+        @NotNull(message = "학력 상태는 필수 입력값입니다.")
+        Status status) {
     public Education toEntity(Applicant applicant){
         return Education.builder()
                 .applicant(applicant)
-                .degree(Degree.valueOf(degreeType))
+                .degree(degreeType)
                 .schoolName(schoolName)
                 .major(major)
                 .gpa(BigDecimal.valueOf(gpa))
                 .startDate(startDate)
                 .endDate(endDate)
-                .status(Status.valueOf(status))
+                .status(status)
                 .build();
     }
 }

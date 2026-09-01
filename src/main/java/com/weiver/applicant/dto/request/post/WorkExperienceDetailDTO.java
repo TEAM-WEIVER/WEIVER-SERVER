@@ -25,8 +25,8 @@ public record WorkExperienceDetailDTO (
 
         @Schema(description = "경력", example = "FULL_TIME",
                 allowableValues = {"FULL_TIME", "INTERN", "CONTRACT", "FREELANCER", "MILITARY_SERVICE_EXEMPTION", "PART_TIME"})
-        @NotBlank(message = "경력 형태는 필수 입력값입니다.")
-        String employmentType,
+        @NotNull(message = "경력 형태는 필수 입력값입니다.")
+        EmploymentType employmentType,
 
         @Schema(description = "직급", example = "대리")
         @NotBlank(message = "직급은 필수 입력값입니다.")
@@ -44,7 +44,7 @@ public record WorkExperienceDetailDTO (
             .companyName(this.companyName())
             .startDate(this.startDate())
             .endDate(this.endDate)
-            .employmentType(EmploymentType.valueOf(this.employmentType()))
+            .employmentType(this.employmentType())
             .position(this.position())
             .duties(this.duties())
             .isRecognized(this.isRecognized())

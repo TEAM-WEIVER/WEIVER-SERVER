@@ -55,12 +55,12 @@ public class Education extends BaseTimeEntity {
      * 편의 메소드
      * */
     public void updateEducation(EducationUpdateDetailDTO updateDTO){
-        this.degree = Degree.valueOf(updateDTO.degreeType());
+        this.degree = updateDTO.degreeType();
         this.schoolName = updateDTO.schoolName();
         this.major = updateDTO.major();
         this.gpa = BigDecimal.valueOf(updateDTO.gpa());
         this.startDate = updateDTO.startDate();
         this.endDate = updateDTO.endDate();
-        this.status = Status.valueOf(updateDTO.status());
+        this.status = updateDTO.status();
     }
 }
