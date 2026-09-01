@@ -129,7 +129,7 @@ class EssayAnswerServiceTest {
         assertThatThrownBy(() -> essayAnswerService.saveEssayAnswer(requestDTO, publicId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
-                .isEqualTo(ErrorCode.BAD_REQUEST);
+                .isEqualTo(ErrorCode.ESSAY_ANSWER_COUNT_MISMATCH);
     }
 
     @Test
@@ -154,7 +154,7 @@ class EssayAnswerServiceTest {
         assertThatThrownBy(() -> essayAnswerService.saveEssayAnswer(requestDTO, publicId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
-                .isEqualTo(ErrorCode.BAD_REQUEST);
+                .isEqualTo(ErrorCode.ESSAY_ANSWER_QUESTION_MISMATCH);
     }
 
     @Test
@@ -178,7 +178,7 @@ class EssayAnswerServiceTest {
         assertThatThrownBy(() -> essayAnswerService.saveEssayAnswer(requestDTO, publicId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
-                .isEqualTo(ErrorCode.BAD_REQUEST);
+                .isEqualTo(ErrorCode.ESSAY_ANSWER_TOO_LONG);
     }
 
     @Test
@@ -267,7 +267,7 @@ class EssayAnswerServiceTest {
         assertThatThrownBy(() -> essayAnswerService.updateEssayAnswers(requestDTO, publicId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
-                .isEqualTo(ErrorCode.BAD_REQUEST);
+                .isEqualTo(ErrorCode.ESSAY_ANSWER_QUESTION_MISMATCH);
     }
 
     @Test
@@ -292,7 +292,7 @@ class EssayAnswerServiceTest {
         assertThatThrownBy(() -> essayAnswerService.updateEssayAnswers(requestDTO, publicId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
-                .isEqualTo(ErrorCode.BAD_REQUEST);
+                .isEqualTo(ErrorCode.ESSAY_ANSWER_COUNT_MISMATCH);
     }
 
     @Test
@@ -316,7 +316,7 @@ class EssayAnswerServiceTest {
         assertThatThrownBy(() -> essayAnswerService.updateEssayAnswers(requestDTO, publicId))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code")
-                .isEqualTo(ErrorCode.BAD_REQUEST);
+                .isEqualTo(ErrorCode.ESSAY_ANSWER_TOO_LONG);
     }
 
     @Test
