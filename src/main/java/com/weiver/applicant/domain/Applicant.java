@@ -122,7 +122,7 @@ public class Applicant extends BaseTimeEntity {
         this.profileSyncStatus = ProfileSyncStatus.FAILED;
     }
 
-    public boolean isProfileSyncCompleted() {
-        return this.profileSyncStatus == ProfileSyncStatus.COMPLETED;
+    public boolean isProfileSubmitted() {
+        return this.profileSyncStatus != ProfileSyncStatus.PENDING;
     }
 }

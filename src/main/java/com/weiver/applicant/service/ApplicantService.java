@@ -150,9 +150,9 @@ public class ApplicantService {
         return basicInfoCompleted && resumeDetailCompleted;
     }
 
-    // TODO(PR 리뷰): 제출 여부 판정 기준 확정 필요 — 현재는 COMPLETED(동기화 완료)만 '제출됨'으로 간주한다.
-    // REQUESTED(제출 요청됨)/FAILED(동기화 실패) 상태를 제출로 볼지는 리뷰에서 논의한다.
+    // 사용자의 '제출 행위' 기준: 제출 요청(REQUESTED) 이후는 모두 제출됨으로 본다.
+    // 동기화 실패(FAILED)도 사용자 입장에서는 제출된 상태이며, 실패 메시지는 추후 폴링으로 재처리한다.
     private boolean isSubmitted(Applicant applicant) {
-        return applicant.isProfileSyncCompleted();
+        return applicant.isProfileSubmitted();
     }
 }

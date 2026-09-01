@@ -477,8 +477,8 @@ class ApplicantServiceImplTest {
     }
 
     @Test
-    @DisplayName("프로필 제출 여부 조회 시 동기화 상태가 REQUESTED이면 서류 상태와 무관하게 submitted는 false를 반환한다.")
-    void getSubmissionStatus_Requested_ReturnsSubmittedFalse() {
+    @DisplayName("프로필 제출 여부 조회 시 동기화 상태가 REQUESTED이면 submitted는 true를 반환한다.")
+    void getSubmissionStatus_Requested_ReturnsSubmittedTrue() {
         // Given
         String publicId = "2222";
         Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.REQUESTED);
@@ -492,7 +492,7 @@ class ApplicantServiceImplTest {
         ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
 
         // Then
-        assertThat(responseDTO.submitted()).isFalse();
+        assertThat(responseDTO.submitted()).isTrue();
         assertThat(responseDTO.resumeCompleted()).isTrue();
         assertThat(responseDTO.essayCompleted()).isTrue();
         assertThat(responseDTO.portfolioCompleted()).isTrue();
@@ -518,8 +518,8 @@ class ApplicantServiceImplTest {
     }
 
     @Test
-    @DisplayName("프로필 제출 여부 조회 시 동기화 상태가 FAILED이면 submitted는 false를 반환한다.")
-    void getSubmissionStatus_Failed_ReturnsSubmittedFalse() {
+    @DisplayName("프로필 제출 여부 조회 시 동기화 상태가 FAILED여도 submitted는 true를 반환한다.")
+    void getSubmissionStatus_Failed_ReturnsSubmittedTrue() {
         // Given
         String publicId = "2222";
         Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.FAILED);
@@ -533,7 +533,7 @@ class ApplicantServiceImplTest {
         ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
 
         // Then
-        assertThat(responseDTO.submitted()).isFalse();
+        assertThat(responseDTO.submitted()).isTrue();
     }
 
     @Test
