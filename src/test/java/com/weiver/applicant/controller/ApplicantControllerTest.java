@@ -233,6 +233,43 @@ class ApplicantControllerTest {
     }
 
     @Test
+    @DisplayName("프로필 제출 여부 조회 성공")
+    void getSubmissionStatus_Success() throws Exception {
+        // given
+        String publicId = "2222";
+        ApplicantSubmissionStatusResponseDTO responseDTO = new ApplicantSubmissionStatusResponseDTO(
+                true,
+                true,
+                false,
+                true
+        );
+
+        given(applicantService.getSubmissionStatus(publicId)).willReturn(responseDTO);
+
+        // when, then
+        mockMvc.perform(get("/api/applicants/submission-status")
+                        .with(customAuth(publicId))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("success"))
+                .andExpect(jsonPath("$.data.submitted").value(true))
+                .andExpect(jsonPath("$.data.resumeCompleted").value(true))
+                .andExpect(jsonPath("$.data.essayCompleted").value(false))
+                .andExpect(jsonPath("$.data.portfolioCompleted").value(true));
+    }
+
+    @Test
+    @DisplayName("엣지 케이스 : 프로필 제출 여부 조회 시 Principal이 없으면 UNAUTHORIZED 에러 발생")
+    void getSubmissionStatus_WithoutPrincipal_ThrowsUnauthorized() throws Exception {
+        mockMvc.perform(get("/api/applicants/submission-status")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
+    }
+
+    @Test
     @DisplayName("엣지 케이스 : 남의 수상 이력 ID 조작 시도 -> 404 (또는 400) 에러 발생")
     void updateAwardInfo_WithOthersAwardId_ThrowsException() throws Exception {
         // given

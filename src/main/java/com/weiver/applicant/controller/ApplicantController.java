@@ -7,6 +7,7 @@ import com.weiver.applicant.dto.request.post.WorkExperienceRequestDTO;
 import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.dto.response.ApplicantDocumentStatusResponseDTO;
 import com.weiver.applicant.dto.response.ApplicantInfoResponseDTO;
+import com.weiver.applicant.dto.response.ApplicantSubmissionStatusResponseDTO;
 import com.weiver.applicant.service.*;
 import com.weiver.global.common.ApiResponse;
 import com.weiver.global.exception.BusinessException;
@@ -69,6 +70,20 @@ public class ApplicantController {
         if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
         ApplicantDocumentStatusResponseDTO responseDTO = applicantService.getDocumentStatus(principal.publicId());
+
+        return ResponseEntity.ok(ApiResponse.success(responseDTO));
+    }
+
+    @Operation(
+            summary = "프로필 제출 여부 조회",
+            description = "로그인한 구직자의 프로필 제출 여부와 이력서, 자기소개서, 포트폴리오 각 서류의 작성 완료 여부를 함께 boolean 값으로 반환합니다."
+    )
+    @GetMapping("/submission-status")
+    public ResponseEntity<ApiResponse<ApplicantSubmissionStatusResponseDTO>> getSubmissionStatus(
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+
+        ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(principal.publicId());
 
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }

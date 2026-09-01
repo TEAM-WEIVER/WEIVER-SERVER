@@ -91,6 +91,25 @@ public class ApplicantService {
     public ApplicantDocumentStatusResponseDTO getDocumentStatus(String publicId) {
         Applicant applicant = getApplicant(publicId);
 
+        return buildDocumentStatus(applicant);
+    }
+
+    @Transactional(readOnly = true)
+    public ApplicantSubmissionStatusResponseDTO getSubmissionStatus(String publicId) {
+        Applicant applicant = getApplicant(publicId);
+
+        boolean submitted = isSubmitted(applicant);
+        ApplicantDocumentStatusResponseDTO documentStatus = buildDocumentStatus(applicant);
+
+        return new ApplicantSubmissionStatusResponseDTO(
+                submitted,
+                documentStatus.resumeCompleted(),
+                documentStatus.essayCompleted(),
+                documentStatus.portfolioCompleted()
+        );
+    }
+
+    private ApplicantDocumentStatusResponseDTO buildDocumentStatus(Applicant applicant) {
         boolean resumeCompleted = isResumeCompleted(applicant);
         boolean essayCompleted = essayAnswerRepository.existsByApplicant(applicant);
         boolean portfolioCompleted = portfolioRepository.existsByApplicant(applicant);
@@ -129,5 +148,11 @@ public class ApplicantService {
                 || awardRepository.existsByApplicant(applicant);
 
         return basicInfoCompleted && resumeDetailCompleted;
+    }
+
+    // 사용자의 '제출 행위' 기준: 제출 요청(REQUESTED) 이후는 모두 제출됨으로 본다.
+    // 동기화 실패(FAILED)도 사용자 입장에서는 제출된 상태이며, 실패 메시지는 추후 폴링으로 재처리한다.
+    private boolean isSubmitted(Applicant applicant) {
+        return applicant.isProfileSubmitted();
     }
 }
