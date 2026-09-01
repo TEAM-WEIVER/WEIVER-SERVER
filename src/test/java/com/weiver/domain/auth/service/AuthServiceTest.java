@@ -64,18 +64,17 @@ public class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("만료된 토큰이면 EXPIRED TOKEN 예외 전파되고 Redis 저장/삭제는 수행되지 않는다.")
+    @DisplayName("만료된 토큰이면 예외 없이 관대하게 종료하고 Redis 저장/삭제는 수행하지 않는다.")
     public void logoutExpiredToken() {
         // given
         String accessToken = "expiredAccessToken";
 
         when(jwtTokenProvider.getPublicId(accessToken)).thenThrow(new BusinessException(ErrorCode.TOKEN_EXPIRED));
 
-        // when & then
-        assertThatThrownBy(() -> authService.logout(accessToken))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage(ErrorCode.TOKEN_EXPIRED.defaultMessage);
+        // when
+        authService.logout(accessToken);
 
+        // then
         verify(jwtTokenProvider).getPublicId(accessToken);
         verify(jwtTokenProvider, never()).getRole(anyString());
         verify(jwtTokenProvider, never()).getRemainingExpiration(anyString());
@@ -84,18 +83,17 @@ public class AuthServiceTest {
     }
 
     @Test
-    @DisplayName("위조된 토큰이면 INVALID_TOKEN 예외 전파되고 Redis 저장/삭제 수행되지 않는다.")
+    @DisplayName("위조된 토큰이면 예외 없이 관대하게 종료하고 Redis 저장/삭제는 수행하지 않는다.")
     public void logoutInvalidToken() {
         // given
         String accessToken = "invalidAccessToken";
 
         when(jwtTokenProvider.getPublicId(accessToken)).thenThrow(new BusinessException(ErrorCode.INVALID_TOKEN));
 
-        // when & then
-        assertThatThrownBy(() -> authService.logout(accessToken))
-                .isInstanceOf(BusinessException.class)
-                .hasMessage(ErrorCode.INVALID_TOKEN.defaultMessage);
+        // when
+        authService.logout(accessToken);
 
+        // then
         verify(jwtTokenProvider).getPublicId(accessToken);
         verify(jwtTokenProvider, never()).getRole(anyString());
         verify(jwtTokenProvider, never()).getRemainingExpiration(anyString());
