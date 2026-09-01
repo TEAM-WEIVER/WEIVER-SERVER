@@ -86,7 +86,7 @@ class InterviewFlowServiceTest {
         InterviewSession session = sessionCaptor.getValue();
 
         ArgumentCaptor<EventEnvelope<?>> eventCaptor = ArgumentCaptor.forClass(EventEnvelope.class);
-        verify(domainEventPublisher).publish(eventCaptor.capture());
+        verify(domainEventPublisher).publishAfterCommit(eventCaptor.capture());
 
         assertThat(response.interviewSessionId()).isEqualTo(session.getInterviewSessionId());
         assertThat(response.status()).isEqualTo(InterviewSessionStatus.WAITING_FOR_QUESTION.name());
@@ -122,7 +122,7 @@ class InterviewFlowServiceTest {
 
         List<InterviewSession> sessions = sessionCaptor.getAllValues();
         assertThat(sessions.get(0).getInterviewSessionId()).isNotEqualTo(sessions.get(1).getInterviewSessionId());
-        verify(domainEventPublisher, times(2)).publish(any());
+        verify(domainEventPublisher, times(2)).publishAfterCommit(any());
     }
 
     @Test
@@ -165,7 +165,7 @@ class InterviewFlowServiceTest {
         assertThat(session.getSessionStatus()).isEqualTo(InterviewSessionStatus.WAITING_FOR_QUESTION);
 
         ArgumentCaptor<EventEnvelope<?>> eventCaptor = ArgumentCaptor.forClass(EventEnvelope.class);
-        verify(domainEventPublisher).publish(eventCaptor.capture());
+        verify(domainEventPublisher).publishAfterCommit(eventCaptor.capture());
 
         EventEnvelope<?> envelope = eventCaptor.getValue();
         assertThat(envelope.eventType()).isEqualTo(EventType.INTERVIEW_QUESTION_REQUESTED);
@@ -266,7 +266,7 @@ class InterviewFlowServiceTest {
         assertThat(session.getTranscript()).hasSize(3);
 
         ArgumentCaptor<EventEnvelope<?>> eventCaptor = ArgumentCaptor.forClass(EventEnvelope.class);
-        verify(domainEventPublisher).publish(eventCaptor.capture());
+        verify(domainEventPublisher).publishAfterCommit(eventCaptor.capture());
 
         EventEnvelope<?> envelope = eventCaptor.getValue();
         assertThat(envelope.eventType()).isEqualTo(EventType.INTERVIEW_TRANSCRIPT_SAVE_REQUESTED);
@@ -305,7 +305,7 @@ class InterviewFlowServiceTest {
         assertThat(session.getSessionStatus()).isEqualTo(InterviewSessionStatus.REPORT_REQUESTED);
 
         ArgumentCaptor<EventEnvelope<?>> eventCaptor = ArgumentCaptor.forClass(EventEnvelope.class);
-        verify(domainEventPublisher).publish(eventCaptor.capture());
+        verify(domainEventPublisher).publishAfterCommit(eventCaptor.capture());
 
         EventEnvelope<?> envelope = eventCaptor.getValue();
         assertThat(envelope.eventType()).isEqualTo(EventType.INTERVIEW_REPORT_REQUESTED);

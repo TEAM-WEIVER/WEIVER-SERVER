@@ -96,6 +96,30 @@ class PortfolioServiceImplTest {
     }
 
     @Test
+    @DisplayName("이미 포트폴리오가 존재하면 저장 시 PORTFOLIO_ALREADY_EXISTS 예외가 발생한다")
+    void savePortfolio_AlreadyExists_ThrowsException() {
+        String publicId = "3333";
+        Applicant applicant = Applicant.builder().applicantId(1L).publicId(publicId).build();
+        PortfolioRequestDTO request = new PortfolioRequestDTO(
+                "https://github.com/weiver",
+                null,
+                null
+        );
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+
+        assertThatThrownBy(() -> portfolioService.savePortfolio(request, null, publicId))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(ErrorCode.PORTFOLIO_ALREADY_EXISTS);
+
+        verifyNoInteractions(s3Service);
+        verify(portfolioRepository, times(0)).save(any(Portfolio.class));
+        verifyNoInteractions(applicantProfileEventService);
+    }
+
+    @Test
     @DisplayName("포트폴리오 수정 후 지원자 프로필 동기화 이벤트를 발행한다")
     void updatePortfolio_PublishesApplicantProfileChanged() {
         String publicId = "3333";
@@ -110,7 +134,7 @@ class PortfolioServiceImplTest {
                 null
         );
 
-        given(portfolioRepository.findById(10L)).willReturn(Optional.of(portfolio));
+        given(portfolioRepository.findWithApplicantByPortfolioId(10L)).willReturn(Optional.of(portfolio));
 
         portfolioService.updatePortfolio(request, null, publicId, 10L);
 

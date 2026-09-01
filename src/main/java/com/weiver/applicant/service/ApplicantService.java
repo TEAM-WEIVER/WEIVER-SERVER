@@ -11,6 +11,7 @@ import com.weiver.global.s3.service.S3Service;
 import com.weiver.portfolio.repository.PortfolioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,22 +34,36 @@ public class ApplicantService {
     private final WorkExperienceService workExperienceService;
     private final S3Service s3Service;
 
+    // 진입 메서드는 트랜잭션을 열지 않는다(NOT_SUPPORTED). S3 업로드/삭제는 트랜잭션 경계 밖에서 수행하고,
+    // 각 DB 접근은 리포지토리 단위의 짧은 트랜잭션으로 처리한다.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void updateApplicantInfo(String publicId, ApplicantInfoRequestDTO requestDTO, MultipartFile profileImage) {
 
-        Applicant applicant = getApplicant(publicId);
-
-        String photoUrl = applicant.getPhotoUrl();
-
-        // 만약 새로운 이미지라면
-        if(profileImage != null && !profileImage.isEmpty()) {
-            if(StringUtils.hasText(photoUrl)){
-                s3Service.deleteFile(photoUrl);
-            }
-
-            photoUrl = s3Service.publicUpload(profileImage, "profiles");
+        // 새 프로필 이미지 업로드는 DB 접근 이전, 트랜잭션 경계 밖에서 먼저 수행해 URL을 확보한다.
+        String newPhotoUrl = null;
+        if (profileImage != null && !profileImage.isEmpty()) {
+            newPhotoUrl = s3Service.publicUpload(profileImage, "profiles");
         }
 
+        Applicant applicant = getApplicant(publicId);
+        String previousPhotoUrl = applicant.getPhotoUrl();
+
+        // 이메일이 실제로 변경되는 경우에만 중복 검사한다.
+        String newEmail = requestDTO.email();
+        if (StringUtils.hasText(newEmail)
+                && !newEmail.equals(applicant.getEmail())
+                && applicantRepository.existsByEmail(newEmail)) {
+            throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
+        }
+
+        String photoUrl = (newPhotoUrl != null) ? newPhotoUrl : previousPhotoUrl;
         applicant.updateInfo(requestDTO, photoUrl);
+        applicantRepository.save(applicant);
+
+        // DB 반영이 확정된 뒤 기존 파일을 삭제해 롤백 시 원본 이미지가 유실되지 않게 한다.
+        if (newPhotoUrl != null && StringUtils.hasText(previousPhotoUrl)) {
+            s3Service.deleteFile(previousPhotoUrl);
+        }
     }
 
     @Transactional(readOnly = true)

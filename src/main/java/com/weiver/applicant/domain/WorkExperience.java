@@ -56,7 +56,7 @@ public class WorkExperience extends BaseTimeEntity {
         this.companyName = updateDTO.companyName();
         this.startDate = updateDTO.startDate();
         this.endDate = updateDTO.endDate();
-        this.employmentType = EmploymentType.valueOf(updateDTO.employmentType());
+        this.employmentType = updateDTO.employmentType();
         this.position = updateDTO.position();
         this.duties = updateDTO.duties();
         this.isRecognized = updateDTO.isRecognized();

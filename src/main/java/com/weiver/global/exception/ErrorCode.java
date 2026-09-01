@@ -53,6 +53,7 @@ public enum ErrorCode {
     AWARD_NOT_FOUND("AWARD_NOT_FOUND", HttpStatus.NOT_FOUND, "수상 이력을 찾을 수 없습니다."),
     EXPERIENCE_NOT_FOUND("EXPERIENCE_NOT_FOUND", HttpStatus.NOT_FOUND, "경력 정보를 찾을 수 없습니다."),
     PORTFOLIO_NOT_FOUND("PORTFOLIO_NOT_FOUND", HttpStatus.NOT_FOUND, "포트폴리오를 찾을 수 없습니다."),
+    PORTFOLIO_ALREADY_EXISTS("PORTFOLIO_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 포트폴리오가 존재합니다."),
 
     // ===================== REPORT =====================
     REPORT_NOT_FOUND("REPORT_NOT_FOUND", HttpStatus.NOT_FOUND, "보고서를 찾을 수 없습니다."),

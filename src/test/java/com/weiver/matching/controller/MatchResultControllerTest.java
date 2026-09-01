@@ -7,6 +7,7 @@ import com.weiver.global.security.jwt.JwtAuthenticationFilter;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.matching.dto.request.ApplicantSearchCondition;
+import com.weiver.matching.dto.response.ApplicantListPageResponseDTO;
 import com.weiver.matching.dto.response.ApplicantListResponseDTO;
 import com.weiver.matching.service.MatchResultService;
 import org.junit.jupiter.api.AfterEach;
@@ -85,7 +86,7 @@ class MatchResultControllerTest {
         Page<ApplicantListResponseDTO> mockPage = new PageImpl<>(List.of(dummyDto), PageRequest.of(0, 10), 1);
 
         given(matchResultService.searchApplicantList(any(ApplicantSearchCondition.class), any(Pageable.class), any(String.class)))
-                .willReturn(mockPage);
+                .willReturn(ApplicantListPageResponseDTO.from(mockPage));
 
         // when & then
         mockMvc.perform(get("/api/job-postings/{jdId}/applicants", jdId)
@@ -106,7 +107,7 @@ class MatchResultControllerTest {
         Page<ApplicantListResponseDTO> emptyPage = new PageImpl<>(List.of(), PageRequest.of(0, 5), 0);
 
         given(matchResultService.searchApplicantList(any(ApplicantSearchCondition.class), any(Pageable.class), any(String.class)))
-                .willReturn(emptyPage);
+                .willReturn(ApplicantListPageResponseDTO.from(emptyPage));
 
         // when
         mockMvc.perform(get("/api/job-postings/{jdId}/applicants", jdId)

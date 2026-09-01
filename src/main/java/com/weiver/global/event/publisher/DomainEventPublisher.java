@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.StringUtils;
 
 import java.util.concurrent.TimeUnit;
@@ -63,6 +65,25 @@ public class DomainEventPublisher {
                     envelope.correlationId(),
                     routingKey
             );
+        });
+    }
+
+    /**
+     * DB 변경이 커밋된 뒤 이벤트를 발행해 DB 상태와 메시지 순서를 맞춘다.
+     * 활성 트랜잭션 동기화가 없으면 즉시 발행한다.
+     */
+    public void publishAfterCommit(EventEnvelope<?> envelope) {
+        if (!TransactionSynchronizationManager.isActualTransactionActive()
+                || !TransactionSynchronizationManager.isSynchronizationActive()) {
+            publish(envelope);
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                publish(envelope);
+            }
         });
     }
 

@@ -19,6 +19,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 
+/**
+ * AI 매칭 요청 이벤트 발행 서비스.
+ *
+ * <p>현재 {@link #publishMatchingRequested} 계열 메서드는 어디에서도 호출되지 않는 <b>의도적 미연결</b>
+ * 상태다. 매칭 트리거(스케줄러 등)와의 배선은 후속 이슈에서 연결할 예정이며, 이 이슈에서는 새 트리거를
+ * 코드로 배선하지 않는다.
+ */
 @Service
 @Transactional(readOnly = true)
 @RequiredArgsConstructor
@@ -46,6 +53,7 @@ public class MatchingEventService {
 
     /**
      * 스케줄러 등 내부 흐름에서 공고 ID로 AI 매칭 요청 이벤트를 발행한다.
+     * (의도적 미연결 — 현재 호출부 없음. 매칭 트리거 배선은 후속 이슈에서 연결 예정)
      */
     public void publishMatchingRequested(Long jdId) {
         JobPosting jobPosting = jobPostingRepository.findById(jdId)
@@ -68,7 +76,7 @@ public class MatchingEventService {
                 EventIds.newEventId()
         );
 
-        domainEventPublisher.publish(envelope);
+        domainEventPublisher.publishAfterCommit(envelope);
     }
 
     /**

@@ -11,6 +11,7 @@ import com.weiver.analysis.type.CulturefitStyle;
 import com.weiver.applicant.domain.QWorkExperience;
 import com.weiver.matching.domain.MatchResult;
 import com.weiver.matching.dto.request.ApplicantSearchCondition;
+import com.weiver.matching.dto.response.ApplicantListResponseDTO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,6 +27,7 @@ import static com.weiver.applicant.domain.QApplicant.applicant;
 import static com.weiver.analysis.domain.QCultureReport.cultureReport;
 import static com.weiver.analysis.domain.QTechnicalSkillReport.technicalSkillReport;
 import static com.weiver.applicant.domain.QWorkExperience.workExperience;
+import static java.util.Objects.requireNonNull;
 
 @Repository
 @RequiredArgsConstructor
@@ -34,7 +36,7 @@ public class MatchResultRepositoryImpl implements MatchResultRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public Page<Tuple> searchApplicantsTuple(ApplicantSearchCondition condition, Pageable pageable) {
+    public Page<ApplicantListResponseDTO> searchApplicants(ApplicantSearchCondition condition, Pageable pageable) {
 
 
         QWorkExperience weSub = new QWorkExperience("weSub");
@@ -72,6 +74,16 @@ public class MatchResultRepositoryImpl implements MatchResultRepositoryCustom {
                 .orderBy(matchResult.skillScore.desc(), matchResult.createTime.desc())
                 .fetch();
 
+        // Tuple/Q타입 매핑은 리포지토리 커스텀 계층 안에서만 처리하고, 서비스에는 응답 DTO만 노출한다.
+        List<ApplicantListResponseDTO> responseContent = content.stream()
+                .map(tuple -> ApplicantListResponseDTO.of(
+                        requireNonNull(tuple.get(matchResult)),
+                        requireNonNull(tuple.get(cultureReport)),
+                        requireNonNull(tuple.get(technicalSkillReport)),
+                        tuple.get(3, String.class)
+                ))
+                .toList();
+
         JPAQuery<Long> countQuery = queryFactory
                 .select(matchResult.count())
                 .from(matchResult)
@@ -86,7 +98,7 @@ public class MatchResultRepositoryImpl implements MatchResultRepositoryCustom {
                         techStacksContain(condition.techStacks())
                 );
 
-        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
+        return PageableExecutionUtils.getPage(responseContent, pageable, countQuery::fetchOne);
     }
 
     @Override

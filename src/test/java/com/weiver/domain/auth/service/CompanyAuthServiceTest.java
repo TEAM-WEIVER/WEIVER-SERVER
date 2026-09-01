@@ -80,7 +80,7 @@ class CompanyAuthServiceTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 loginId면 COMPANY_NOT_FOUND 예외")
+    @DisplayName("존재하지 않는 loginId면 아이디 열거 방지를 위해 INVALID_PASSWORD 예외")
     void login_companyNotFound() {
         // given
         CompanyLoginRequestDTO request = new CompanyLoginRequestDTO("none", "Pass1234!");
@@ -89,14 +89,14 @@ class CompanyAuthServiceTest {
         // when & then
         assertThatThrownBy(() -> companyAuthService.login(request))
                 .isInstanceOf(BusinessException.class)
-                .hasMessage(ErrorCode.COMPANY_NOT_FOUND.defaultMessage);
+                .hasMessage(ErrorCode.INVALID_PASSWORD.defaultMessage);
 
         verify(jwtTokenProvider, never()).createAccessToken(anyString(), any(UserRole.class), anyLong());
         verify(refreshTokenRepository, never()).save(anyString(), any(UserRole.class), anyString(), anyLong());
     }
 
     @Test
-    @DisplayName("탈퇴한 기업 계정으로 로그인 시 COMPANY_NOT_FOUND 예외")
+    @DisplayName("탈퇴한 기업 계정으로 로그인 시 존재 여부 노출 없이 INVALID_PASSWORD 예외")
     void login_deletedCompany() {
         // given
         CompanyLoginRequestDTO request = new CompanyLoginRequestDTO("deleted-company", "Pass1234!");
@@ -105,7 +105,7 @@ class CompanyAuthServiceTest {
         // when & then
         assertThatThrownBy(() -> companyAuthService.login(request))
                 .isInstanceOf(BusinessException.class)
-                .hasMessage(ErrorCode.COMPANY_NOT_FOUND.defaultMessage);
+                .hasMessage(ErrorCode.INVALID_PASSWORD.defaultMessage);
 
         verify(passwordEncoder, never()).matches(anyString(), anyString());
     }

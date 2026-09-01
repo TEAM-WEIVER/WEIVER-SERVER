@@ -19,7 +19,7 @@ import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.ApplicantVerificationCodeGenerator;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
 import com.weiver.auth.service.EmailVerificationService;
-import com.weiver.global.auth.ApplicantProvider;
+import com.weiver.applicant.service.ApplicantProvider;
 import com.weiver.global.common.UserRole;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -27,6 +27,7 @@ import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
 import com.weiver.global.security.jwt.repository.TokenVersionRepository;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -67,6 +68,12 @@ public class ApplicantAuthServiceTest {
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private TokenVersionRepository tokenVersionRepository;
     @Mock private ApplicantProvider applicantProvider;
+
+    @BeforeEach
+    void enableTestEmailBypass() {
+        // @Value 프로퍼티는 Mockito가 주입하지 않으므로, 테스트 도메인 우회 검증을 위해 플래그를 활성화한다.
+        ReflectionTestUtils.setField(applicantAuthService, "testEmailBypassEnabled", true);
+    }
 
     @Test
     @DisplayName("이메일 인증번호 전송 성공 시 시도 카운터 초기화 후 코드 저장 + 메일 발송")
@@ -604,7 +611,7 @@ public class ApplicantAuthServiceTest {
     }
 
     @Test
-    @DisplayName("존재하지 않는 이메일이면 APPLICANT_NOT_FOUND 예외")
+    @DisplayName("존재하지 않는 이메일이면 이메일 열거 방지를 위해 INVALID_PASSWORD 예외")
     public void login_applicantNotFound() {
         // given
         ApplicantLoginRequestDTO request = new ApplicantLoginRequestDTO("none@test.com", "Pass1234!");
@@ -613,7 +620,7 @@ public class ApplicantAuthServiceTest {
         // when & then
         assertThatThrownBy(() -> applicantAuthService.login(request))
                 .isInstanceOf(BusinessException.class)
-                .hasMessage(ErrorCode.APPLICANT_NOT_FOUND.defaultMessage);
+                .hasMessage(ErrorCode.INVALID_PASSWORD.defaultMessage);
 
         verify(jwtTokenProvider, never()).createAccessToken(anyString(), any(UserRole.class), anyLong());
         verify(refreshTokenRepository, never()).save(anyString(), any(UserRole.class), anyString(), anyLong());

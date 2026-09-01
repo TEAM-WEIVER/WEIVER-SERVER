@@ -12,6 +12,7 @@ import com.weiver.portfolio.dto.request.PortfolioRequestDTO;
 import com.weiver.portfolio.dto.request.PortfolioUpdateRequestDTO;
 import com.weiver.portfolio.dto.response.PortfolioResponseDTO;
 import com.weiver.portfolio.repository.PortfolioRepository;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,9 +29,18 @@ public class PortfolioService {
     private final S3Service s3Service;
     private final ApplicantProfileEventService applicantProfileEventService;
 
+    // 진입 메서드는 트랜잭션을 열지 않는다(NOT_SUPPORTED). S3 업로드/삭제는 트랜잭션 경계 밖에서 수행하고,
+    // 각 DB 접근은 리포지토리 단위의 짧은 트랜잭션으로 처리한다.
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void savePortfolio(PortfolioRequestDTO requestDTO, MultipartFile file, String publicId) {
         Applicant applicant = getApplicant(publicId);
 
+        // 저장 전 중복 검사 (S3 업로드 이전에 수행해 불필요한 업로드를 막는다)
+        if (portfolioRepository.existsByApplicant(applicant)) {
+            throw new BusinessException(ErrorCode.PORTFOLIO_ALREADY_EXISTS);
+        }
+
+        // S3 업로드는 트랜잭션 경계 밖에서 수행한다.
         String fileName = null;
         Long fileSize = null;
         String fileType = null;
@@ -49,32 +59,38 @@ public class PortfolioService {
     }
 
 
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     public void updatePortfolio(PortfolioUpdateRequestDTO requestDTO, MultipartFile file,
                                 String publicId, long portfolioId) {
-        Portfolio portfolio = portfolioRepository.findById(portfolioId)
+        Portfolio portfolio = portfolioRepository.findWithApplicantByPortfolioId(portfolioId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PORTFOLIO_NOT_FOUND));
-
-        String fileKey = portfolio.getFileKey();
 
         if(!portfolio.getApplicant().getPublicId().equals(publicId)){
             throw new BusinessException(ErrorCode.PORTFOLIO_NOT_FOUND);
         }
 
-        if(file != null && !file.isEmpty()){
+        String previousFileKey = portfolio.getFileKey();
+        boolean fileReplaced = file != null && !file.isEmpty();
 
-            if(StringUtils.hasText(fileKey)){
-                s3Service.deleteFile(fileKey);
-            }
-
+        if (fileReplaced) {
             String fileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "";
             Long fileSize = file.getSize();
-            String fileType = org.springframework.util.StringUtils.getFilenameExtension(fileName);
-            fileKey = s3Service.privateUpload(file, "portfolios");
+            String fileType = StringUtils.getFilenameExtension(fileName);
 
-            portfolio.updateFile(fileKey, fileName, fileType, fileSize);
+            // 새 파일 업로드는 트랜잭션 경계 밖에서 수행한다.
+            String newFileKey = s3Service.privateUpload(file, "portfolios");
+
+            portfolio.updateFile(newFileKey, fileName, fileType, fileSize);
         }
 
         portfolio.updateLinks(requestDTO);
+        portfolioRepository.save(portfolio);
+
+        // DB 반영이 확정된 뒤 기존 파일을 삭제해 롤백 시 원본 파일이 유실되지 않게 한다.
+        if (fileReplaced && StringUtils.hasText(previousFileKey)) {
+            s3Service.deleteFile(previousFileKey);
+        }
+
         applicantProfileEventService.publishProfileChanged(portfolio.getApplicant().getApplicantId());
     }
 

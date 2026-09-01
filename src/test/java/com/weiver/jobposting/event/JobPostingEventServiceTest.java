@@ -61,7 +61,7 @@ class JobPostingEventServiceTest {
         jobPostingEventService.publishJdAnalysisRequested(jobPosting);
 
         ArgumentCaptor<EventEnvelope<?>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
-        verify(domainEventPublisher).publish(captor.capture());
+        verify(domainEventPublisher).publishAfterCommit(captor.capture());
 
         EventEnvelope<?> envelope = captor.getValue();
         assertThat(envelope.eventType()).isEqualTo(EventType.JD_ANALYSIS_REQUESTED);

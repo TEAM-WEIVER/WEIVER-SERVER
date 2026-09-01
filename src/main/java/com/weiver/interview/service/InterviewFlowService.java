@@ -230,7 +230,7 @@ public class InterviewFlowService {
                 )
         );
 
-        publishAfterCommit(EventEnvelope.request(
+        domainEventPublisher.publishAfterCommit(EventEnvelope.request(
                 EventType.INTERVIEW_QUESTION_REQUESTED,
                 data,
                 EventIds.newEventId()
@@ -258,7 +258,7 @@ public class InterviewFlowService {
                 new InterviewTranscriptSaveRequestedData.TranscriptSectionData(toTranscriptTurns(session, CULTURE_QUESTION_PREFIX))
         );
 
-        publishAfterCommit(EventEnvelope.request(
+        domainEventPublisher.publishAfterCommit(EventEnvelope.request(
                 EventType.INTERVIEW_TRANSCRIPT_SAVE_REQUESTED,
                 data,
                 EventIds.newEventId()
@@ -274,7 +274,7 @@ public class InterviewFlowService {
                 session.getInterviewSessionId()
         );
 
-        publishAfterCommit(EventEnvelope.request(
+        domainEventPublisher.publishAfterCommit(EventEnvelope.request(
                 EventType.INTERVIEW_REPORT_REQUESTED,
                 data,
                 EventIds.newEventId()
@@ -448,24 +448,6 @@ public class InterviewFlowService {
         LocalDate today = LocalDate.now();
         int quarter = ((today.getMonthValue() - 1) / 3) + 1;
         return today.getYear() + "Q" + quarter;
-    }
-
-    /**
-     * DB 변경이 커밋된 뒤 RabbitMQ 이벤트를 발행해 DB 상태와 메시지 순서를 맞춘다.
-     */
-    private void publishAfterCommit(EventEnvelope<?> envelope) {
-        if (!TransactionSynchronizationManager.isActualTransactionActive()
-                || !TransactionSynchronizationManager.isSynchronizationActive()) {
-            domainEventPublisher.publish(envelope);
-            return;
-        }
-
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                domainEventPublisher.publish(envelope);
-            }
-        });
     }
 
     private record ReportAnalysis(

@@ -58,7 +58,7 @@ class MatchingEventServiceTest {
         matchingEventService.publishMatchingRequested(10L);
 
         ArgumentCaptor<EventEnvelope<?>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
-        verify(domainEventPublisher).publish(captor.capture());
+        verify(domainEventPublisher).publishAfterCommit(captor.capture());
 
         EventEnvelope<?> envelope = captor.getValue();
         assertThat(envelope.eventType()).isEqualTo(EventType.MATCHING_REQUESTED);
@@ -92,7 +92,7 @@ class MatchingEventServiceTest {
         matchingEventService.publishMatchingRequested(10L);
 
         ArgumentCaptor<EventEnvelope<?>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
-        verify(domainEventPublisher).publish(captor.capture());
+        verify(domainEventPublisher).publishAfterCommit(captor.capture());
         MatchingRequestedData data = (MatchingRequestedData) captor.getValue().data();
 
         assertThat(data.competencyPriorities())
