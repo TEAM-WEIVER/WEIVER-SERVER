@@ -61,17 +61,6 @@ public class HttpLoggingFilter extends OncePerRequestFilter {
     private void logResponse(HttpServletRequest request, HttpServletResponse response, long duration) {
         int status = response.getStatus();
 
-        if(status >= 500) {
-            log.warn(
-                    "[HTTP RESPONSE] method={} uri={} status={} duration={}ms",
-                    request.getMethod(),
-                    request.getRequestURI(),
-                    status,
-                    duration
-            );
-            return;
-        }
-
         if(status >= 400) {
             log.warn(
                     "[HTTP RESPONSE] method={} uri={} status={} duration={}ms",

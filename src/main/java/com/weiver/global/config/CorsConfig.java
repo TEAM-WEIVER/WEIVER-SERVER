@@ -1,5 +1,7 @@
 package com.weiver.global.config;
 
+import com.weiver.global.security.csrf.CsrfCookieProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -9,7 +11,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.List;
 
 @Configuration
+@RequiredArgsConstructor
 public class CorsConfig {
+
+    private final CsrfCookieProperties csrfCookieProperties;
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -33,7 +38,7 @@ public class CorsConfig {
         corsConfiguration.setAllowedHeaders(List.of(
                 "Authorization",
                 "Content-Type",
-                "X-XSRF-TOKEN"
+                csrfCookieProperties.headerName()
         ));
 
         corsConfiguration.setExposedHeaders(List.of(

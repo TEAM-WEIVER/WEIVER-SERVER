@@ -63,6 +63,9 @@ public enum ErrorCode {
     ESSAY_ANSWER_NOT_FOUND("ESSAY_ANSWER_NOT_FOUND", HttpStatus.NOT_FOUND, "자기소개서를 찾을 수 없습니다."),
     ESSAY_QUESTION_NOT_FOUND("ESSAY_QUESTION_NOT_FOUND", HttpStatus.NOT_FOUND, "자기소개서 문항을 찾을 수 없습니다."),
     ESSAY_ANSWER_ALREADY_EXISTS("ESSAY_ANSWER_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 자기소개서가 존재합니다."),
+    ESSAY_ANSWER_COUNT_MISMATCH("ESSAY_ANSWER_COUNT_MISMATCH", HttpStatus.BAD_REQUEST, "자기소개서 답변 개수가 올바르지 않습니다."),
+    ESSAY_ANSWER_QUESTION_MISMATCH("ESSAY_ANSWER_QUESTION_MISMATCH", HttpStatus.BAD_REQUEST, "자기소개서 답변 문항이 요청과 일치하지 않습니다."),
+    ESSAY_ANSWER_TOO_LONG("ESSAY_ANSWER_TOO_LONG", HttpStatus.BAD_REQUEST, "자기소개서 답변이 허용된 최대 글자 수를 초과했습니다."),
 
     // ===================== NOTIFICATION =====================
     NOTIFICATION_NOT_FOUND("NOTIFICATION_NOT_FOUND", HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다."),
@@ -80,11 +83,12 @@ public enum ErrorCode {
     // ===================== MATCHING =====================
     MATCH_NOT_FOUND("MATCH_NOT_FOUND", HttpStatus.NOT_FOUND, "매칭 결과를 찾을 수 없습니다."),
 
+    // ===================== ANALYSIS =====================
+    DETAIL_ANALYSIS_REPORT_NOT_FOUND("DETAIL_ANALYSIS_REPORT_NOT_FOUND", HttpStatus.NOT_FOUND, "상세 분석 리포트를 찾을 수 없습니다."),
+
     // ===================== SERVER =====================
     BAD_REQUEST("BAD_REQUEST", HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
     INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
-
-    // ===================== SERVER =====================
     FAIL_DELETE_FILE("FAIL_DELETE_FILE", HttpStatus.INTERNAL_SERVER_ERROR, "S3 파일 삭제 실패");
     public final String code;
     public final HttpStatus httpStatus;

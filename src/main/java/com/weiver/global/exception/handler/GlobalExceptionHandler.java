@@ -1,5 +1,9 @@
-package com.weiver.global.exception;
+package com.weiver.global.exception.handler;
 
+import com.weiver.global.exception.BusinessException;
+import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.exception.ErrorDetail;
+import com.weiver.global.exception.ErrorResponse;
 import com.weiver.global.security.cookie.CookieProvider;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -86,6 +90,10 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             MissingRequestCookieException ex,
             HttpServletRequest request) {
 
+        // Sentry 전송 제외: 필수 쿠키 누락은 클라이언트 요청 문제이므로 WARN 레벨로 기록한다.
+        log.warn("[MissingCookie] cookieName={}, path={}",
+                ex.getCookieName(), request.getRequestURI());
+
         return toResponse(ErrorCode.MISSING_COOKIE, request, List.of());
     }
 
@@ -95,6 +103,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             HttpServletRequest request) {
 
         List<ErrorDetail> details = extractDetails(ex);
+
+        // Sentry 전송 제외: 경로 변수/제약 조건 검증 실패는 클라이언트 요청 문제이므로 WARN 레벨로 기록한다.
+        log.warn("[BindException] type={}, message={}, path={}",
+                ex.getClass().getSimpleName(), ex.getMessage(), request.getRequestURI());
+
         return toResponse(ErrorCode.BIND_FAILED, request, details);
     }
 
