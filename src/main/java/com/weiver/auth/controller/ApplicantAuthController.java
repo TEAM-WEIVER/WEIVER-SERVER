@@ -12,6 +12,8 @@ import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
 import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
 import com.weiver.global.common.ApiResponse;
+import com.weiver.global.exception.BusinessException;
+import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.principal.AuthenticatedPrincipal;
 import com.weiver.global.security.cookie.CookieProvider;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +24,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -110,7 +113,8 @@ public class ApplicantAuthController {
 
         ApplicantSignupResponseDTO responseDTO = new ApplicantSignupResponseDTO(loginResult.role(), loginResult.accessToken());
 
-        return ResponseEntity.ok(ApiResponse.success(201, responseDTO, "회원가입에 성공했습니다."));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created(responseDTO, "회원가입에 성공했습니다."));
     }
 
     @Operation(
@@ -157,6 +161,8 @@ public class ApplicantAuthController {
             @Parameter(hidden = true)
             HttpServletResponse httpServletResponse
     ) {
+        if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+
         applicantAuthService.withdraw(principal.publicId());
 
         ResponseCookie expiredRefreshTokenCookie = cookieProvider.createExpiredRefreshTokenCookie();

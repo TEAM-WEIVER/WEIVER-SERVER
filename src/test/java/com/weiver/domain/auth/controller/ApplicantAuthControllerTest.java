@@ -210,7 +210,7 @@ public class ApplicantAuthControllerTest {
         mockMvc.perform(post("/api/auth/applicants/signup/agreements")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isOk())
+                .andExpect(status().isCreated())
                 .andExpect(header().string(HttpHeaders.SET_COOKIE, containsString("refreshToken=refresh")))
                 .andExpect(jsonPath("$.code").value(201))
                 .andExpect(jsonPath("$.data.accessToken").value("access"))

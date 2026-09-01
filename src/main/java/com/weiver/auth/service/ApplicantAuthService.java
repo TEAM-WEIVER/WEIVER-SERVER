@@ -12,13 +12,14 @@ import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
 import com.weiver.auth.repository.ApplicantSignupTokenRepository;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
 import com.weiver.global.common.UserRole;
-import com.weiver.global.auth.ApplicantProvider;
+import com.weiver.applicant.service.ApplicantProvider;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.RefreshTokenRepository;
 import com.weiver.global.security.jwt.repository.TokenVersionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -53,6 +54,10 @@ public class ApplicantAuthService {
     private final ApplicantProvider applicantProvider;
     private final EmailVerificationService emailVerificationService;
 
+    // 비-prod 테스트 편의용 이메일 인증 우회 스위치. prod에서는 반드시 false여야 한다(기본 false).
+    @Value("${weiver.auth.test-email-bypass.enabled:false}")
+    private boolean testEmailBypassEnabled;
+
     public void sendEmailCode(ApplicantEmailSendRequestDTO request) {
         String email = request.email();
 
@@ -62,7 +67,7 @@ public class ApplicantAuthService {
                     throw new BusinessException(ErrorCode.EMAIL_ALREADY_EXISTS);
                 });
 
-        if (isTestEmail(email)) {
+        if (testEmailBypassEnabled && isTestEmail(email)) {
             emailVerificationRepository.deleteCode(email);
             emailVerificationRepository.deleteAttemptCount(email);
             return;
@@ -84,7 +89,7 @@ public class ApplicantAuthService {
     public ApplicantEmailVerifyResponseDTO verifyEmailCode(ApplicantEmailVerifyRequestDTO request) {
         String email = request.email();
 
-        if (isTestEmail(email)) {
+        if (testEmailBypassEnabled && isTestEmail(email)) {
             if (!TEST_EMAIL_VERIFICATION_CODE.equals(request.code())) {
                 throw new BusinessException(ErrorCode.INVALID_VERIFICATION_CODE);
             }
@@ -231,8 +236,9 @@ public class ApplicantAuthService {
 
     @Transactional
     public ApplicantLoginResult login(ApplicantLoginRequestDTO request) {
+        // 로그인 경로에서는 계정 미존재와 비밀번호 불일치를 동일한 오류(INVALID_PASSWORD)로 통일해 이메일 열거를 차단한다.
         Applicant applicant = applicantRepository.findByEmailAndDeletedFalse(request.email())
-                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PASSWORD));
 
         if(!passwordEncoder.matches(request.password(), applicant.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);

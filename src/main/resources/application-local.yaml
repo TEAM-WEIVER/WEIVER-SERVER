@@ -111,6 +111,10 @@ weiver:
     spring-dlq: spring.domain.events.dlq
     ai-queue: ai.domain.events.queue
     ai-dlq: ai.domain.events.dlq
+  auth:
+    # 로컬/테스트 편의용 이메일 인증 우회. 비-prod에서만 true.
+    test-email-bypass:
+      enabled: true
 
 # =============================================================================
 # FastAPI AI 서버

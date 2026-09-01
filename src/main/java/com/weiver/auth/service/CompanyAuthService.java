@@ -27,8 +27,9 @@ public class CompanyAuthService {
 
     @Transactional
     public CompanyLoginResult login(CompanyLoginRequestDTO request) {
+        // 로그인 경로에서는 계정 미존재와 비밀번호 불일치를 동일한 오류(INVALID_PASSWORD)로 통일해 아이디 열거를 차단한다.
         Company company = companyRepository.findByLoginIdAndDeletedFalse(request.loginId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.COMPANY_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PASSWORD));
 
         if(!passwordEncoder.matches(request.password(), company.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
