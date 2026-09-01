@@ -3,8 +3,6 @@ package com.weiver.jobposting.dto.response;
 import com.weiver.jobposting.domain.EmailTemplate;
 import com.weiver.jobposting.domain.JobPosting;
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -15,16 +13,16 @@ public record JobPostingResponseDTO(
         Long jdId,
         
         @Schema(description = "채용 공고 제목", example = "2026년 상반기 백엔드 엔지니어 채용")
-        @NotBlank String title,
+        String title,
 
         @Schema(description = "공고 마감일 (YYYY-MM-DD 형식)", example = "2026-05-31")
-        @NotNull LocalDate deadline,
+        LocalDate deadline,
 
         @Schema(description = "상위 직무 카테고리", example = "개발")
-        @NotBlank String jobCategory,
+        String jobCategory,
 
         @Schema(description = "세부 직무", example = "백엔드 개발자")
-        @NotBlank String detailedJob,
+        String detailedJob,
 
         @Schema(description = "주요 업무 소개", example = "대규모 트래픽 처리 및 서버 아키텍처 설계")
         String jobDescription,
@@ -48,10 +46,10 @@ public record JobPostingResponseDTO(
         List<String> traitPriorities,
 
         @Schema(description = "합격/불합격 안내 자동 발송 이메일 제목", example = "[Weaver] 서류 전형 결과 안내")
-        @NotBlank String emailTitle,
+        String emailTitle,
 
         @Schema(description = "안내 이메일 본문 내용", example = "안녕하세요. Weaver 지원에 감사드립니다...")
-        @NotBlank String emailContent
+        String emailContent
 ) {
     public static JobPostingResponseDTO of(JobPosting jobPosting, EmailTemplate emailTemplate) {
         return new JobPostingResponseDTO(

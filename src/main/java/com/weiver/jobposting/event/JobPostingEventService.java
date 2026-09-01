@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Stream;
 
 @Service
@@ -82,7 +81,6 @@ public class JobPostingEventService {
         return Stream.of(company.getCultureDescription(), company.getDirectionDescription())
                 .filter(StringUtils::hasText)
                 .map(String::trim)
-                .filter(Objects::nonNull)
                 .reduce((left, right) -> left + "\n" + right)
                 .orElse(null);
     }
