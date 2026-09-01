@@ -8,10 +8,12 @@ import com.weiver.applicant.dto.request.post.EducationRequestDTO;
 import com.weiver.applicant.dto.request.put.ApplicantInfoRequestDTO;
 import com.weiver.applicant.dto.response.ApplicantDocumentStatusResponseDTO;
 import com.weiver.applicant.dto.response.ApplicantInfoResponseDTO;
+import com.weiver.applicant.dto.response.ApplicantSubmissionStatusResponseDTO;
 import com.weiver.applicant.repository.*;
 import com.weiver.essay.repository.EssayAnswerRepository;
 import com.weiver.applicant.type.Degree;
 import com.weiver.applicant.type.EmploymentType;
+import com.weiver.applicant.type.ProfileSyncStatus;
 import com.weiver.applicant.type.Status;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -452,6 +454,130 @@ class ApplicantServiceImplTest {
                 awardRepository, essayAnswerRepository, portfolioRepository);
     }
 
+    @Test
+    @DisplayName("프로필 제출 여부 조회 시 동기화 상태가 COMPLETED이고 서류가 모두 작성된 경우 submitted와 3종 서류가 모두 true를 반환한다.")
+    void getSubmissionStatus_CompletedAndAllDocuments_ReturnsAllTrue() {
+        // Given
+        String publicId = "2222";
+        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.COMPLETED);
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(educationRepository.existsByApplicant(applicant)).willReturn(true);
+        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
+        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+
+        // When
+        ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.submitted()).isTrue();
+        assertThat(responseDTO.resumeCompleted()).isTrue();
+        assertThat(responseDTO.essayCompleted()).isTrue();
+        assertThat(responseDTO.portfolioCompleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("프로필 제출 여부 조회 시 동기화 상태가 REQUESTED이면 서류 상태와 무관하게 submitted는 false를 반환한다.")
+    void getSubmissionStatus_Requested_ReturnsSubmittedFalse() {
+        // Given
+        String publicId = "2222";
+        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.REQUESTED);
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(educationRepository.existsByApplicant(applicant)).willReturn(true);
+        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
+        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+
+        // When
+        ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.submitted()).isFalse();
+        assertThat(responseDTO.resumeCompleted()).isTrue();
+        assertThat(responseDTO.essayCompleted()).isTrue();
+        assertThat(responseDTO.portfolioCompleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("프로필 제출 여부 조회 시 동기화 상태가 PENDING이면 submitted는 false를 반환한다.")
+    void getSubmissionStatus_Pending_ReturnsSubmittedFalse() {
+        // Given
+        String publicId = "2222";
+        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.PENDING);
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(educationRepository.existsByApplicant(applicant)).willReturn(true);
+        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
+        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+
+        // When
+        ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.submitted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("프로필 제출 여부 조회 시 동기화 상태가 FAILED이면 submitted는 false를 반환한다.")
+    void getSubmissionStatus_Failed_ReturnsSubmittedFalse() {
+        // Given
+        String publicId = "2222";
+        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.FAILED);
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(educationRepository.existsByApplicant(applicant)).willReturn(true);
+        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
+        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+
+        // When
+        ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.submitted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("프로필 제출 여부 조회 시 이력서 상세 항목이 없으면 submitted가 true여도 resumeCompleted는 false를 반환한다.")
+    void getSubmissionStatus_NoResumeDetail_ReturnsResumeFalse() {
+        // Given
+        String publicId = "2222";
+        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.COMPLETED);
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(educationRepository.existsByApplicant(applicant)).willReturn(false);
+        given(workExperienceRepository.existsByApplicant(applicant)).willReturn(false);
+        given(certificateRepository.existsByApplicant(applicant)).willReturn(false);
+        given(awardRepository.existsByApplicant(applicant)).willReturn(false);
+        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
+        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+
+        // When
+        ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.submitted()).isTrue();
+        assertThat(responseDTO.resumeCompleted()).isFalse();
+        assertThat(responseDTO.essayCompleted()).isTrue();
+        assertThat(responseDTO.portfolioCompleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("프로필 제출 여부 조회 시 지원자가 존재하지 않으면 APPLICANT_NOT_FOUND 예외가 발생하고 서류 조회는 수행하지 않는다.")
+    void getSubmissionStatus_ApplicantNotFound_ThrowsException() {
+        // Given
+        String publicId = "not-found";
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> applicantService.getSubmissionStatus(publicId))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(ErrorCode.APPLICANT_NOT_FOUND);
+
+        verifyNoInteractions(educationRepository, workExperienceRepository, certificateRepository,
+                awardRepository, essayAnswerRepository, portfolioRepository);
+    }
+
     private Applicant completedBasicInfoApplicant(String publicId) {
         return Applicant.builder()
                 .publicId(publicId)
@@ -459,6 +585,17 @@ class ApplicantServiceImplTest {
                 .email("test@example.com")
                 .phoneNumber("010-1234-5678")
                 .birthday(LocalDate.of(2000, 1, 1))
+                .build();
+    }
+
+    private Applicant completedApplicantWithSyncStatus(String publicId, ProfileSyncStatus profileSyncStatus) {
+        return Applicant.builder()
+                .publicId(publicId)
+                .name("이현우")
+                .email("test@example.com")
+                .phoneNumber("010-1234-5678")
+                .birthday(LocalDate.of(2000, 1, 1))
+                .profileSyncStatus(profileSyncStatus)
                 .build();
     }
 }

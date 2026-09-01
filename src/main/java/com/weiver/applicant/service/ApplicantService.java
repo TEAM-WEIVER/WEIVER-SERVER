@@ -4,7 +4,6 @@ import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.dto.response.*;
 import com.weiver.applicant.repository.*;
-import com.weiver.applicant.type.ProfileSyncStatus;
 import com.weiver.essay.repository.EssayAnswerRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -92,15 +91,7 @@ public class ApplicantService {
     public ApplicantDocumentStatusResponseDTO getDocumentStatus(String publicId) {
         Applicant applicant = getApplicant(publicId);
 
-        boolean resumeCompleted = isResumeCompleted(applicant);
-        boolean essayCompleted = essayAnswerRepository.existsByApplicant(applicant);
-        boolean portfolioCompleted = portfolioRepository.existsByApplicant(applicant);
-
-        return new ApplicantDocumentStatusResponseDTO(
-                resumeCompleted,
-                essayCompleted,
-                portfolioCompleted
-        );
+        return buildDocumentStatus(applicant);
     }
 
     @Transactional(readOnly = true)
@@ -108,12 +99,22 @@ public class ApplicantService {
         Applicant applicant = getApplicant(publicId);
 
         boolean submitted = isSubmitted(applicant);
+        ApplicantDocumentStatusResponseDTO documentStatus = buildDocumentStatus(applicant);
+
+        return new ApplicantSubmissionStatusResponseDTO(
+                submitted,
+                documentStatus.resumeCompleted(),
+                documentStatus.essayCompleted(),
+                documentStatus.portfolioCompleted()
+        );
+    }
+
+    private ApplicantDocumentStatusResponseDTO buildDocumentStatus(Applicant applicant) {
         boolean resumeCompleted = isResumeCompleted(applicant);
         boolean essayCompleted = essayAnswerRepository.existsByApplicant(applicant);
         boolean portfolioCompleted = portfolioRepository.existsByApplicant(applicant);
 
-        return new ApplicantSubmissionStatusResponseDTO(
-                submitted,
+        return new ApplicantDocumentStatusResponseDTO(
                 resumeCompleted,
                 essayCompleted,
                 portfolioCompleted
@@ -152,6 +153,6 @@ public class ApplicantService {
     // TODO(PR 리뷰): 제출 여부 판정 기준 확정 필요 — 현재는 COMPLETED(동기화 완료)만 '제출됨'으로 간주한다.
     // REQUESTED(제출 요청됨)/FAILED(동기화 실패) 상태를 제출로 볼지는 리뷰에서 논의한다.
     private boolean isSubmitted(Applicant applicant) {
-        return applicant.getProfileSyncStatus() == ProfileSyncStatus.COMPLETED;
+        return applicant.isProfileSyncCompleted();
     }
 }
