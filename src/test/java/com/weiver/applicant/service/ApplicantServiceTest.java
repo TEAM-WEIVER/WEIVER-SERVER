@@ -51,6 +51,7 @@ class ApplicantServiceTest {
     @Mock private WorkExperienceRepository workExperienceRepository;
     @Mock private EssayAnswerRepository essayAnswerRepository;
     @Mock private PortfolioRepository portfolioRepository;
+    @Mock private ApplicantDocumentStatusProjection documentStatusProjection;
     @Mock private S3Service s3Service;
 
     @InjectMocks
@@ -370,12 +371,15 @@ class ApplicantServiceTest {
     void getDocumentStatus_AllDocumentsCompleted_ReturnsAllTrue() {
         // Given
         String publicId = "2222";
-        Applicant applicant = completedBasicInfoApplicant(publicId);
-
-        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
-        given(educationRepository.existsByApplicant(applicant)).willReturn(true);
-        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
-        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+        given(applicantRepository.findDocumentStatusByPublicId(publicId))
+                .willReturn(Optional.of(documentStatusProjection));
+        given(documentStatusProjection.getName()).willReturn("이현우");
+        given(documentStatusProjection.getEmail()).willReturn("test@example.com");
+        given(documentStatusProjection.getPhoneNumber()).willReturn("010-1234-5678");
+        given(documentStatusProjection.getBirthday()).willReturn(LocalDate.of(2000, 1, 1));
+        given(documentStatusProjection.getResumeDetailCompleted()).willReturn(true);
+        given(documentStatusProjection.getEssayCompleted()).willReturn(true);
+        given(documentStatusProjection.getPortfolioCompleted()).willReturn(true);
 
         // When
         ApplicantDocumentStatusResponseDTO responseDTO = applicantService.getDocumentStatus(publicId);
@@ -384,6 +388,9 @@ class ApplicantServiceTest {
         assertThat(responseDTO.resumeCompleted()).isTrue();
         assertThat(responseDTO.essayCompleted()).isTrue();
         assertThat(responseDTO.portfolioCompleted()).isTrue();
+        verify(applicantRepository).findDocumentStatusByPublicId(publicId);
+        verifyNoInteractions(educationRepository, workExperienceRepository, certificateRepository,
+                awardRepository, essayAnswerRepository, portfolioRepository);
     }
 
     @Test
@@ -391,15 +398,15 @@ class ApplicantServiceTest {
     void getDocumentStatus_NoResumeDetail_ReturnsResumeFalse() {
         // Given
         String publicId = "2222";
-        Applicant applicant = completedBasicInfoApplicant(publicId);
-
-        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
-        given(educationRepository.existsByApplicant(applicant)).willReturn(false);
-        given(workExperienceRepository.existsByApplicant(applicant)).willReturn(false);
-        given(certificateRepository.existsByApplicant(applicant)).willReturn(false);
-        given(awardRepository.existsByApplicant(applicant)).willReturn(false);
-        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
-        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+        given(applicantRepository.findDocumentStatusByPublicId(publicId))
+                .willReturn(Optional.of(documentStatusProjection));
+        given(documentStatusProjection.getName()).willReturn("이현우");
+        given(documentStatusProjection.getEmail()).willReturn("test@example.com");
+        given(documentStatusProjection.getPhoneNumber()).willReturn("010-1234-5678");
+        given(documentStatusProjection.getBirthday()).willReturn(LocalDate.of(2000, 1, 1));
+        given(documentStatusProjection.getResumeDetailCompleted()).willReturn(false);
+        given(documentStatusProjection.getEssayCompleted()).willReturn(true);
+        given(documentStatusProjection.getPortfolioCompleted()).willReturn(true);
 
         // When
         ApplicantDocumentStatusResponseDTO responseDTO = applicantService.getDocumentStatus(publicId);
@@ -415,18 +422,13 @@ class ApplicantServiceTest {
     void getDocumentStatus_MissingBasicInfo_ReturnsResumeFalse() {
         // Given
         String publicId = "2222";
-        Applicant applicant = Applicant.builder()
-                .publicId(publicId)
-                .name("이현우")
-                .email("test@example.com")
-                .phoneNumber("")
-                .birthday(LocalDate.of(2000, 1, 1))
-                .build();
-
-        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
-        given(educationRepository.existsByApplicant(applicant)).willReturn(true);
-        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(false);
-        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+        given(applicantRepository.findDocumentStatusByPublicId(publicId))
+                .willReturn(Optional.of(documentStatusProjection));
+        given(documentStatusProjection.getName()).willReturn("이현우");
+        given(documentStatusProjection.getEmail()).willReturn("test@example.com");
+        given(documentStatusProjection.getPhoneNumber()).willReturn("");
+        given(documentStatusProjection.getEssayCompleted()).willReturn(false);
+        given(documentStatusProjection.getPortfolioCompleted()).willReturn(true);
 
         // When
         ApplicantDocumentStatusResponseDTO responseDTO = applicantService.getDocumentStatus(publicId);
@@ -438,11 +440,105 @@ class ApplicantServiceTest {
     }
 
     @Test
+    @DisplayName("필수 제출 서류 상태 조회 시 기본 정보가 공백이면 이력서 상세가 있어도 이력서는 false를 반환한다.")
+    void getDocumentStatus_BlankBasicInfo_ReturnsResumeFalse() {
+        // Given
+        String publicId = "2222";
+        given(applicantRepository.findDocumentStatusByPublicId(publicId))
+                .willReturn(Optional.of(documentStatusProjection));
+        given(documentStatusProjection.getName()).willReturn("이현우");
+        given(documentStatusProjection.getEmail()).willReturn("test@example.com");
+        given(documentStatusProjection.getPhoneNumber()).willReturn("   ");
+        given(documentStatusProjection.getEssayCompleted()).willReturn(true);
+        given(documentStatusProjection.getPortfolioCompleted()).willReturn(true);
+
+        // When
+        ApplicantDocumentStatusResponseDTO responseDTO = applicantService.getDocumentStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.resumeCompleted()).isFalse();
+        assertThat(responseDTO.essayCompleted()).isTrue();
+        assertThat(responseDTO.portfolioCompleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("필수 제출 서류 상태 조회 시 자기소개서가 없으면 자기소개서만 false를 반환한다.")
+    void getDocumentStatus_NoEssay_ReturnsEssayFalse() {
+        // Given
+        String publicId = "2222";
+        given(applicantRepository.findDocumentStatusByPublicId(publicId))
+                .willReturn(Optional.of(documentStatusProjection));
+        given(documentStatusProjection.getName()).willReturn("이현우");
+        given(documentStatusProjection.getEmail()).willReturn("test@example.com");
+        given(documentStatusProjection.getPhoneNumber()).willReturn("010-1234-5678");
+        given(documentStatusProjection.getBirthday()).willReturn(LocalDate.of(2000, 1, 1));
+        given(documentStatusProjection.getResumeDetailCompleted()).willReturn(true);
+        given(documentStatusProjection.getEssayCompleted()).willReturn(false);
+        given(documentStatusProjection.getPortfolioCompleted()).willReturn(true);
+
+        // When
+        ApplicantDocumentStatusResponseDTO responseDTO = applicantService.getDocumentStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.resumeCompleted()).isTrue();
+        assertThat(responseDTO.essayCompleted()).isFalse();
+        assertThat(responseDTO.portfolioCompleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("필수 제출 서류 상태 조회 시 포트폴리오가 없으면 포트폴리오만 false를 반환한다.")
+    void getDocumentStatus_NoPortfolio_ReturnsPortfolioFalse() {
+        // Given
+        String publicId = "2222";
+        given(applicantRepository.findDocumentStatusByPublicId(publicId))
+                .willReturn(Optional.of(documentStatusProjection));
+        given(documentStatusProjection.getName()).willReturn("이현우");
+        given(documentStatusProjection.getEmail()).willReturn("test@example.com");
+        given(documentStatusProjection.getPhoneNumber()).willReturn("010-1234-5678");
+        given(documentStatusProjection.getBirthday()).willReturn(LocalDate.of(2000, 1, 1));
+        given(documentStatusProjection.getResumeDetailCompleted()).willReturn(true);
+        given(documentStatusProjection.getEssayCompleted()).willReturn(true);
+        given(documentStatusProjection.getPortfolioCompleted()).willReturn(false);
+
+        // When
+        ApplicantDocumentStatusResponseDTO responseDTO = applicantService.getDocumentStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.resumeCompleted()).isTrue();
+        assertThat(responseDTO.essayCompleted()).isTrue();
+        assertThat(responseDTO.portfolioCompleted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("필수 제출 서류 상태 조회 시 projection의 Boolean이 null이면 false로 처리한다.")
+    void getDocumentStatus_NullProjectionBooleans_ReturnsAllFalse() {
+        // Given
+        String publicId = "2222";
+        given(applicantRepository.findDocumentStatusByPublicId(publicId))
+                .willReturn(Optional.of(documentStatusProjection));
+        given(documentStatusProjection.getName()).willReturn("이현우");
+        given(documentStatusProjection.getEmail()).willReturn("test@example.com");
+        given(documentStatusProjection.getPhoneNumber()).willReturn("010-1234-5678");
+        given(documentStatusProjection.getBirthday()).willReturn(LocalDate.of(2000, 1, 1));
+        given(documentStatusProjection.getResumeDetailCompleted()).willReturn(null);
+        given(documentStatusProjection.getEssayCompleted()).willReturn(null);
+        given(documentStatusProjection.getPortfolioCompleted()).willReturn(null);
+
+        // When
+        ApplicantDocumentStatusResponseDTO responseDTO = applicantService.getDocumentStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.resumeCompleted()).isFalse();
+        assertThat(responseDTO.essayCompleted()).isFalse();
+        assertThat(responseDTO.portfolioCompleted()).isFalse();
+    }
+
+    @Test
     @DisplayName("필수 제출 서류 상태 조회 시 지원자가 존재하지 않으면 APPLICANT_NOT_FOUND 예외가 발생하고 서류 조회는 수행하지 않는다.")
     void getDocumentStatus_ApplicantNotFound_ThrowsException() {
         // Given
         String publicId = "not-found";
-        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.empty());
+        given(applicantRepository.findDocumentStatusByPublicId(publicId)).willReturn(Optional.empty());
 
         // When & Then
         assertThatThrownBy(() -> applicantService.getDocumentStatus(publicId))
@@ -450,8 +546,9 @@ class ApplicantServiceTest {
                 .extracting("code")
                 .isEqualTo(ErrorCode.APPLICANT_NOT_FOUND);
 
-        verifyNoInteractions(educationRepository, workExperienceRepository, certificateRepository,
-                awardRepository, essayAnswerRepository, portfolioRepository);
+        verify(applicantRepository).findDocumentStatusByPublicId(publicId);
+        verifyNoInteractions(documentStatusProjection, educationRepository, workExperienceRepository,
+                certificateRepository, awardRepository, essayAnswerRepository, portfolioRepository);
     }
 
     @Test
