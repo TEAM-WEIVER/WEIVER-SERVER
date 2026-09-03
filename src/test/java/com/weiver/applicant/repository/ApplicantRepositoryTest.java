@@ -3,6 +3,12 @@ package com.weiver.applicant.repository;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.domain.Award;
+import com.weiver.applicant.domain.Certificate;
+import com.weiver.applicant.domain.Education;
+import com.weiver.applicant.domain.WorkExperience;
+import com.weiver.applicant.type.Degree;
+import com.weiver.applicant.type.EmploymentType;
+import com.weiver.applicant.type.Status;
 import com.weiver.essay.domain.EssayAnswer;
 import com.weiver.essay.domain.EssayQuestion;
 import com.weiver.portfolio.domain.Portfolio;
@@ -22,6 +28,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDate;
+import java.time.YearMonth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -102,6 +109,89 @@ class ApplicantRepositoryTest {
         assertThat(status.getResumeDetailCompleted()).isTrue();
         assertThat(status.getEssayCompleted()).isTrue();
         assertThat(status.getPortfolioCompleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("교육만 존재해도 이력서 상세 완료 상태는 true이다.")
+    void findDocumentStatusByPublicId_OnlyEducation_ReturnsResumeDetailTrue() {
+        // Given
+        Applicant applicant = persistCompletedApplicant("applicant-with-education", "education@example.com");
+        entityManager.persist(Education.builder()
+                .degree(Degree.BACHELOR)
+                .schoolName("테스트 대학교")
+                .major("컴퓨터공학")
+                .startDate(YearMonth.of(2020, 3))
+                .status(Status.GRADUATED)
+                .applicant(applicant)
+                .build());
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // When
+        ApplicantDocumentStatusProjection status = applicantRepository
+                .findDocumentStatusByPublicId(applicant.getPublicId())
+                .orElseThrow();
+
+        // Then
+        assertThat(status.getResumeDetailCompleted()).isTrue();
+        assertThat(status.getEssayCompleted()).isFalse();
+        assertThat(status.getPortfolioCompleted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("경력만 존재해도 이력서 상세 완료 상태는 true이다.")
+    void findDocumentStatusByPublicId_OnlyWorkExperience_ReturnsResumeDetailTrue() {
+        // Given
+        Applicant applicant = persistCompletedApplicant("applicant-with-work", "work@example.com");
+        entityManager.persist(WorkExperience.builder()
+                .companyName("테스트 회사")
+                .startDate(LocalDate.of(2024, 1, 1))
+                .employmentType(EmploymentType.FULL_TIME)
+                .position("백엔드 개발자")
+                .duties("API 개발")
+                .isRecognized(true)
+                .applicant(applicant)
+                .build());
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // When
+        ApplicantDocumentStatusProjection status = applicantRepository
+                .findDocumentStatusByPublicId(applicant.getPublicId())
+                .orElseThrow();
+
+        // Then
+        assertThat(status.getResumeDetailCompleted()).isTrue();
+        assertThat(status.getEssayCompleted()).isFalse();
+        assertThat(status.getPortfolioCompleted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("자격증만 존재해도 이력서 상세 완료 상태는 true이다.")
+    void findDocumentStatusByPublicId_OnlyCertificate_ReturnsResumeDetailTrue() {
+        // Given
+        Applicant applicant = persistCompletedApplicant("applicant-with-certificate", "certificate@example.com");
+        entityManager.persist(Certificate.builder()
+                .certificateName("테스트 자격증")
+                .issuer("테스트 기관")
+                .acquisitionDate(LocalDate.of(2025, 6, 1))
+                .applicant(applicant)
+                .build());
+
+        entityManager.flush();
+        entityManager.clear();
+
+        // When
+        ApplicantDocumentStatusProjection status = applicantRepository
+                .findDocumentStatusByPublicId(applicant.getPublicId())
+                .orElseThrow();
+
+        // Then
+        assertThat(status.getResumeDetailCompleted()).isTrue();
+        assertThat(status.getEssayCompleted()).isFalse();
+        assertThat(status.getPortfolioCompleted()).isFalse();
     }
 
     @Test
