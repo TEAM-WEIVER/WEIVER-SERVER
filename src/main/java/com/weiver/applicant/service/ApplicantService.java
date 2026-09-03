@@ -104,9 +104,23 @@ public class ApplicantService {
 
     @Transactional(readOnly = true)
     public ApplicantDocumentStatusResponseDTO getDocumentStatus(String publicId) {
-        Applicant applicant = getApplicant(publicId);
+        ApplicantDocumentStatusProjection status = applicantRepository
+                .findDocumentStatusByPublicId(publicId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
 
-        return buildDocumentStatus(applicant);
+        boolean basicInfoCompleted = StringUtils.hasText(status.getName())
+                && StringUtils.hasText(status.getEmail())
+                && StringUtils.hasText(status.getPhoneNumber())
+                && status.getBirthday() != null;
+
+        boolean resumeCompleted = basicInfoCompleted
+                && Boolean.TRUE.equals(status.getResumeDetailCompleted());
+
+        return new ApplicantDocumentStatusResponseDTO(
+                resumeCompleted,
+                Boolean.TRUE.equals(status.getEssayCompleted()),
+                Boolean.TRUE.equals(status.getPortfolioCompleted())
+        );
     }
 
     @Transactional(readOnly = true)
