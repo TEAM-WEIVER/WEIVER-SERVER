@@ -15,6 +15,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
@@ -25,8 +28,10 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationServiceTest {
@@ -73,43 +78,90 @@ class NotificationServiceTest {
     }
 
     @Test
-    @DisplayName("성공: 알림 목록이 NPE 없이 정상적으로 DTO로 변환되어 반환된다.")
+    @DisplayName("성공: 알림 Slice가 DTO로 변환되고 페이지 정보가 유지된다.")
     void getCompanyNotifications_Success() {
         // given
         String companyPublicId = "comp-123";
         Notification noti1 = createMockNotification(1L, companyPublicId, 100L, false);
         Notification noti2 = createMockNotification(2L, companyPublicId, 200L, true);
+        PageRequest pageable = PageRequest.of(0, 2);
+        Slice<Notification> notifications = new SliceImpl<>(
+                List.of(noti1, noti2),
+                pageable,
+                true
+        );
 
-        given(notificationRepository.findAllByCompany_PublicIdOrderByCreateTimeDesc(companyPublicId))
-                .willReturn(List.of(noti1, noti2));
+        given(notificationRepository.findSliceByCompanyPublicId(companyPublicId, pageable))
+                .willReturn(notifications);
 
         // when
-        List<NotificationResponseDTO> result = notificationService.getCompanyNotifications(companyPublicId);
+        Slice<NotificationResponseDTO> result =
+                notificationService.getCompanyNotifications(companyPublicId, 0, 2);
 
         // then
-        assertThat(result).hasSize(2);
+        assertThat(result.getContent()).hasSize(2);
+        assertThat(result.getNumber()).isZero();
+        assertThat(result.getSize()).isEqualTo(2);
+        assertThat(result.hasNext()).isTrue();
 
-        assertThat(result.get(0).notificationId()).isEqualTo(1L);
-        assertThat(result.get(0).jdId()).isEqualTo(100L);
-        assertThat(result.get(0).isRead()).isFalse();
+        assertThat(result.getContent().get(0).notificationId()).isEqualTo(1L);
+        assertThat(result.getContent().get(0).jdId()).isEqualTo(100L);
+        assertThat(result.getContent().get(0).isRead()).isFalse();
 
-        assertThat(result.get(1).notificationId()).isEqualTo(2L);
-        assertThat(result.get(1).jdId()).isEqualTo(200L);
-        assertThat(result.get(1).isRead()).isTrue();
+        assertThat(result.getContent().get(1).notificationId()).isEqualTo(2L);
+        assertThat(result.getContent().get(1).jdId()).isEqualTo(200L);
+        assertThat(result.getContent().get(1).isRead()).isTrue();
+
+        verify(notificationRepository)
+                .findSliceByCompanyPublicId(companyPublicId, pageable);
     }
 
     @Test
-    @DisplayName("성공 엣지케이스: 알림이 하나도 없는 경우 빈 리스트를 반환한다.")
-    void getCompanyNotifications_ReturnsEmptyList() {
+    @DisplayName("성공 엣지케이스: 알림이 없으면 마지막인 빈 Slice를 반환한다.")
+    void getCompanyNotifications_ReturnsEmptySlice() {
         // given
-        given(notificationRepository.findAllByCompany_PublicIdOrderByCreateTimeDesc(anyString()))
-                .willReturn(Collections.emptyList());
+        PageRequest pageable = PageRequest.of(0, 20);
+        given(notificationRepository.findSliceByCompanyPublicId(anyString(), eq(pageable)))
+                .willReturn(new SliceImpl<>(Collections.emptyList(), pageable, false));
 
         // when
-        List<NotificationResponseDTO> result = notificationService.getCompanyNotifications("comp-123");
+        Slice<NotificationResponseDTO> result =
+                notificationService.getCompanyNotifications("comp-123", 0, 20);
 
         // then
-        assertThat(result).isEmpty();
+        assertThat(result.getContent()).isEmpty();
+        assertThat(result.hasNext()).isFalse();
+        assertThat(result.isLast()).isTrue();
+    }
+
+    @Test
+    @DisplayName("실패: page가 음수면 BAD_REQUEST 예외가 발생한다.")
+    void getCompanyNotifications_ThrowsBadRequest_WhenPageIsNegative() {
+        assertThatThrownBy(() ->
+                notificationService.getCompanyNotifications("comp-123", -1, 20))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+
+        verifyNoInteractions(notificationRepository);
+    }
+
+    @Test
+    @DisplayName("실패: size가 1 미만이거나 100을 초과하면 BAD_REQUEST 예외가 발생한다.")
+    void getCompanyNotifications_ThrowsBadRequest_WhenSizeIsOutOfRange() {
+        assertThatThrownBy(() ->
+                notificationService.getCompanyNotifications("comp-123", 0, 0))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+
+        assertThatThrownBy(() ->
+                notificationService.getCompanyNotifications("comp-123", 0, 101))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(ErrorCode.BAD_REQUEST);
+
+        verifyNoInteractions(notificationRepository);
     }
 
 
