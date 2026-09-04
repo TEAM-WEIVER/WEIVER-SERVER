@@ -6,6 +6,9 @@ import com.weiver.notification.domain.Notification;
 import com.weiver.notification.dto.response.NotificationResponseDTO;
 import com.weiver.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,13 +19,17 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class NotificationService {
     private final NotificationRepository notificationRepository;
+    private static final int MAX_NOTIFICATION_PAGE_SIZE = 100;
 
-    public List<NotificationResponseDTO> getCompanyNotifications(String companyPublicId) {
+    public Slice<NotificationResponseDTO> getCompanyNotifications(String companyPublicId, int page, int size) {
 
-        return notificationRepository.findAllByCompany_PublicIdOrderByCreateTimeDesc(companyPublicId)
-                .stream()
-                .map(NotificationResponseDTO::from)
-                .toList();
+        validatePageRequest(page, size);
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        return notificationRepository
+                .findSliceByCompanyPublicId(companyPublicId, pageable)
+                .map(NotificationResponseDTO::from);
     }
 
     @Transactional
@@ -43,5 +50,14 @@ public class NotificationService {
                 .findAllByCompany_PublicIdAndIsReadFalse(companyPublicId);
 
         unreadNotifications.forEach(Notification::markAsRead);
+    }
+
+    private void validatePageRequest(int page, int size) {
+        if (page < 0 || size < 1 || size > MAX_NOTIFICATION_PAGE_SIZE) {
+            throw new BusinessException(
+                    ErrorCode.BAD_REQUEST,
+                    "page는 0 이상, size는 1 이상 100 이하여야 합니다."
+            );
+        }
     }
 }

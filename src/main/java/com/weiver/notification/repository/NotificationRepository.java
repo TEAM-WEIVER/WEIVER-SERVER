@@ -1,6 +1,8 @@
 package com.weiver.notification.repository;
 
 import com.weiver.notification.domain.Notification;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -17,8 +19,24 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             "GROUP BY n.matchResult.jobPosting.jdId")
     List<Object[]> countNewApplicantsByJdIds(@Param("jdIds") List<Long> jdIds);
 
-    @EntityGraph(attributePaths = {"matchResult", "matchResult.jobPosting"})
-    List<Notification> findAllByCompany_PublicIdOrderByCreateTimeDesc(String companyPublicId);
+    @EntityGraph(attributePaths = {
+            "matchResult",
+            "matchResult.jobPosting"
+    })
+    @Query("""
+        SELECT n
+        FROM Notification n
+        WHERE n.company.companyId = (
+            SELECT c.companyId
+            FROM Company c
+            WHERE c.publicId = :companyPublicId
+        )
+        ORDER BY n.createTime DESC, n.notificationId DESC
+        """)
+    Slice<Notification> findSliceByCompanyPublicId(
+            @Param("companyPublicId") String companyPublicId,
+            Pageable pageable
+    );
 
     List<Notification> findAllByCompany_PublicIdAndIsReadFalse(String companyPublicId);
 }

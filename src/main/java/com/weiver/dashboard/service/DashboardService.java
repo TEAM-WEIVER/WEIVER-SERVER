@@ -41,8 +41,8 @@ public class DashboardService {
     /**
      *  기업 대시보드 - 알림 목록 조회
      * */
-    public DashboardNotificationListResponseDTO getNotifications(String publicId) {
-        return DashboardNotificationListResponseDTO.from(notificationService.getCompanyNotifications(publicId));
+    public DashboardNotificationListResponseDTO getNotifications(String publicId, int page, int size) {
+        return DashboardNotificationListResponseDTO.from(notificationService.getCompanyNotifications(publicId, page, size));
     }
 
     /**

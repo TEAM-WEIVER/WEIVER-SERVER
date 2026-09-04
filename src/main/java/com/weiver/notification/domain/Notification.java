@@ -12,7 +12,13 @@ import lombok.*;
 @Builder
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "notifications")
+@Table(
+        name = "notifications",
+        indexes = @Index(
+                name = "idx_notifications_company_created_id",
+                columnList = "company_id, create_time DESC, notification_id DESC"
+        )
+)
 public class Notification extends BaseTimeEntity {
 
     @Id
