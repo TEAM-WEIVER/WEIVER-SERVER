@@ -35,9 +35,9 @@
         </root>
     </springProfile>
 
-    <!-- dev + prod 환경 -->
+    <!-- prod 환경 -->
     <springProfile name="prod">
-        <logger name="com.weiver" level="DEBUG"/>
+        <logger name="com.weiver" level="INFO"/>
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
             <appender-ref ref="FILE"/>
