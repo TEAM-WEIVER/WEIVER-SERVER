@@ -61,14 +61,32 @@ public class DashboardController {
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
 
-    @Operation(summary = "알림 목록 조회", description = "현재 로그인한 기업의 알림 목록을 최신순으로 조회합니다.")
+    @Operation(
+            summary = "알림 목록 조회",
+            description = "현재 로그인한 기업의 알림을 최신순으로 Slice 조회합니다."
+    )
     @GetMapping("/notifications")
     public ResponseEntity<ApiResponse<DashboardNotificationListResponseDTO>> getNotifications(
-            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
+            @Parameter(description = "페이지 번호, 0부터 시작", example = "0")
+            @RequestParam(defaultValue = "0") int page,
 
-        if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            @Parameter(description = "조회할 알림 수, 1 이상 100 이하", example = "20")
+            @RequestParam(defaultValue = "20") int size,
 
-        DashboardNotificationListResponseDTO responseDTO = dashboardService.getNotifications(principal.publicId());
+            @AuthenticationPrincipal
+            @Parameter(hidden = true)
+            AuthenticatedPrincipal principal
+    ) {
+        if (principal == null) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
+        DashboardNotificationListResponseDTO responseDTO =
+                dashboardService.getNotifications(
+                        principal.publicId(),
+                        page,
+                        size
+                );
 
         return ResponseEntity.ok(ApiResponse.success(responseDTO));
     }
