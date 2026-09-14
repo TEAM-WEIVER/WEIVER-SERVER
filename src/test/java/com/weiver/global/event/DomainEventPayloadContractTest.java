@@ -208,14 +208,29 @@ class DomainEventPayloadContractTest {
                   "applicant_id":1,
                   "interview_session_id":"550e8400-e29b-41d4-a716-446655440000",
                   "applicant_name":"홍길동",
-                  "skill_tags":["Java"],
-                  "user_provided_tags":["Backend"],
-                  "evaluation":{"criteria_summary":{},"overall_score":4.0}
+                  "skill_tags":["Spring","Java"],
+                  "user_provided_tags":["Java"],
+                  "evaluation":{"criteria_summary":{},"overall_score":0.82},
+                  "extracted_culturefit":{
+                    "자기방향":0.72,"자극":0.55,"쾌락":0.31,"성취":0.84,"권력":0.22,
+                    "안전":0.61,"순응":0.48,"전통":0.35,"호의":0.76,"보편주의":0.69
+                  },
+                  "culture_axis":{"x_axis":0.1234,"y_axis":-0.0567}
                 }
                 """,
                 InterviewReportCompletedData.class
         );
         assertThat(report.interviewSessionId()).isEqualTo(sessionId);
-        assertThat(report.evaluation()).containsKey("criteria_summary");
+        assertThat(report.evaluation())
+                .containsKey("criteria_summary")
+                .containsEntry("overall_score", 0.82);
+        assertThat(report.skillTags()).containsExactly("Spring", "Java");
+        assertThat(report.userProvidedTags()).containsExactly("Java");
+        assertThat(report.extractedCulturefit())
+                .hasSize(10)
+                .containsEntry("자기방향", 0.72)
+                .containsEntry("보편주의", 0.69);
+        assertThat(report.cultureAxis().xAxis()).isEqualTo(0.1234);
+        assertThat(report.cultureAxis().yAxis()).isEqualTo(-0.0567);
     }
 }

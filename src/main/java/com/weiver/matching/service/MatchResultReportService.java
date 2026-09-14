@@ -194,7 +194,12 @@ public class MatchResultReportService {
         if (cultureAnalysisMap == null) return new ArrayList<>();
 
         try {
-            Map<String, Object> cultureAxis = asMap(cultureAnalysisMap.get("culture_axis"));
+            // 축별 점수는 서버가 파생 저장한 culture_axis_scores를 쓴다. 과거 데이터는 culture_axis에
+            // 4축 키가 들어 있으므로 그쪽으로 fallback한다(현재 culture_axis는 x/y 좌표다).
+            Map<String, Object> cultureAxis = asMap(cultureAnalysisMap.get("culture_axis_scores"));
+            if (cultureAxis == null) {
+                cultureAxis = asMap(cultureAnalysisMap.get("culture_axis"));
+            }
             Map<String, Object> extractedTraits = asMap(cultureAnalysisMap.get("extracted_culturefit"));
 
             if (cultureAxis == null || extractedTraits == null) return new ArrayList<>();

@@ -61,4 +61,16 @@ public class TechnicalSkillReport extends BaseTimeEntity {
         this.role = role;
     }
 
+    /**
+     * 면접 최종 평가 결과로 스킬 태그만 갱신한다. 직무/역할(job/role)은 프로필 분석 결과를 유지한다.
+     */
+    public void updateSkillTags(List<String> skillTags, List<String> applicationProviderTags) {
+        if (skillTags != null && !skillTags.isEmpty()) {
+            this.skillTags = skillTags;
+        }
+        if (applicationProviderTags != null && !applicationProviderTags.isEmpty()) {
+            this.applicationProviderTags = applicationProviderTags;
+        }
+    }
+
 }

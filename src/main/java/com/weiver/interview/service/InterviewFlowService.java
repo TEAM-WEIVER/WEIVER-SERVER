@@ -1,9 +1,13 @@
 package com.weiver.interview.service;
 
+import com.weiver.analysis.domain.CultureReport;
 import com.weiver.analysis.domain.DetailAnalysisReport;
 import com.weiver.analysis.domain.TechnicalSkillReport;
+import com.weiver.analysis.repository.CultureReportRepository;
 import com.weiver.analysis.repository.DetailAnalysisReportRepository;
 import com.weiver.analysis.repository.TechnicalSkillReportRepository;
+import com.weiver.analysis.service.CulturefitAxisService;
+import com.weiver.analysis.type.CulturefitStyle;
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.global.event.dto.EventEnvelope;
@@ -16,6 +20,7 @@ import com.weiver.global.exception.ErrorCode;
 import com.weiver.interview.domain.InterviewSession;
 import com.weiver.interview.dto.request.InterviewAnswerSubmitRequest;
 import com.weiver.interview.dto.request.InterviewStartRequest;
+import com.weiver.interview.dto.response.InterviewAnalysisSubmitResponse;
 import com.weiver.interview.dto.response.InterviewStartResponse;
 import com.weiver.interview.dto.response.InterviewTurnDTO;
 import com.weiver.interview.dto.response.InterviewWebSocketMessageResponse;
@@ -36,6 +41,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +61,8 @@ public class InterviewFlowService {
     private final InterviewSessionRepository interviewSessionRepository;
     private final TechnicalSkillReportRepository technicalSkillReportRepository;
     private final DetailAnalysisReportRepository detailAnalysisReportRepository;
+    private final CultureReportRepository cultureReportRepository;
+    private final CulturefitAxisService culturefitAxisService;
     private final DomainEventPublisher domainEventPublisher;
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -64,6 +72,11 @@ public class InterviewFlowService {
     public InterviewStartResponse startInterview(String applicantPublicId, InterviewStartRequest request) {
         Applicant applicant = applicantRepository.findByPublicId(applicantPublicId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+
+        // 면접 결과를 제출하면 1개월간 재응시할 수 없다.
+        if (!applicant.isInterviewAvailableAt(LocalDateTime.now())) {
+            throw new BusinessException(ErrorCode.INTERVIEW_COOLDOWN_NOT_EXPIRED);
+        }
 
         InterviewSession session = InterviewSession.builder()
                 .applicant(applicant)
@@ -132,9 +145,9 @@ public class InterviewFlowService {
         }
 
         if (isEndQuestion(data.nextQuestionCode())) {
+            // 면접 Q&A 종료 표시까지만. 실제 제출(transcript 저장 요청)은 구직자가
+            // requestAnalysis로 직접 요청할 때 시작한다.
             session.updateStatus(InterviewSessionStatus.FINISHED);
-            publishTranscriptSaveRequested(session);
-            session.updateStatus(InterviewSessionStatus.TRANSCRIPT_SAVE_REQUESTED);
             sendInterviewMessage(
                     session,
                     InterviewWebSocketMessageResponse.interviewFinished(session.getInterviewSessionId())
@@ -150,6 +163,39 @@ public class InterviewFlowService {
                         session.getSessionStatus(),
                         session.getTranscript().get(session.getTranscript().size() - 1)
                 )
+        );
+    }
+
+    /**
+     * 구직자가 종료된 면접의 분석(최종 평가)을 직접 요청한다("면접 결과 제출하기").
+     *
+     * <p>AI 서버에 transcript 저장을 요청하고, 저장 완료 이벤트를 받으면 이어서 리포트 생성을 요청한다.
+     * 분석을 요청한 시점이 "면접 결과 제출" 시점이므로, 이때부터 1개월간 재응시가 제한된다.
+     *
+     * @throws BusinessException 면접이 종료되지 않았거나({@link ErrorCode#INTERVIEW_NOT_FINISHED}),
+     *                           이미 분석을 요청했거나 복구 불가 상태인 경우
+     *                           ({@link ErrorCode#INTERVIEW_ANALYSIS_ALREADY_REQUESTED})
+     */
+    public InterviewAnalysisSubmitResponse requestAnalysis(UUID interviewSessionId, String applicantPublicId) {
+        InterviewSession session = getSessionForApplicant(interviewSessionId, applicantPublicId);
+        InterviewSessionStatus status = session.getSessionStatus();
+
+        if (status != InterviewSessionStatus.FINISHED) {
+            throw new BusinessException(isSubmitted(status)
+                    ? ErrorCode.INTERVIEW_ANALYSIS_ALREADY_REQUESTED
+                    : ErrorCode.INTERVIEW_NOT_FINISHED);
+        }
+
+        publishTranscriptSaveRequested(session);
+        session.updateStatus(InterviewSessionStatus.TRANSCRIPT_SAVE_REQUESTED);
+
+        Applicant applicant = session.getApplicant();
+        applicant.markInterviewSubmitted(LocalDateTime.now());
+
+        return new InterviewAnalysisSubmitResponse(
+                session.getInterviewSessionId(),
+                session.getSessionStatus().name(),
+                applicant.getNextAvailableScreeningAt()
         );
     }
 
@@ -179,6 +225,14 @@ public class InterviewFlowService {
 
     /**
      * AI 최종 평가 결과를 interview_session_id 기준으로 저장하거나 갱신한다.
+     *
+     * <p>저장 대상은 세 군데다.
+     * <ul>
+     *   <li>{@code DetailAnalysisReport.skillAnalysis} — {@code evaluation}(criteria_summary, overall_score)</li>
+     *   <li>{@code DetailAnalysisReport.cultureAnalysis} — {@code extracted_culturefit}, AI가 보낸
+     *       {@code culture_axis}(x/y 좌표), 서버가 파생한 {@code culture_axis_scores}(4축 원점수 평균)</li>
+     *   <li>{@code TechnicalSkillReport} 스킬 태그 · {@code CultureReport} 컬처핏 스타일</li>
+     * </ul>
      */
     public void handleReportCompleted(InterviewReportCompletedData data) {
         validateReportCompleted(data);
@@ -194,19 +248,88 @@ public class InterviewFlowService {
         Applicant applicant = applicantRepository.findById(data.applicantId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
 
-        ReportAnalysis analysis = resolveAnalysis(data.evaluation());
+        upsertDetailAnalysisReport(applicant, session, data);
+        updateTechnicalSkillTags(applicant, data);
+        updateCulturefitStyle(applicant, data);
+
+        session.updateStatus(InterviewSessionStatus.REPORT_COMPLETED);
+    }
+
+    /**
+     * 면접 세션 기준으로 상세 분석 리포트를 upsert한다(재수신 시 같은 행을 갱신해 멱등).
+     */
+    private void upsertDetailAnalysisReport(
+            Applicant applicant,
+            InterviewSession session,
+            InterviewReportCompletedData data
+    ) {
+        Map<String, Object> skillAnalysis = new LinkedHashMap<>(data.evaluation());
+        Map<String, Object> cultureAnalysis = toCultureAnalysis(data);
+
         detailAnalysisReportRepository.findByInterviewSession_InterviewSessionId(data.interviewSessionId())
                 .ifPresentOrElse(
-                        report -> report.updateAnalysis(analysis.skillAnalysis(), analysis.cultureAnalysis()),
+                        report -> report.updateAnalysis(skillAnalysis, cultureAnalysis),
                         () -> detailAnalysisReportRepository.save(DetailAnalysisReport.builder()
                                 .applicant(applicant)
                                 .interviewSession(session)
-                                .skillAnalysis(analysis.skillAnalysis())
-                                .cultureAnalysis(analysis.cultureAnalysis())
+                                .skillAnalysis(skillAnalysis)
+                                .cultureAnalysis(cultureAnalysis)
                                 .build())
                 );
+    }
 
-        session.updateStatus(InterviewSessionStatus.REPORT_COMPLETED);
+    /**
+     * 컬처핏 jsonb payload를 구성한다. AI가 좌표를 보내지 않으면 10개 가치 점수로 직접 계산한다.
+     */
+    private Map<String, Object> toCultureAnalysis(InterviewReportCompletedData data) {
+        Map<String, Double> traits = data.extractedCulturefit();
+        CulturefitAxisService.AxisPoint cultureAxis = resolveCultureAxis(data);
+
+        Map<String, Object> axis = new LinkedHashMap<>();
+        axis.put("x_axis", cultureAxis.x());
+        axis.put("y_axis", cultureAxis.y());
+
+        Map<String, Object> cultureAnalysis = new LinkedHashMap<>();
+        cultureAnalysis.put("extracted_culturefit", traits);
+        cultureAnalysis.put("culture_axis", axis);
+        cultureAnalysis.put("culture_axis_scores", culturefitAxisService.calculateAxisScores(traits));
+        return cultureAnalysis;
+    }
+
+    /**
+     * AI가 보낸 좌표를 쓰고, 누락됐거나 값이 비어 있으면 10개 가치 점수로 직접 계산한다.
+     */
+    private CulturefitAxisService.AxisPoint resolveCultureAxis(InterviewReportCompletedData data) {
+        InterviewReportCompletedData.CultureAxisData cultureAxis = data.cultureAxis();
+        if (cultureAxis == null || cultureAxis.xAxis() == null || cultureAxis.yAxis() == null) {
+            return culturefitAxisService.calculateAxis(data.extractedCulturefit());
+        }
+        return new CulturefitAxisService.AxisPoint(cultureAxis.xAxis(), cultureAxis.yAxis());
+    }
+
+    /**
+     * 면접에서 도출된 스킬 태그와 사용자 제공 태그를 기술 리포트에 반영한다.
+     * 프로필 분석이 선행되므로 리포트는 이미 존재하며, 없으면(이례적) 건너뛴다.
+     */
+    private void updateTechnicalSkillTags(Applicant applicant, InterviewReportCompletedData data) {
+        technicalSkillReportRepository.findByApplicant_ApplicantId(applicant.getApplicantId())
+                .ifPresent(report -> report.updateSkillTags(data.skillTags(), data.userProvidedTags()));
+    }
+
+    /**
+     * 컬처핏 좌표가 속한 사분면으로 컬처핏 스타일을 갱신한다. 컬처핏 태그는 프로필 분석 결과를 유지한다.
+     */
+    private void updateCulturefitStyle(Applicant applicant, InterviewReportCompletedData data) {
+        CulturefitStyle style = culturefitAxisService.resolveStyle(resolveCultureAxis(data));
+
+        cultureReportRepository.findByApplicant_ApplicantId(applicant.getApplicantId())
+                .ifPresentOrElse(
+                        report -> report.updateCulturefitStyle(style),
+                        () -> cultureReportRepository.save(CultureReport.builder()
+                                .applicant(applicant)
+                                .culturefitStyles(style)
+                                .build())
+                );
     }
 
     /**
@@ -379,55 +502,26 @@ public class InterviewFlowService {
         if (data.evaluation() == null) {
             throw new NonRetryableEventException("evaluation is required");
         }
-    }
-
-    private ReportAnalysis resolveAnalysis(Map<String, Object> evaluation) {
-        // AI 서버 전환기 호환을 위해 nested(skill_analysis/culture_analysis)와 flat skill map을 모두 수용한다.
-        Map<String, Object> skillAnalysis = mapValue(evaluation.get("skill_analysis"));
-        Map<String, Object> cultureAnalysis = mapValue(evaluation.get("culture_analysis"));
-
-        if (skillAnalysis == null && hasSkillAnalysisKeys(evaluation)) {
-            skillAnalysis = evaluation;
+        if (data.extractedCulturefit() == null || data.extractedCulturefit().isEmpty()) {
+            throw new NonRetryableEventException("extracted_culturefit is required");
         }
-        if (cultureAnalysis == null && hasCultureAnalysisKeys(evaluation)) {
-            cultureAnalysis = evaluation;
-        }
-        if (skillAnalysis == null && cultureAnalysis == null) {
-            skillAnalysis = evaluation;
-        }
-
-        return new ReportAnalysis(
-                skillAnalysis != null ? skillAnalysis : Map.of(),
-                cultureAnalysis != null ? cultureAnalysis : Map.of()
-        );
-    }
-
-    private Map<String, Object> mapValue(Object value) {
-        if (!(value instanceof Map<?, ?> source)) {
-            return null;
-        }
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        source.forEach((key, mapValue) -> {
-            if (key != null) {
-                result.put(key.toString(), mapValue);
-            }
-        });
-        return result;
-    }
-
-    private boolean hasSkillAnalysisKeys(Map<String, Object> evaluation) {
-        return evaluation.containsKey("criteria_summary");
-    }
-
-    private boolean hasCultureAnalysisKeys(Map<String, Object> evaluation) {
-        return evaluation.containsKey("culture_axis")
-                || evaluation.containsKey("extracted_culturefit");
     }
 
     private boolean isAnswerClosed(InterviewSessionStatus status) {
         return status == InterviewSessionStatus.FINISHED
                 || status == InterviewSessionStatus.TRANSCRIPT_SAVE_REQUESTED
+                || status == InterviewSessionStatus.TRANSCRIPT_SAVED
+                || status == InterviewSessionStatus.REPORT_REQUESTED
+                || status == InterviewSessionStatus.REPORT_COMPLETED
+                || status == InterviewSessionStatus.FAILED;
+    }
+
+    /**
+     * 이미 분석을 요청한(또는 처리 진행/완료/복구 불가) 상태인지 판정한다.
+     * FINISHED(제출 대기)는 포함하지 않고, FAILED는 재제출해도 복구되지 않으므로 포함한다.
+     */
+    private boolean isSubmitted(InterviewSessionStatus status) {
+        return status == InterviewSessionStatus.TRANSCRIPT_SAVE_REQUESTED
                 || status == InterviewSessionStatus.TRANSCRIPT_SAVED
                 || status == InterviewSessionStatus.REPORT_REQUESTED
                 || status == InterviewSessionStatus.REPORT_COMPLETED
@@ -450,9 +544,4 @@ public class InterviewFlowService {
         return today.getYear() + "Q" + quarter;
     }
 
-    private record ReportAnalysis(
-            Map<String, Object> skillAnalysis,
-            Map<String, Object> cultureAnalysis
-    ) {
-    }
 }

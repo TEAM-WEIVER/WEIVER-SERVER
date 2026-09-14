@@ -201,8 +201,8 @@ class MatchResultReportServiceTest {
     }
 
     @Test
-    @DisplayName("[getCultureFitSummary] 정상: 문화 축 점수를 백분율로 변환하고 상위 두 개의 축을 정확히 추출한다")
-    void getCultureFitSummary_ReturnsCultureAxesSortedByPercentage() {
+    @DisplayName("[getCultureFitSummary] 하위호환: culture_axis에 4축 키가 들어 있던 과거 데이터도 백분율로 변환한다")
+    void getCultureFitSummary_FallsBackToLegacyCultureAxisKeys() {
         // given
         MatchResult matchResult = MatchResult.builder().matchingRate(80.0f).aiSummary("culture summary").build();
         DetailAnalysisReport detailReport = DetailAnalysisReport.builder()
@@ -228,6 +228,41 @@ class MatchResultReportServiceTest {
         // then
         assertThat(response.matchStatus()).isEqualTo("높은 매칭률");
         assertThat(response.topTwoAxes()).extracting("percentage").containsExactly(91, 75); // 상위 2개 확인
+    }
+
+    @Test
+    @DisplayName("[getCultureFitSummary] 정상: culture_axis가 x/y 좌표여도 파생 저장된 culture_axis_scores로 4축 백분율을 만든다")
+    void getCultureFitSummary_UsesDerivedCultureAxisScores() {
+        // given
+        MatchResult matchResult = MatchResult.builder().matchingRate(80.0f).aiSummary("culture summary").build();
+        DetailAnalysisReport detailReport = DetailAnalysisReport.builder()
+                .cultureAnalysis(Map.of(
+                        // 새 계약: culture_axis는 2차원 좌표, 4축 점수는 culture_axis_scores에 파생 저장된다.
+                        "culture_axis", Map.of("x_axis", 0.1234, "y_axis", -0.0567),
+                        "culture_axis_scores", Map.of(
+                                "openness_to_change", 0.91,
+                                "self_enhancement", 0.42,
+                                "conservation", 0.75,
+                                "self_transcendence", 0.63
+                        ),
+                        "extracted_culturefit", Map.of("자기방향", 0.81, "자극", 0.71)
+                ))
+                .build();
+        CultureReport cultureReport = CultureReport.builder()
+                .culturefitStyles(CulturefitStyle.INCLUSIVE_INNOVATOR)
+                .build();
+
+        givenValidatedMatchResult(matchResult);
+        given(reportService.getDetailAnalysisReport(APPLICANT_PUBLIC_ID)).willReturn(detailReport);
+        given(reportService.getCultureReport(APPLICANT_PUBLIC_ID)).willReturn(cultureReport);
+
+        // when
+        CultureFitSummaryDTO response = matchResultReportService.getCultureFitSummary(JD_ID, APPLICANT_PUBLIC_ID, COMPANY_PUBLIC_ID);
+
+        // then
+        assertThat(response.axesDetails()).hasSize(4);
+        assertThat(response.topTwoAxes()).extracting("percentage").containsExactly(91, 75);
+        assertThat(response.culturefitStyle()).isEqualTo(CulturefitStyle.INCLUSIVE_INNOVATOR.getDescription());
     }
 
     @Test
