@@ -1,7 +1,6 @@
 package com.weiver.portfolio.service;
 
 import com.weiver.applicant.domain.Applicant;
-import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -43,15 +42,12 @@ class PortfolioServiceImplTest {
     @Mock
     private S3Service s3Service;
 
-    @Mock
-    private ApplicantProfileEventService applicantProfileEventService;
-
     @InjectMocks
     private PortfolioService portfolioService;
 
     @Test
-    @DisplayName("포트폴리오 최초 저장 후 지원자 프로필 동기화 이벤트를 발행한다")
-    void savePortfolio_PublishesApplicantProfileChanged() {
+    @DisplayName("포트폴리오 최초 저장은 프로필 동기화를 자동으로 트리거하지 않는다(구직자가 프로필 제출 시 수행)")
+    void savePortfolio_DoesNotTriggerProfileSync() {
         String publicId = "3333";
         Applicant applicant = Applicant.builder().applicantId(1L).publicId(publicId).build();
         MultipartFile file = mock(MultipartFile.class);
@@ -69,12 +65,11 @@ class PortfolioServiceImplTest {
         portfolioService.savePortfolio(request, file, publicId);
 
         verify(portfolioRepository).save(any(Portfolio.class));
-        verify(applicantProfileEventService).publishProfileChanged(1L);
     }
 
     @Test
-    @DisplayName("파일 없이 링크만 최초 저장해도 지원자 프로필 동기화 이벤트를 발행한다")
-    void savePortfolio_WithoutFile_PublishesApplicantProfileChanged() {
+    @DisplayName("파일 없이 링크만 최초 저장하면 S3 업로드 없이 저장된다")
+    void savePortfolio_WithoutFile_SavesWithoutS3Upload() {
         String publicId = "3333";
         Applicant applicant = Applicant.builder().applicantId(1L).publicId(publicId).build();
         PortfolioRequestDTO request = new PortfolioRequestDTO(
@@ -92,7 +87,6 @@ class PortfolioServiceImplTest {
         assertThat(portfolioCaptor.getValue().getFileKey()).isNull();
         assertThat(portfolioCaptor.getValue().getFileName()).isNull();
         verifyNoInteractions(s3Service);
-        verify(applicantProfileEventService).publishProfileChanged(1L);
     }
 
     @Test
@@ -116,12 +110,11 @@ class PortfolioServiceImplTest {
 
         verifyNoInteractions(s3Service);
         verify(portfolioRepository, times(0)).save(any(Portfolio.class));
-        verifyNoInteractions(applicantProfileEventService);
     }
 
     @Test
-    @DisplayName("포트폴리오 수정 후 지원자 프로필 동기화 이벤트를 발행한다")
-    void updatePortfolio_PublishesApplicantProfileChanged() {
+    @DisplayName("포트폴리오 수정도 프로필 동기화를 자동으로 트리거하지 않는다")
+    void updatePortfolio_DoesNotTriggerProfileSync() {
         String publicId = "3333";
         Applicant applicant = Applicant.builder().applicantId(1L).publicId(publicId).build();
         Portfolio portfolio = Portfolio.builder()
@@ -138,7 +131,8 @@ class PortfolioServiceImplTest {
 
         portfolioService.updatePortfolio(request, null, publicId, 10L);
 
-        verify(applicantProfileEventService).publishProfileChanged(1L);
+        verify(portfolioRepository).save(portfolio);
+        verifyNoInteractions(s3Service);
     }
 
     @Test

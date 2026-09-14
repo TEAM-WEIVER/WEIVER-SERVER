@@ -8,7 +8,6 @@ import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.applicant.repository.CertificateRepository;
 import com.weiver.applicant.repository.EducationRepository;
 import com.weiver.applicant.repository.WorkExperienceRepository;
-import com.weiver.applicant.type.ProfileSyncStatus;
 import com.weiver.essay.repository.EssayAnswerRepository;
 import com.weiver.global.event.dto.EventEnvelope;
 import com.weiver.global.event.dto.EventType;
@@ -21,7 +20,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.util.StringUtils;
 
 import java.time.YearMonth;
 
@@ -29,8 +27,6 @@ import java.time.YearMonth;
 @Transactional
 @RequiredArgsConstructor
 public class ApplicantProfileEventService {
-
-    private static final int REQUIRED_ESSAY_ANSWER_COUNT = 3;
 
     private final ApplicantRepository applicantRepository;
     private final EducationRepository educationRepository;
@@ -41,44 +37,22 @@ public class ApplicantProfileEventService {
 
     /**
      * 지원자 프로필 전체 스냅샷을 AI 서버로 보내고 동기화 요청 상태로 바꾼다.
+     *
+     * <p>제출 가능 여부(서류 작성 완료, 중복 제출) 검증은 호출부인
+     * {@code ApplicantService.submitProfile}이 담당한다. 이 메서드는 스냅샷 구성과 발행만 책임진다.
      */
     public void publishProfileChanged(Long applicantId) {
         Applicant applicant = applicantRepository.findById(applicantId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
 
-        ApplicantProfileChangedData data = toProfileChangedData(applicant);
-        if (applicant.getProfileSyncStatus() == ProfileSyncStatus.PENDING
-                && !isInitialProfileComplete(applicant, data)) {
-            return;
-        }
-
         EventEnvelope<ApplicantProfileChangedData> envelope = EventEnvelope.request(
                 EventType.APPLICANT_PROFILE_CHANGED,
-                data,
+                toProfileChangedData(applicant),
                 EventIds.newEventId()
         );
 
         applicant.markProfileSyncRequested();
         publishAfterCommit(envelope);
-    }
-
-    /**
-     * 최초 동기화는 AI 분석에 필요한 프로필이 갖춰진 뒤 시작한다.
-     * 경력과 자격증은 선택 항목이므로 학력/경력/자격증 중 하나 이상을 이력서 상세 완료로 본다.
-     */
-    private boolean isInitialProfileComplete(Applicant applicant, ApplicantProfileChangedData data) {
-        boolean basicInfoCompleted = StringUtils.hasText(applicant.getName())
-                && StringUtils.hasText(applicant.getEmail())
-                && StringUtils.hasText(applicant.getPhoneNumber())
-                && applicant.getBirthday() != null;
-
-        boolean resumeDetailCompleted = !data.educations().isEmpty()
-                || !data.experiences().isEmpty()
-                || !data.certifications().isEmpty();
-
-        return basicInfoCompleted
-                && resumeDetailCompleted
-                && data.essay().size() == REQUIRED_ESSAY_ANSWER_COUNT;
     }
 
     /**

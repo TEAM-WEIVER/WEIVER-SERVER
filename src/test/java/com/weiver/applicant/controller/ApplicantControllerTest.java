@@ -3,6 +3,7 @@ package com.weiver.applicant.controller;
 import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.dto.response.*;
 import com.weiver.applicant.service.*;
+import com.weiver.applicant.type.ProfileSyncStatus;
 import com.weiver.global.common.UserRole;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -39,7 +40,9 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -187,6 +190,8 @@ class ApplicantControllerTest {
         String publicId = "2222";
         ApplicantSubmissionStatusResponseDTO responseDTO = new ApplicantSubmissionStatusResponseDTO(
                 true,
+                ProfileSyncStatus.COMPLETED,
+                false,
                 true,
                 false,
                 true
@@ -202,9 +207,38 @@ class ApplicantControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("success"))
                 .andExpect(jsonPath("$.data.submitted").value(true))
+                .andExpect(jsonPath("$.data.syncStatus").value("COMPLETED"))
+                .andExpect(jsonPath("$.data.submittable").value(false))
                 .andExpect(jsonPath("$.data.resumeCompleted").value(true))
                 .andExpect(jsonPath("$.data.essayCompleted").value(false))
                 .andExpect(jsonPath("$.data.portfolioCompleted").value(true));
+    }
+
+    @Test
+    @DisplayName("프로필 제출 성공 시 200과 성공 메시지를 반환한다")
+    void submitProfile_Success() throws Exception {
+        // given
+        String publicId = "2222";
+
+        // when, then
+        mockMvc.perform(post("/api/applicants/profile/submit")
+                        .with(customAuth(publicId))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("success"));
+
+        verify(applicantService).submitProfile(publicId);
+    }
+
+    @Test
+    @DisplayName("엣지 케이스 : 프로필 제출 시 Principal이 없으면 UNAUTHORIZED 에러 발생")
+    void submitProfile_WithoutPrincipal_ThrowsUnauthorized() throws Exception {
+        mockMvc.perform(post("/api/applicants/profile/submit")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
     }
 
     @Test

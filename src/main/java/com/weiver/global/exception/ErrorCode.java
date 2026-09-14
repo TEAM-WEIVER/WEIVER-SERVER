@@ -43,6 +43,8 @@ public enum ErrorCode {
     REQUIRED_AGREEMENT_NOT_ACCEPTED("REQUIRED_AGREEMENT_NOT_ACCEPTED", HttpStatus.BAD_REQUEST, "필수 약관에 동의해야 합니다."),
     INVALID_SIGNUP_TOKEN("INVALID_SIGNUP_TOKEN", HttpStatus.BAD_REQUEST, "회원가입 토큰이 유효하지 않거나 만료되었습니다."),
     SIGNUP_NOT_COMPLETED("SIGNUP_NOT_COMPLETED", HttpStatus.FORBIDDEN, "회원가입이 완료되지 않은 계정입니다."),
+    PROFILE_DOCUMENT_INCOMPLETE("PROFILE_DOCUMENT_INCOMPLETE", HttpStatus.BAD_REQUEST, "제출에 필요한 서류가 모두 작성되지 않았습니다."),
+    PROFILE_ALREADY_SUBMITTED("PROFILE_ALREADY_SUBMITTED", HttpStatus.CONFLICT, "이미 제출된 프로필입니다."),
 
     // ===================== COMPANY =====================
     COMPANY_NOT_FOUND("COMPANY_NOT_FOUND", HttpStatus.NOT_FOUND, "존재하지 않는 기업입니다."),
