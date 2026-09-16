@@ -1,10 +1,10 @@
 package com.weiver.analysis.service;
 
+import com.weiver.analysis.type.CultureAxis;
 import com.weiver.analysis.type.CulturefitStyle;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -19,6 +19,9 @@ import java.util.Map;
  *
  * <p>화면의 4축 게이지는 0~100 퍼센트이므로, 축별 퍼센트는 정규화 값(음수 가능)이 아니라
  * <b>원점수(0~1)의 그룹 평균</b>을 쓴다({@link #calculateAxisScores}). 정규화·사분면은 좌표 전용이다.
+ *
+ * <p>축→가치 매핑은 {@link CultureAxis}가 단일 출처다. 표시 로직도 같은 enum을 써야 게이지 값과
+ * 하위 분해가 어긋나지 않는다.
  */
 @Service
 public class CulturefitAxisService {
@@ -28,27 +31,6 @@ public class CulturefitAxisService {
      */
     public record AxisPoint(double x, double y) {
     }
-
-    /** 자율·혁신 (Openness to change) */
-    private static final String OPENNESS_TO_CHANGE = "openness_to_change";
-    /** 성과·영향 (Self-enhancement) */
-    private static final String SELF_ENHANCEMENT = "self_enhancement";
-    /** 안정·질서 (Conservation) */
-    private static final String CONSERVATION = "conservation";
-    /** 관계·공동체 (Self-transcendence) */
-    private static final String SELF_TRANSCENDENCE = "self_transcendence";
-
-    /** 4개 상위 축 → 소속 Schwartz 가치(AI payload의 extracted_culturefit 키). */
-    private static final Map<String, List<String>> AXIS_TRAITS = Map.of(
-            OPENNESS_TO_CHANGE, List.of("자기방향", "자극", "쾌락"),
-            SELF_ENHANCEMENT, List.of("성취", "권력"),
-            CONSERVATION, List.of("안전", "순응", "전통"),
-            SELF_TRANSCENDENCE, List.of("호의", "보편주의")
-    );
-
-    /** 축 순서를 응답·저장에서 고정하기 위한 목록. */
-    private static final List<String> AXIS_ORDER =
-            List.of(OPENNESS_TO_CHANGE, SELF_ENHANCEMENT, CONSERVATION, SELF_TRANSCENDENCE);
 
     /**
      * 축별 원점수 평균(0~1). 기업 리포트의 4축 퍼센트 게이지가 이 값을 100배해 쓴다.
@@ -62,12 +44,13 @@ public class CulturefitAxisService {
      * AI 서버가 좌표를 보내지 않았을 때의 대체 계산용이다.
      */
     public AxisPoint calculateAxis(Map<String, Double> extractedCulturefit) {
-        double mean = mean(extractedCulturefit);
-        Map<String, Double> normalized = groupAverages(extractedCulturefit, mean);
+        Map<String, Double> normalized = groupAverages(extractedCulturefit, mean(extractedCulturefit));
 
         return new AxisPoint(
-                normalized.get(OPENNESS_TO_CHANGE) - normalized.get(CONSERVATION),
-                normalized.get(SELF_ENHANCEMENT) - normalized.get(SELF_TRANSCENDENCE)
+                normalized.get(CultureAxis.OPENNESS_TO_CHANGE.getKey())
+                        - normalized.get(CultureAxis.CONSERVATION.getKey()),
+                normalized.get(CultureAxis.SELF_ENHANCEMENT.getKey())
+                        - normalized.get(CultureAxis.SELF_TRANSCENDENCE.getKey())
         );
     }
 
@@ -82,13 +65,14 @@ public class CulturefitAxisService {
      * </pre>
      */
     public CulturefitStyle resolveStyle(AxisPoint cultureAxis) {
-        double x = cultureAxis.x();
-        double y = cultureAxis.y();
-
-        if (x >= 0) {
-            return y >= 0 ? CulturefitStyle.AGGRESSIVE_INNOVATOR : CulturefitStyle.INCLUSIVE_INNOVATOR;
+        if (cultureAxis.x() >= 0) {
+            return cultureAxis.y() >= 0
+                    ? CulturefitStyle.AGGRESSIVE_INNOVATOR
+                    : CulturefitStyle.INCLUSIVE_INNOVATOR;
         }
-        return y >= 0 ? CulturefitStyle.STRATEGIC_GUARDIAN : CulturefitStyle.STEADY_SUPPORTER;
+        return cultureAxis.y() >= 0
+                ? CulturefitStyle.STRATEGIC_GUARDIAN
+                : CulturefitStyle.STEADY_SUPPORTER;
     }
 
     /**
@@ -98,17 +82,17 @@ public class CulturefitAxisService {
     private Map<String, Double> groupAverages(Map<String, Double> extractedCulturefit, double offset) {
         Map<String, Double> result = new LinkedHashMap<>();
 
-        for (String axis : AXIS_ORDER) {
+        for (CultureAxis axis : CultureAxis.values()) {
             double sum = 0;
             int count = 0;
-            for (String trait : AXIS_TRAITS.get(axis)) {
+            for (String trait : axis.getTraits()) {
                 Double score = value(extractedCulturefit, trait);
                 if (score != null) {
                     sum += score - offset;
                     count++;
                 }
             }
-            result.put(axis, count > 0 ? sum / count : 0.0);
+            result.put(axis.getKey(), count > 0 ? sum / count : 0.0);
         }
         return result;
     }
@@ -116,8 +100,8 @@ public class CulturefitAxisService {
     private double mean(Map<String, Double> extractedCulturefit) {
         double sum = 0;
         int count = 0;
-        for (String axis : AXIS_ORDER) {
-            for (String trait : AXIS_TRAITS.get(axis)) {
+        for (CultureAxis axis : CultureAxis.values()) {
+            for (String trait : axis.getTraits()) {
                 Double score = value(extractedCulturefit, trait);
                 if (score != null) {
                     sum += score;
@@ -131,5 +115,4 @@ public class CulturefitAxisService {
     private Double value(Map<String, Double> extractedCulturefit, String trait) {
         return extractedCulturefit != null ? extractedCulturefit.get(trait) : null;
     }
-
 }

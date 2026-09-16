@@ -1,10 +1,13 @@
 package com.weiver.analysis.service;
 
+import com.weiver.analysis.type.CultureAxis;
 import com.weiver.analysis.type.CulturefitStyle;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,7 +36,10 @@ class CulturefitAxisServiceTest {
         Map<String, Double> scores = culturefitAxisService.calculateAxisScores(EXTRACTED_CULTUREFIT);
 
         assertThat(scores).containsOnlyKeys(
-                "openness_to_change", "self_enhancement", "conservation", "self_transcendence");
+                CultureAxis.OPENNESS_TO_CHANGE.getKey(),
+                CultureAxis.SELF_ENHANCEMENT.getKey(),
+                CultureAxis.CONSERVATION.getKey(),
+                CultureAxis.SELF_TRANSCENDENCE.getKey());
         assertThat(scores.get("openness_to_change")).isCloseTo((0.72 + 0.55 + 0.31) / 3, within(1e-9));
         assertThat(scores.get("self_enhancement")).isCloseTo((0.84 + 0.22) / 2, within(1e-9));
         assertThat(scores.get("conservation")).isCloseTo((0.61 + 0.48 + 0.35) / 3, within(1e-9));
@@ -76,6 +82,20 @@ class CulturefitAxisServiceTest {
         assertThat(scores.get("self_enhancement")).isCloseTo(0.6, within(1e-9));
         assertThat(scores.get("conservation")).isZero();
         assertThat(scores.get("self_transcendence")).isZero();
+    }
+
+    @Test
+    @DisplayName("축 그룹 정의는 CultureAxis 하나에서만 오고, 10개 가치를 중복 없이 모두 덮는다")
+    void axisGrouping_ComesFromSharedEnumAndCoversAllTraits() {
+        List<String> allTraits = Arrays.stream(CultureAxis.values())
+                .flatMap(axis -> axis.getTraits().stream())
+                .toList();
+
+        assertThat(allTraits).doesNotHaveDuplicates();
+        assertThat(allTraits).containsExactlyInAnyOrderElementsOf(EXTRACTED_CULTUREFIT.keySet());
+        // 쾌락은 성과·영향이 아니라 자율·혁신 그룹이다.
+        assertThat(CultureAxis.OPENNESS_TO_CHANGE.getTraits()).contains("쾌락");
+        assertThat(CultureAxis.SELF_ENHANCEMENT.getTraits()).doesNotContain("쾌락");
     }
 
     @Test

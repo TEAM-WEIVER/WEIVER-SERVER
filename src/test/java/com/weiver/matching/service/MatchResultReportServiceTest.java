@@ -4,8 +4,12 @@ import com.weiver.analysis.domain.CultureReport;
 import com.weiver.analysis.domain.DetailAnalysisReport;
 import com.weiver.analysis.domain.TechnicalSkillReport;
 import com.weiver.analysis.dto.response.AnalysisReportDTO;
+import com.weiver.analysis.dto.response.AxisDetailDTO;
 import com.weiver.analysis.dto.response.CultureFitSummaryDTO;
+import com.weiver.analysis.dto.response.SubTraitDTO;
+import com.weiver.analysis.service.CulturefitAxisService;
 import com.weiver.analysis.service.ReportService;
+import com.weiver.analysis.type.CultureAxis;
 import com.weiver.analysis.type.CulturefitStyle;
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.dto.response.ApplicantProfileDTO;
@@ -347,6 +351,75 @@ class MatchResultReportServiceTest {
     }
 
     // 💡 공통 헬퍼 메서드
+    @Test
+    @DisplayName("[getCultureFitSummary] 회귀: 축 게이지 %와 하위 가치 목록이 CultureAxis 매핑 하나에서 나온다")
+    void getCultureFitSummary_AxisGaugeMatchesItsOwnSubTraits() {
+        // given - 실제 CulturefitAxisService가 계산한 축 점수를 그대로 저장한 상태를 재현한다.
+        // 하드코딩한 culture_axis_scores를 쓰면 계산 쪽과 표시 쪽의 그룹핑 불일치를 잡지 못한다.
+        Map<String, Double> extractedCulturefit = Map.of(
+                "자기방향", 0.72,
+                "자극", 0.55,
+                "쾌락", 0.31,
+                "성취", 0.84,
+                "권력", 0.22,
+                "안전", 0.61,
+                "순응", 0.48,
+                "전통", 0.35,
+                "호의", 0.76,
+                "보편주의", 0.69
+        );
+        Map<String, Double> axisScores = new CulturefitAxisService().calculateAxisScores(extractedCulturefit);
+
+        MatchResult matchResult = MatchResult.builder().matchingRate(80.0f).aiSummary("culture summary").build();
+        DetailAnalysisReport detailReport = DetailAnalysisReport.builder()
+                .cultureAnalysis(Map.of(
+                        "culture_axis", Map.of("x_axis", 0.1234, "y_axis", -0.0567),
+                        "culture_axis_scores", axisScores,
+                        "extracted_culturefit", extractedCulturefit
+                ))
+                .build();
+        CultureReport cultureReport = CultureReport.builder()
+                .culturefitStyles(CulturefitStyle.INCLUSIVE_INNOVATOR)
+                .build();
+
+        givenValidatedMatchResult(matchResult);
+        given(reportService.getDetailAnalysisReport(APPLICANT_PUBLIC_ID)).willReturn(detailReport);
+        given(reportService.getCultureReport(APPLICANT_PUBLIC_ID)).willReturn(cultureReport);
+
+        // when
+        CultureFitSummaryDTO response = matchResultReportService.getCultureFitSummary(JD_ID, APPLICANT_PUBLIC_ID, COMPANY_PUBLIC_ID);
+
+        // then - 축마다 (1) 하위 가치 목록이 CultureAxis 정의와 같고 (2) 게이지 %가 그 가치들의 평균과 같아야 한다.
+        assertThat(response.axesDetails()).hasSize(CultureAxis.values().length);
+
+        for (CultureAxis axis : CultureAxis.values()) {
+            AxisDetailDTO detail = response.axesDetails().stream()
+                    .filter(it -> it.name().equals(axis.getDisplayName()))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("축이 누락되었습니다: " + axis.getDisplayName()));
+
+            assertThat(detail.subTraits())
+                    .as("%s 축의 하위 가치 목록", axis.getDisplayName())
+                    .extracting(SubTraitDTO::name)
+                    .containsExactlyElementsOf(axis.getTraits());
+
+            int expectedPercentage = (int) Math.round(axis.getTraits().stream()
+                    .mapToDouble(extractedCulturefit::get)
+                    .average()
+                    .orElseThrow() * 100);
+            assertThat(detail.percentage())
+                    .as("%s 축 게이지 %%는 하위 가치 평균과 같아야 한다", axis.getDisplayName())
+                    .isEqualTo(expectedPercentage);
+        }
+
+        // 쾌락은 자율·혁신(A) 그룹이므로 성과·영향 하위에 나타나면 안 된다.
+        AxisDetailDTO selfEnhancement = response.axesDetails().stream()
+                .filter(it -> it.name().equals(CultureAxis.SELF_ENHANCEMENT.getDisplayName()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(selfEnhancement.subTraits()).extracting(SubTraitDTO::name).doesNotContain("쾌락");
+    }
+
     private void givenValidatedMatchResult(MatchResult matchResult) {
         given(matchResultService.getValidatedMatchResult(JD_ID, APPLICANT_PUBLIC_ID, COMPANY_PUBLIC_ID))
                 .willReturn(matchResult);
