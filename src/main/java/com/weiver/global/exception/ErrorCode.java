@@ -43,6 +43,8 @@ public enum ErrorCode {
     REQUIRED_AGREEMENT_NOT_ACCEPTED("REQUIRED_AGREEMENT_NOT_ACCEPTED", HttpStatus.BAD_REQUEST, "필수 약관에 동의해야 합니다."),
     INVALID_SIGNUP_TOKEN("INVALID_SIGNUP_TOKEN", HttpStatus.BAD_REQUEST, "회원가입 토큰이 유효하지 않거나 만료되었습니다."),
     SIGNUP_NOT_COMPLETED("SIGNUP_NOT_COMPLETED", HttpStatus.FORBIDDEN, "회원가입이 완료되지 않은 계정입니다."),
+    PROFILE_DOCUMENT_INCOMPLETE("PROFILE_DOCUMENT_INCOMPLETE", HttpStatus.BAD_REQUEST, "제출에 필요한 서류가 모두 작성되지 않았습니다."),
+    PROFILE_ALREADY_SUBMITTED("PROFILE_ALREADY_SUBMITTED", HttpStatus.CONFLICT, "이미 제출된 프로필입니다."),
 
     // ===================== COMPANY =====================
     COMPANY_NOT_FOUND("COMPANY_NOT_FOUND", HttpStatus.NOT_FOUND, "존재하지 않는 기업입니다."),
@@ -79,6 +81,9 @@ public enum ErrorCode {
     INTERVIEW_SESSION_NOT_FOUND("INTERVIEW_SESSION_NOT_FOUND", HttpStatus.NOT_FOUND, "면접 세션을 찾을 수 없습니다."),
     INTERVIEW_ALREADY_COMPLETED("INTERVIEW_ALREADY_COMPLETED", HttpStatus.CONFLICT, "이미 완료된 면접입니다."),
     APPLICANT_ANALYSIS_NOT_COMPLETED("APPLICANT_ANALYSIS_NOT_COMPLETED", HttpStatus.CONFLICT, "지원자 분석이 완료되지 않았습니다."),
+    INTERVIEW_NOT_FINISHED("INTERVIEW_NOT_FINISHED", HttpStatus.CONFLICT, "종료되지 않은 면접은 분석을 요청할 수 없습니다."),
+    INTERVIEW_ANALYSIS_ALREADY_REQUESTED("INTERVIEW_ANALYSIS_ALREADY_REQUESTED", HttpStatus.CONFLICT, "이미 분석을 요청한 면접입니다."),
+    INTERVIEW_COOLDOWN_NOT_EXPIRED("INTERVIEW_COOLDOWN_NOT_EXPIRED", HttpStatus.CONFLICT, "면접 재응시 가능 시점이 아닙니다."),
     INVALID_INTERVIEW_TYPE("INVALID_INTERVIEW_TYPE", HttpStatus.BAD_REQUEST, "잘못된 인터뷰 타입입니다."),
 
     // ===================== MATCHING =====================

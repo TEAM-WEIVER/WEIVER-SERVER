@@ -5,6 +5,7 @@ import com.weiver.analysis.domain.DetailAnalysisReport;
 import com.weiver.analysis.domain.TechnicalSkillReport;
 import com.weiver.analysis.dto.response.*;
 import com.weiver.analysis.service.ReportService;
+import com.weiver.analysis.type.CultureAxis;
 import com.weiver.applicant.dto.response.ApplicantProfileDTO;
 import com.weiver.applicant.service.ApplicantService;
 import com.weiver.applicant.service.WorkExperienceService;
@@ -51,13 +52,6 @@ public class MatchResultReportService {
             "collaboration", "협업 및 팀워크",
             "problem_solving", "문제해결력",
             "logic", "논리성"
-    );
-
-    private static final Map<String, String> CULTURE_AXIS_NAMES = Map.of(
-            "openness_to_change", "자율·혁신",
-            "self_enhancement", "성과·영향",
-            "conservation", "안정·질서",
-            "self_transcendence", "관계·공동체"
     );
 
     public ApplicantCardResponseDTO getCardSummary(Long jdId, String applicantPublicId, String companyPublicId) {
@@ -189,60 +183,32 @@ public class MatchResultReportService {
 
     /**
      * 4개 상위 축과 각각에 속하는 하위 가치(10개)를 조립합니다.
+     *
+     * <p>축→가치 매핑은 {@link CultureAxis}가 단일 출처다. 축 게이지 %(축 점수)와 하위 가치 목록이
+     * 같은 그룹핑에서 나와야 값과 분해가 어긋나지 않으므로, 여기서 매핑을 따로 갖지 않는다.
      */
     private List<AxisDetailDTO> buildAxesDetails(Map<String, Object> cultureAnalysisMap) {
         if (cultureAnalysisMap == null) return new ArrayList<>();
 
         try {
-            Map<String, Object> cultureAxis = asMap(cultureAnalysisMap.get("culture_axis"));
+            // 축별 점수는 서버가 파생 저장한 culture_axis_scores를 쓴다. 과거 데이터는 culture_axis에
+            // 4축 키가 들어 있으므로 그쪽으로 fallback한다(현재 culture_axis는 x/y 좌표다).
+            Map<String, Object> axisScores = asMap(cultureAnalysisMap.get("culture_axis_scores"));
+            if (axisScores == null) {
+                axisScores = asMap(cultureAnalysisMap.get("culture_axis"));
+            }
             Map<String, Object> extractedTraits = asMap(cultureAnalysisMap.get("extracted_culturefit"));
 
-            if (cultureAxis == null || extractedTraits == null) return new ArrayList<>();
+            if (axisScores == null || extractedTraits == null) return new ArrayList<>();
 
             List<AxisDetailDTO> details = new ArrayList<>();
-
-            // 1. 자율·혁신 (Openness to change) -> 하위: 자기방향, 자극
-            details.add(new AxisDetailDTO(
-                    CULTURE_AXIS_NAMES.get("openness_to_change"),
-                    getPercentage(cultureAxis, "openness_to_change"),
-                    List.of(
-                            new SubTraitDTO("자기방향", getPercentage(extractedTraits, "자기방향")),
-                            new SubTraitDTO("자극", getPercentage(extractedTraits, "자극"))
-                    )
-            ));
-
-            // 2. 성과·영향 (Self-enhancement) -> 하위: 성취, 권력, 쾌락
-            details.add(new AxisDetailDTO(
-                    CULTURE_AXIS_NAMES.get("self_enhancement"),
-                    getPercentage(cultureAxis, "self_enhancement"),
-                    List.of(
-                            new SubTraitDTO("성취", getPercentage(extractedTraits, "성취")),
-                            new SubTraitDTO("권력", getPercentage(extractedTraits, "권력")),
-                            new SubTraitDTO("쾌락", getPercentage(extractedTraits, "쾌락"))
-                    )
-            ));
-
-            // 3. 안정·질서 (Conservation) -> 하위: 안전, 순응, 전통
-            details.add(new AxisDetailDTO(
-                    CULTURE_AXIS_NAMES.get("conservation"),
-                    getPercentage(cultureAxis, "conservation"),
-                    List.of(
-                            new SubTraitDTO("안전", getPercentage(extractedTraits, "안전")),
-                            new SubTraitDTO("순응", getPercentage(extractedTraits, "순응")),
-                            new SubTraitDTO("전통", getPercentage(extractedTraits, "전통"))
-                    )
-            ));
-
-            // 4. 관계·공동체 (Self-transcendence) -> 하위: 호의, 보편주의
-            details.add(new AxisDetailDTO(
-                    CULTURE_AXIS_NAMES.get("self_transcendence"),
-                    getPercentage(cultureAxis, "self_transcendence"),
-                    List.of(
-                            new SubTraitDTO("호의", getPercentage(extractedTraits, "호의")),
-                            new SubTraitDTO("보편주의", getPercentage(extractedTraits, "보편주의"))
-                    )
-            ));
-
+            for (CultureAxis axis : CultureAxis.values()) {
+                details.add(new AxisDetailDTO(
+                        axis.getDisplayName(),
+                        getPercentage(axisScores, axis.getKey()),
+                        toSubTraits(axis, extractedTraits)
+                ));
+            }
             return details;
 
         }catch (ClassCastException | NullPointerException e) {
@@ -252,6 +218,15 @@ public class MatchResultReportService {
             log.error("컬처핏 상세 데이터 조립 중 예상치 못한 에러 발생", e);
             throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    /**
+     * 축에 속한 가치들을 CultureAxis 정의 순서대로 하위 성향 점수로 변환한다.
+     */
+    private List<SubTraitDTO> toSubTraits(CultureAxis axis, Map<String, Object> extractedTraits) {
+        return axis.getTraits().stream()
+                .map(trait -> new SubTraitDTO(trait, getPercentage(extractedTraits, trait)))
+                .toList();
     }
 
     /**

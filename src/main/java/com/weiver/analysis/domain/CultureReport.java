@@ -52,4 +52,11 @@ public class CultureReport extends BaseTimeEntity {
         this.culturefitTag = culturefitTag;
     }
 
+    /**
+     * 면접 최종 평가의 컬처핏 좌표로 판정한 스타일만 갱신한다. 컬처핏 태그는 기존 값을 유지한다.
+     */
+    public void updateCulturefitStyle(CulturefitStyle culturefitStyle) {
+        this.culturefitStyles = culturefitStyle;
+    }
+
 }

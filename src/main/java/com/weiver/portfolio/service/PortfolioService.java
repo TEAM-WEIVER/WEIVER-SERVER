@@ -1,7 +1,6 @@
 package com.weiver.portfolio.service;
 
 import com.weiver.applicant.domain.Applicant;
-import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -27,7 +26,6 @@ public class PortfolioService {
     private final PortfolioRepository portfolioRepository;
     private final ApplicantRepository applicantRepository;
     private final S3Service s3Service;
-    private final ApplicantProfileEventService applicantProfileEventService;
 
     // 진입 메서드는 트랜잭션을 열지 않는다(NOT_SUPPORTED). S3 업로드/삭제는 트랜잭션 경계 밖에서 수행하고,
     // 각 DB 접근은 리포지토리 단위의 짧은 트랜잭션으로 처리한다.
@@ -55,7 +53,6 @@ public class PortfolioService {
         Portfolio portfolio = requestDTO.toEntity(applicant, fileSize, fileName, fileType, fileKey);
 
         portfolioRepository.save(portfolio);
-        applicantProfileEventService.publishProfileChanged(applicant.getApplicantId());
     }
 
 
@@ -90,8 +87,6 @@ public class PortfolioService {
         if (fileReplaced && StringUtils.hasText(previousFileKey)) {
             s3Service.deleteFile(previousFileKey);
         }
-
-        applicantProfileEventService.publishProfileChanged(portfolio.getApplicant().getApplicantId());
     }
 
     @Transactional(readOnly = true)

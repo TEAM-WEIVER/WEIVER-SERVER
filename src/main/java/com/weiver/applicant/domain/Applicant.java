@@ -22,6 +22,9 @@ import java.util.UUID;
 @Table(name = "applicants")
 public class Applicant extends BaseTimeEntity {
 
+    /** 면접 결과 제출 후 재응시까지의 대기 기간(개월). */
+    private static final int INTERVIEW_COOLDOWN_MONTHS = 1;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "applicant_id")
@@ -128,5 +131,21 @@ public class Applicant extends BaseTimeEntity {
 
     public boolean isProfileSubmitted() {
         return this.profileSyncStatus != ProfileSyncStatus.PENDING;
+    }
+
+    /**
+     * 면접 결과(분석) 제출 시각을 기록하고 다음 면접 가능 시점을 1개월 뒤로 설정한다.
+     * 면접은 제출 시점 기준 1개월에 1회만 가능하며, 그 시점이 지나면 다시 응시할 수 있다.
+     */
+    public void markInterviewSubmitted(LocalDateTime submittedAt) {
+        this.lastScreeningAt = Objects.requireNonNull(submittedAt, "submittedAt must not be null");
+        this.nextAvailableScreeningAt = submittedAt.plusMonths(INTERVIEW_COOLDOWN_MONTHS);
+    }
+
+    /**
+     * 면접 재응시 쿨다운이 끝났는지 여부. 한 번도 제출하지 않았으면 항상 가능하다.
+     */
+    public boolean isInterviewAvailableAt(LocalDateTime now) {
+        return this.nextAvailableScreeningAt == null || !now.isBefore(this.nextAvailableScreeningAt);
     }
 }

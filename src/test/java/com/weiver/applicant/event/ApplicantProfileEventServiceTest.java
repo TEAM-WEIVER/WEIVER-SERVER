@@ -120,8 +120,8 @@ class ApplicantProfileEventServiceTest {
     }
 
     @Test
-    @DisplayName("자기소개서 2문항까지는 발행하지 않고 3문항 완료 후 최초 발행한다")
-    void publishProfileChanged_EssaySavedLast_PublishesAfterProfileBecomesComplete() {
+    @DisplayName("제출 가능 여부 검증은 호출부가 하므로 이 서비스는 항상 스냅샷을 발행한다")
+    void publishProfileChanged_AlwaysPublishesSnapshot() {
         Applicant applicant = Applicant.builder()
                 .applicantId(1L)
                 .name("홍길동")
@@ -134,23 +134,13 @@ class ApplicantProfileEventServiceTest {
                 .schoolName("한양대학교")
                 .applicant(applicant)
                 .build();
-        List<EssayAnswer> answers = List.of(
-                essayAnswer(50L, 40L, 1, "자기소개", applicant),
-                essayAnswer(51L, 41L, 2, "직무 역량", applicant),
-                essayAnswer(52L, 42L, 3, "입사 후 포부", applicant)
-        );
 
         given(applicantRepository.findById(1L)).willReturn(Optional.of(applicant));
         given(educationRepository.findAllByApplicant(applicant)).willReturn(List.of(education));
         given(workExperienceRepository.findAllByApplicantOrderByStartDateDesc(applicant)).willReturn(List.of());
         given(certificateRepository.findAllByApplicant(applicant)).willReturn(List.of());
         given(essayAnswerRepository.findAllByApplicantWithQuestionOrderBySequence(applicant))
-                .willReturn(answers.subList(0, 2), answers);
-
-        applicantProfileEventService.publishProfileChanged(1L);
-
-        verifyNoInteractions(domainEventPublisher);
-        assertThat(applicant.getProfileSyncStatus()).isEqualTo(ProfileSyncStatus.PENDING);
+                .willReturn(List.of(essayAnswer(50L, 40L, 1, "자기소개", applicant)));
 
         applicantProfileEventService.publishProfileChanged(1L);
 
@@ -181,12 +171,12 @@ class ApplicantProfileEventServiceTest {
     }
 
     @Test
-    @DisplayName("최초 동기화 이후에는 프로필 일부가 비어도 수정 이벤트를 발행한다")
-    void publishProfileChanged_AfterInitialSync_PublishesIncompleteSnapshot() {
+    @DisplayName("동기화 실패 후 재제출 시에도 스냅샷을 다시 발행하고 REQUESTED로 되돌린다")
+    void publishProfileChanged_AfterFailedSync_RepublishesSnapshot() {
         Applicant applicant = Applicant.builder()
                 .applicantId(1L)
                 .name("홍길동")
-                .profileSyncStatus(ProfileSyncStatus.COMPLETED)
+                .profileSyncStatus(ProfileSyncStatus.FAILED)
                 .build();
 
         given(applicantRepository.findById(1L)).willReturn(Optional.of(applicant));

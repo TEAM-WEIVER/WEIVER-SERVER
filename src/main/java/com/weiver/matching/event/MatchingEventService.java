@@ -1,5 +1,6 @@
 package com.weiver.matching.event;
 
+import com.weiver.analysis.type.CultureAxis;
 import com.weiver.global.event.dto.EventEnvelope;
 import com.weiver.global.event.dto.EventType;
 import com.weiver.global.event.publisher.DomainEventPublisher;
@@ -41,11 +42,12 @@ public class MatchingEventService {
             Map.entry("문제해결력", "PROBLEM_SOLVING"),
             Map.entry("논리력", "LOGICAL_THINKING"),
             Map.entry("논리성", "LOGICAL_THINKING"),
-            Map.entry("자율·혁신", "AUTONOMY_INNOVATION"),
-            Map.entry("성과·영향", "PERFORMANCE_IMPACT"),
+            // 성향 우선순위 4개는 구직자 컬처핏 축과 같은 이름이므로 CultureAxis의 표시명을 그대로 쓴다.
+            Map.entry(CultureAxis.OPENNESS_TO_CHANGE.getDisplayName(), "AUTONOMY_INNOVATION"),
+            Map.entry(CultureAxis.SELF_ENHANCEMENT.getDisplayName(), "PERFORMANCE_IMPACT"),
             Map.entry("성취·결과", "PERFORMANCE_IMPACT"),
-            Map.entry("안정·질서", "STABILITY_ORDER"),
-            Map.entry("관계·공동체", "RELATIONSHIP_COMMUNITY")
+            Map.entry(CultureAxis.CONSERVATION.getDisplayName(), "STABILITY_ORDER"),
+            Map.entry(CultureAxis.SELF_TRANSCENDENCE.getDisplayName(), "RELATIONSHIP_COMMUNITY")
     );
 
     private final JobPostingRepository jobPostingRepository;

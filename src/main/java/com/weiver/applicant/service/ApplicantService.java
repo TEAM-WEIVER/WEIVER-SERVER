@@ -3,7 +3,9 @@ package com.weiver.applicant.service;
 import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.dto.response.*;
+import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.*;
+import com.weiver.applicant.type.ProfileSyncStatus;
 import com.weiver.essay.repository.EssayAnswerRepository;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
@@ -32,6 +34,7 @@ public class ApplicantService {
     private final EssayAnswerRepository essayAnswerRepository;
     private final PortfolioRepository portfolioRepository;
     private final WorkExperienceService workExperienceService;
+    private final ApplicantProfileEventService applicantProfileEventService;
     private final S3Service s3Service;
 
     // 진입 메서드는 트랜잭션을 열지 않는다(NOT_SUPPORTED). S3 업로드/삭제는 트랜잭션 경계 밖에서 수행하고,
@@ -106,15 +109,58 @@ public class ApplicantService {
     public ApplicantSubmissionStatusResponseDTO getSubmissionStatus(String publicId) {
         Applicant applicant = getApplicant(publicId);
 
-        boolean submitted = isSubmitted(applicant);
         ApplicantDocumentStatusResponseDTO documentStatus = buildDocumentStatus(applicant);
 
         return new ApplicantSubmissionStatusResponseDTO(
-                submitted,
+                isSubmitted(applicant),
+                applicant.getProfileSyncStatus(),
+                isSubmittable(applicant, documentStatus),
                 documentStatus.resumeCompleted(),
                 documentStatus.essayCompleted(),
                 documentStatus.portfolioCompleted()
         );
+    }
+
+    /**
+     * 구직자가 화면에서 "프로필 제출"을 눌렀을 때 AI 서버 프로필 동기화를 시작한다.
+     *
+     * <p>동기화 완료 이벤트를 받은 핸들러가 이어서 지원자 분석을 요청하므로, 이 한 번의 제출로
+     * 동기화와 분석이 모두 수행된다.
+     *
+     * <p>재제출은 막는다. 제출 직후(REQUESTED)와 동기화 완료(COMPLETED) 상태에서는
+     * {@link ErrorCode#PROFILE_ALREADY_SUBMITTED}로 거절하고, 동기화가 실패한(FAILED) 경우에만
+     * 다시 제출할 수 있다.
+     */
+    @Transactional
+    public void submitProfile(String publicId) {
+        Applicant applicant = getApplicant(publicId);
+
+        if (!isResubmittable(applicant)) {
+            throw new BusinessException(ErrorCode.PROFILE_ALREADY_SUBMITTED);
+        }
+        if (!isAllDocumentsCompleted(buildDocumentStatus(applicant))) {
+            throw new BusinessException(ErrorCode.PROFILE_DOCUMENT_INCOMPLETE);
+        }
+
+        applicantProfileEventService.publishProfileChanged(applicant.getApplicantId());
+    }
+
+    /**
+     * 제출 버튼 활성화 판단용: 아직 제출하지 않았거나 동기화가 실패했고, 필수 서류가 모두 작성된 상태.
+     */
+    private boolean isSubmittable(Applicant applicant, ApplicantDocumentStatusResponseDTO documentStatus) {
+        return isResubmittable(applicant) && isAllDocumentsCompleted(documentStatus);
+    }
+
+    private boolean isResubmittable(Applicant applicant) {
+        ProfileSyncStatus syncStatus = applicant.getProfileSyncStatus();
+        return syncStatus == ProfileSyncStatus.PENDING || syncStatus == ProfileSyncStatus.FAILED;
+    }
+
+    private boolean isAllDocumentsCompleted(ApplicantDocumentStatusResponseDTO documentStatus) {
+        return documentStatus.resumeCompleted()
+                && documentStatus.essayCompleted()
+                && documentStatus.portfolioCompleted();
     }
 
     private ApplicantDocumentStatusResponseDTO buildDocumentStatus(Applicant applicant) {

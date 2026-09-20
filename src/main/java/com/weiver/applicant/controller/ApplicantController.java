@@ -75,6 +75,24 @@ public class ApplicantController {
     }
 
     @Operation(
+            summary = "프로필 제출 (AI 프로필 동기화 · 분석 요청)",
+            description = "로그인한 구직자의 프로필 스냅샷을 AI 서버로 보내 동기화를 시작합니다.<br>" +
+                    "동기화가 완료되면 서버가 이어서 지원자 분석을 요청하므로, 이 요청 한 번으로 동기화와 분석이 모두 진행됩니다.<br>" +
+                    "- 이력서, 자기소개서, 포트폴리오가 모두 작성돼야 제출할 수 있습니다(미완료 시 `PROFILE_DOCUMENT_INCOMPLETE`).<br>" +
+                    "- 재제출은 불가합니다. 제출 직후·동기화 완료 상태에서는 `PROFILE_ALREADY_SUBMITTED`로 거절되며, 동기화 실패 시에만 다시 제출할 수 있습니다.<br>" +
+                    "- 버튼 활성화 여부는 `GET /api/applicants/submission-status`의 `submittable`·`syncStatus`로 판단하세요."
+    )
+    @PostMapping("/profile/submit")
+    public ResponseEntity<ApiResponse<Void>> submitProfile(
+            @AuthenticationPrincipal @Parameter(hidden = true) AuthenticatedPrincipal principal) {
+        if(principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
+
+        applicantService.submitProfile(principal.publicId());
+
+        return ResponseEntity.ok(ApiResponse.success("프로필 제출에 성공했습니다."));
+    }
+
+    @Operation(
             summary = "지원자 개인정보 및 프로필 이미지 수정",
             description = "구직자의 기본 정보(텍스트)와 프로필 사진(파일)을 함께 수정합니다.<br>" +
                     "**[Content-Type: multipart/form-data]** 로 전송해야 합니다.<br>" +
