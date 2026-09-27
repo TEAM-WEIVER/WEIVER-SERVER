@@ -5,6 +5,10 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
 public record ApplicantPasswordUpdateRequestDTO(
+        @Schema(description = "1단계(현재 비밀번호 재인증)에서 발급받은 재인증 토큰", example = "123e4567-e89b-12d3-a456-426614174000")
+        @NotBlank(message = "재인증 토큰은 필수 입력값입니다.")
+        String reauthToken,
+
         @Schema(description = "새 비밀번호", example = "Password123!")
         @NotBlank(message = "비밀번호는 필수 입력값입니다.")
         @Pattern(

@@ -7,8 +7,10 @@ import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.applicant.type.ApplicantStatus;
 import com.weiver.auth.dto.request.*;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
+import com.weiver.auth.dto.response.ApplicantPasswordVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
 import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
+import com.weiver.auth.repository.ApplicantPasswordReauthTokenRepository;
 import com.weiver.auth.repository.ApplicantSignupTokenRepository;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
 import com.weiver.global.common.UserRole;
@@ -38,6 +40,7 @@ public class ApplicantAuthService {
     private static final Duration EMAIL_CODE_TTL = Duration.ofMinutes(5);
     private static final Duration VERIFICATION_TOKEN_TTL = Duration.ofMinutes(30);
     private static final Duration SIGNUP_TOKEN_TTL = Duration.ofMinutes(30);
+    private static final Duration REAUTH_TOKEN_TTL = Duration.ofMinutes(10);
     private static final int MAX_VERIFICATION_ATTEMPTS = 5;
 
     // 배포 이후 테스트 우회가 필요 없어지면 TEST_EMAIL_* 상수, isTestEmail(), send/verify 분기, 관련 테스트를 함께 삭제하세요.
@@ -48,6 +51,7 @@ public class ApplicantAuthService {
     private final ApplicantAgreementRepository applicantAgreementRepository;
     private final ApplicantEmailVerificationRepository emailVerificationRepository;
     private final ApplicantSignupTokenRepository signupTokenRepository;
+    private final ApplicantPasswordReauthTokenRepository passwordReauthTokenRepository;
     private final TokenVersionRepository tokenVersionRepository;
     private final ApplicantVerificationCodeGenerator codeGenerator;
     private final PasswordEncoder passwordEncoder;
@@ -193,27 +197,43 @@ public class ApplicantAuthService {
 
     /**
      * 로그인 상태 비밀번호 변경 1단계 - 현재 비밀번호 재인증(마이페이지 계정 설정).
-     * 현재 세션의 principal로 대상을 특정하고, 입력한 현재 비밀번호가 저장된 비밀번호와 일치하는지만 확인한다.
-     * 실제 비밀번호 변경은 2단계(changeMyPassword)에서 수행한다.
+     * 현재 세션의 principal로 대상을 특정하고, 입력한 현재 비밀번호가 저장된 비밀번호와 일치하는지 확인한다.
+     * 일치하면 2단계(changeMyPassword)에서 소비할 단기 재인증 토큰을 Redis에 발급한다.
+     * 실제 비밀번호 변경은 2단계에서 수행한다.
      */
     @Transactional(readOnly = true)
-    public void verifyCurrentPassword(String applicantPublicId, ApplicantPasswordVerifyRequestDTO request) {
+    public ApplicantPasswordVerifyResponseDTO verifyCurrentPassword(String applicantPublicId, ApplicantPasswordVerifyRequestDTO request) {
         Applicant applicant = applicantProvider.findByPublicId(applicantPublicId);
 
         if (!passwordEncoder.matches(request.currentPassword(), applicant.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_CURRENT_PASSWORD);
         }
+
+        String reauthToken = UUID.randomUUID().toString();
+        passwordReauthTokenRepository.save(reauthToken, applicant.getPublicId(), REAUTH_TOKEN_TTL);
+
+        return new ApplicantPasswordVerifyResponseDTO(reauthToken);
     }
 
     /**
      * 로그인 상태 비밀번호 변경 2단계 - 새 비밀번호 설정(마이페이지 계정 설정).
      * 비로그인 재설정(changePassword)과 달리 이메일 인증 없이 현재 세션의 principal로 대상을 특정한다.
-     * 현재 비밀번호 재인증은 1단계(verifyCurrentPassword)에서 선행되며, 이 단계는 새 비밀번호로 변경한다.
+     * 1단계(verifyCurrentPassword)에서 발급한 재인증 토큰을 atomic하게 소비하고, 토큰에 묶인 publicId가
+     * 현재 세션과 일치하는 경우에만 새 비밀번호로 변경한다.
      * 변경 성공 시 비로그인 재설정(changePassword)과 동일하게 기존 세션/토큰을 무효화하여 전 세션을 강제 로그아웃한다.
      */
     @Transactional
     public void changeMyPassword(String applicantPublicId, ApplicantPasswordUpdateRequestDTO request) {
         validatePasswordConfirm(request.newPassword(), request.newPasswordConfirm());
+
+        // 재인증 토큰을 atomic하게 소비 (한 번 시도하면 재사용 불가)
+        String reauthPublicId = passwordReauthTokenRepository.findAndDelete(request.reauthToken())
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PASSWORD_REAUTH_TOKEN));
+
+        // 토큰에 묶인 대상과 현재 세션이 다르면 거절 (다른 계정의 토큰 재사용 방지)
+        if (!reauthPublicId.equals(applicantPublicId)) {
+            throw new BusinessException(ErrorCode.INVALID_PASSWORD_REAUTH_TOKEN);
+        }
 
         Applicant applicant = applicantProvider.findByPublicId(applicantPublicId);
 

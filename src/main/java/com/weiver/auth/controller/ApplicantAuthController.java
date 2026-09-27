@@ -10,6 +10,7 @@ import com.weiver.auth.dto.request.ApplicantSignupCompleteRequestDTO;
 import com.weiver.auth.dto.request.ApplicantSignupInitRequestDTO;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantLoginResponseDTO;
+import com.weiver.auth.dto.response.ApplicantPasswordVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupResponseDTO;
 import com.weiver.auth.service.ApplicantAuthService;
@@ -229,13 +230,13 @@ public class ApplicantAuthController {
     @Operation(
             summary = "로그인 상태 비밀번호 변경 1단계 - 현재 비밀번호 재인증",
             description = "마이페이지 계정 설정에서 새 비밀번호 입력 전에 현재 비밀번호가 맞는지 확인합니다.<br>" +
-                    "현재 세션으로 대상을 특정하며, 현재 비밀번호가 일치하지 않으면 실패합니다.<br>" +
+                    "현재 세션으로 대상을 특정하며, 현재 비밀번호가 일치하면 2단계에서 사용할 재인증 토큰(reauthToken)을 반환합니다.<br>" +
                     "비밀번호를 변경하지는 않으며, 실제 변경은 2단계(PATCH /me/password)에서 수행합니다.<br>" +
                     "Authorization Header에 Bearer Access Token이 필요합니다."
     )
     @SecurityRequirement(name = "bearerAuth")
     @PostMapping("/me/password/verify")
-    public ResponseEntity<ApiResponse<Void>> verifyMyPassword(
+    public ResponseEntity<ApiResponse<ApplicantPasswordVerifyResponseDTO>> verifyMyPassword(
             @Parameter(hidden = true)
             @AuthenticationPrincipal AuthenticatedPrincipal principal,
 
@@ -245,16 +246,17 @@ public class ApplicantAuthController {
     ) {
         if (principal == null) throw new BusinessException(ErrorCode.UNAUTHORIZED);
 
-        applicantAuthService.verifyCurrentPassword(principal.publicId(), requestDTO);
+        ApplicantPasswordVerifyResponseDTO responseDTO =
+                applicantAuthService.verifyCurrentPassword(principal.publicId(), requestDTO);
 
-        return ResponseEntity.ok(ApiResponse.success(200, null, "현재 비밀번호 확인에 성공했습니다."));
+        return ResponseEntity.ok(ApiResponse.success(200, responseDTO, "현재 비밀번호 확인에 성공했습니다."));
     }
 
     @Operation(
             summary = "로그인 상태 비밀번호 변경 2단계 - 새 비밀번호 설정",
             description = "현재 로그인한 구직자가 마이페이지 계정 설정에서 새 비밀번호로 변경합니다.<br>" +
-                    "이메일 인증 없이 현재 세션으로 대상을 특정하며, 변경 성공 시 기존 세션/토큰을 무효화하여 재로그인이 필요합니다.<br>" +
-                    "현재 비밀번호 재인증은 1단계(POST /me/password/verify)에서 선행됩니다.<br>" +
+                    "1단계(POST /me/password/verify)에서 발급받은 재인증 토큰(reauthToken)이 필요하며, 현재 세션으로 대상을 특정합니다.<br>" +
+                    "변경 성공 시 기존 세션/토큰을 무효화하여 재로그인이 필요합니다.<br>" +
                     "Authorization Header에 Bearer Access Token이 필요합니다."
     )
     @SecurityRequirement(name = "bearerAuth")

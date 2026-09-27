@@ -12,6 +12,7 @@ import com.weiver.auth.dto.request.ApplicantPasswordVerifyRequestDTO;
 import com.weiver.auth.dto.request.ApplicantSignupCompleteRequestDTO;
 import com.weiver.auth.dto.request.ApplicantSignupInitRequestDTO;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
+import com.weiver.auth.dto.response.ApplicantPasswordVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
 import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
@@ -439,6 +440,8 @@ public class ApplicantAuthControllerTest {
         SecurityContextHolder.getContext().setAuthentication(auth);
 
         ApplicantPasswordVerifyRequestDTO request = new ApplicantPasswordVerifyRequestDTO("OldPass1234!");
+        when(applicantAuthService.verifyCurrentPassword(eq(publicId), any(ApplicantPasswordVerifyRequestDTO.class)))
+                .thenReturn(new ApplicantPasswordVerifyResponseDTO("reauth-token"));
 
         try {
             // when & then
@@ -447,6 +450,7 @@ public class ApplicantAuthControllerTest {
                             .content(objectMapper.writeValueAsString(request)))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.code").value(200))
+                    .andExpect(jsonPath("$.data.reauthToken").value("reauth-token"))
                     .andExpect(jsonPath("$.message").value("현재 비밀번호 확인에 성공했습니다."));
 
             verify(applicantAuthService).verifyCurrentPassword(eq(publicId), any(ApplicantPasswordVerifyRequestDTO.class));
@@ -508,7 +512,7 @@ public class ApplicantAuthControllerTest {
         SecurityContextHolder.getContext().setAuthentication(auth);
 
         ApplicantPasswordUpdateRequestDTO request = new ApplicantPasswordUpdateRequestDTO(
-                "Pass1234!", "Pass1234!"
+                "reauth-token", "Pass1234!", "Pass1234!"
         );
 
         try {
@@ -531,7 +535,7 @@ public class ApplicantAuthControllerTest {
     public void changeMyPassword_unauthorized() throws Exception {
         // given
         ApplicantPasswordUpdateRequestDTO request = new ApplicantPasswordUpdateRequestDTO(
-                "Pass1234!", "Pass1234!"
+                "reauth-token", "Pass1234!", "Pass1234!"
         );
 
         // when & then
@@ -555,7 +559,7 @@ public class ApplicantAuthControllerTest {
 
         // 영문만, 숫자/특수문자 없음
         ApplicantPasswordUpdateRequestDTO request = new ApplicantPasswordUpdateRequestDTO(
-                "onlyletters", "onlyletters"
+                "reauth-token", "onlyletters", "onlyletters"
         );
 
         try {
