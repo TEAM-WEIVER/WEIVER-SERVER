@@ -192,9 +192,23 @@ public class ApplicantAuthService {
     }
 
     /**
-     * 로그인 상태에서의 비밀번호 변경(마이페이지 계정 설정).
-     * 비로그인 재설정(changePassword)과 달리 이메일 인증 없이 현재 세션의 principal로 대상을 특정하며,
-     * 현재 비밀번호 재인증을 통과한 경우에만 새 비밀번호로 변경한다.
+     * 로그인 상태 비밀번호 변경 1단계 - 현재 비밀번호 재인증(마이페이지 계정 설정).
+     * 현재 세션의 principal로 대상을 특정하고, 입력한 현재 비밀번호가 저장된 비밀번호와 일치하는지만 확인한다.
+     * 실제 비밀번호 변경은 2단계(changeMyPassword)에서 수행한다.
+     */
+    @Transactional(readOnly = true)
+    public void verifyCurrentPassword(String applicantPublicId, ApplicantPasswordVerifyRequestDTO request) {
+        Applicant applicant = applicantProvider.findByPublicId(applicantPublicId);
+
+        if (!passwordEncoder.matches(request.currentPassword(), applicant.getPassword())) {
+            throw new BusinessException(ErrorCode.INVALID_CURRENT_PASSWORD);
+        }
+    }
+
+    /**
+     * 로그인 상태 비밀번호 변경 2단계 - 새 비밀번호 설정(마이페이지 계정 설정).
+     * 비로그인 재설정(changePassword)과 달리 이메일 인증 없이 현재 세션의 principal로 대상을 특정한다.
+     * 현재 비밀번호 재인증은 1단계(verifyCurrentPassword)에서 선행되며, 이 단계는 새 비밀번호로 변경한다.
      * 변경 성공 시 비로그인 재설정(changePassword)과 동일하게 기존 세션/토큰을 무효화하여 전 세션을 강제 로그아웃한다.
      */
     @Transactional
@@ -202,10 +216,6 @@ public class ApplicantAuthService {
         validatePasswordConfirm(request.newPassword(), request.newPasswordConfirm());
 
         Applicant applicant = applicantProvider.findByPublicId(applicantPublicId);
-
-        if (!passwordEncoder.matches(request.currentPassword(), applicant.getPassword())) {
-            throw new BusinessException(ErrorCode.INVALID_CURRENT_PASSWORD);
-        }
 
         String encoded = passwordEncoder.encode(request.newPassword());
         applicant.updatePassword(encoded);
