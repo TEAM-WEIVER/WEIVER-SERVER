@@ -11,11 +11,14 @@ import com.weiver.auth.dto.request.ApplicantEmailVerifyRequestDTO;
 import com.weiver.auth.dto.request.ApplicantLoginRequestDTO;
 import com.weiver.auth.dto.request.ApplicantPasswordChangeRequestDTO;
 import com.weiver.auth.dto.request.ApplicantPasswordUpdateRequestDTO;
+import com.weiver.auth.dto.request.ApplicantPasswordVerifyRequestDTO;
 import com.weiver.auth.dto.request.ApplicantSignupCompleteRequestDTO;
 import com.weiver.auth.dto.request.ApplicantSignupInitRequestDTO;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
+import com.weiver.auth.dto.response.ApplicantPasswordVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
 import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
+import com.weiver.auth.repository.ApplicantPasswordReauthTokenRepository;
 import com.weiver.auth.repository.ApplicantSignupTokenRepository;
 import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.ApplicantVerificationCodeGenerator;
@@ -65,6 +68,7 @@ public class ApplicantAuthServiceTest {
     @Mock private ApplicantAgreementRepository applicantAgreementRepository;
     @Mock private ApplicantEmailVerificationRepository emailVerificationRepository;
     @Mock private ApplicantSignupTokenRepository signupTokenRepository;
+    @Mock private ApplicantPasswordReauthTokenRepository passwordReauthTokenRepository;
     @Mock private ApplicantVerificationCodeGenerator codeGenerator;
     @Mock private EmailVerificationService emailVerificationService;
     @Mock private PasswordEncoder passwordEncoder;
@@ -874,10 +878,70 @@ public class ApplicantAuthServiceTest {
         verify(passwordEncoder, never()).encode(anyString());
     }
 
+    // ----------- verifyCurrentPassword -----------
+
+    @Test
+    @DisplayName("verifyCurrentPassword: 현재 비밀번호가 일치하면 재인증 토큰을 발급하고 비밀번호는 변경하지 않는다")
+    void verifyCurrentPassword_success() {
+        // given
+        String publicId = "uuid-applicant-9";
+        Applicant applicant = Applicant.builder()
+                .email("me@test.com")
+                .password("encoded-old")
+                .role(UserRole.APPLICANT)
+                .publicId(publicId)
+                .status(ApplicantStatus.ACTIVE)
+                .build();
+        ReflectionTestUtils.setField(applicant, "applicantId", 9L);
+
+        ApplicantPasswordVerifyRequestDTO request = new ApplicantPasswordVerifyRequestDTO("OldPass1234!");
+        given(applicantProvider.findByPublicId(publicId)).willReturn(applicant);
+        given(passwordEncoder.matches("OldPass1234!", "encoded-old")).willReturn(true);
+
+        // when
+        ApplicantPasswordVerifyResponseDTO response = applicantAuthService.verifyCurrentPassword(publicId, request);
+
+        // then
+        assertThat(response.reauthToken()).isNotBlank();
+        verify(passwordEncoder).matches("OldPass1234!", "encoded-old");
+        verify(passwordReauthTokenRepository).save(eq(response.reauthToken()), eq(publicId), any(Duration.class));
+        verify(passwordEncoder, never()).encode(anyString());
+        assertThat(applicant.getPassword()).isEqualTo("encoded-old");
+        verify(tokenVersionRepository, never()).increaseVersion(anyString(), any(UserRole.class));
+        verify(refreshTokenRepository, never()).deleteByPublicId(anyString(), any(UserRole.class));
+    }
+
+    @Test
+    @DisplayName("verifyCurrentPassword: 현재 비밀번호가 일치하지 않으면 INVALID_CURRENT_PASSWORD 예외 (토큰 발급 없음)")
+    void verifyCurrentPassword_wrongCurrentPassword_throwsInvalidCurrentPassword() {
+        // given
+        String publicId = "uuid-applicant-9";
+        Applicant applicant = Applicant.builder()
+                .email("me@test.com")
+                .password("encoded-old")
+                .role(UserRole.APPLICANT)
+                .publicId(publicId)
+                .status(ApplicantStatus.ACTIVE)
+                .build();
+        ReflectionTestUtils.setField(applicant, "applicantId", 9L);
+
+        ApplicantPasswordVerifyRequestDTO request = new ApplicantPasswordVerifyRequestDTO("WrongOld1!");
+        given(applicantProvider.findByPublicId(publicId)).willReturn(applicant);
+        given(passwordEncoder.matches("WrongOld1!", "encoded-old")).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.verifyCurrentPassword(publicId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getCode())
+                .isEqualTo(ErrorCode.INVALID_CURRENT_PASSWORD);
+
+        verify(passwordReauthTokenRepository, never()).save(anyString(), anyString(), any(Duration.class));
+    }
+
     // ----------- changeMyPassword -----------
 
     @Test
-    @DisplayName("changeMyPassword: 현재 비밀번호가 일치하면 새 비밀번호를 인코딩해 갱신하고 기존 세션/토큰을 무효화한다")
+    @DisplayName("changeMyPassword: 재인증 토큰을 소비하고 새 비밀번호를 인코딩해 갱신한 뒤 기존 세션/토큰을 무효화한다")
     void changeMyPassword_success() {
         // given
         String publicId = "uuid-applicant-9";
@@ -891,17 +955,17 @@ public class ApplicantAuthServiceTest {
         ReflectionTestUtils.setField(applicant, "applicantId", 9L);
 
         ApplicantPasswordUpdateRequestDTO request = new ApplicantPasswordUpdateRequestDTO(
-                "OldPass1234!", "Pass1234!", "Pass1234!"
+                "reauth-token", "Pass1234!", "Pass1234!"
         );
+        given(passwordReauthTokenRepository.findAndDelete("reauth-token")).willReturn(Optional.of(publicId));
         given(applicantProvider.findByPublicId(publicId)).willReturn(applicant);
-        given(passwordEncoder.matches("OldPass1234!", "encoded-old")).willReturn(true);
         given(passwordEncoder.encode("Pass1234!")).willReturn("encoded-new");
 
         // when
         applicantAuthService.changeMyPassword(publicId, request);
 
         // then
-        verify(passwordEncoder).matches("OldPass1234!", "encoded-old");
+        verify(passwordReauthTokenRepository).findAndDelete("reauth-token");
         verify(passwordEncoder).encode("Pass1234!");
         assertThat(applicant.getPassword()).isEqualTo("encoded-new");
         verify(tokenVersionRepository).increaseVersion(publicId, UserRole.APPLICANT);
@@ -909,43 +973,55 @@ public class ApplicantAuthServiceTest {
     }
 
     @Test
-    @DisplayName("changeMyPassword: 현재 비밀번호가 일치하지 않으면 INVALID_CURRENT_PASSWORD 예외 (인코딩/갱신 없음)")
-    void changeMyPassword_wrongCurrentPassword_throwsInvalidCurrentPassword() {
+    @DisplayName("changeMyPassword: 재인증 토큰이 만료/존재하지 않으면 INVALID_PASSWORD_REAUTH_TOKEN 예외 (인코딩/갱신 없음)")
+    void changeMyPassword_reauthTokenNotFound_throwsInvalidReauthToken() {
         // given
         String publicId = "uuid-applicant-9";
-        Applicant applicant = Applicant.builder()
-                .email("me@test.com")
-                .password("encoded-old")
-                .role(UserRole.APPLICANT)
-                .publicId(publicId)
-                .status(ApplicantStatus.ACTIVE)
-                .build();
-        ReflectionTestUtils.setField(applicant, "applicantId", 9L);
-
         ApplicantPasswordUpdateRequestDTO request = new ApplicantPasswordUpdateRequestDTO(
-                "WrongOld1!", "Pass1234!", "Pass1234!"
+                "expired-token", "Pass1234!", "Pass1234!"
         );
-        given(applicantProvider.findByPublicId(publicId)).willReturn(applicant);
-        given(passwordEncoder.matches("WrongOld1!", "encoded-old")).willReturn(false);
+        given(passwordReauthTokenRepository.findAndDelete("expired-token")).willReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> applicantAuthService.changeMyPassword(publicId, request))
                 .isInstanceOf(BusinessException.class)
                 .extracting(ex -> ((BusinessException) ex).getCode())
-                .isEqualTo(ErrorCode.INVALID_CURRENT_PASSWORD);
+                .isEqualTo(ErrorCode.INVALID_PASSWORD_REAUTH_TOKEN);
 
+        verify(applicantProvider, never()).findByPublicId(anyString());
         verify(passwordEncoder, never()).encode(anyString());
-        assertThat(applicant.getPassword()).isEqualTo("encoded-old");
         verify(tokenVersionRepository, never()).increaseVersion(anyString(), any(UserRole.class));
         verify(refreshTokenRepository, never()).deleteByPublicId(anyString(), any(UserRole.class));
     }
 
     @Test
-    @DisplayName("changeMyPassword: 새 비밀번호와 확인값이 다르면 PASSWORD_CONFIRM_NOT_MATCH 예외 (대상 조회 이전 차단)")
+    @DisplayName("changeMyPassword: 재인증 토큰의 대상이 현재 세션과 다르면 INVALID_PASSWORD_REAUTH_TOKEN 예외 (인코딩/갱신 없음)")
+    void changeMyPassword_reauthTokenPublicIdMismatch_throwsInvalidReauthToken() {
+        // given
+        String publicId = "uuid-applicant-9";
+        ApplicantPasswordUpdateRequestDTO request = new ApplicantPasswordUpdateRequestDTO(
+                "reauth-token", "Pass1234!", "Pass1234!"
+        );
+        given(passwordReauthTokenRepository.findAndDelete("reauth-token")).willReturn(Optional.of("uuid-other-user"));
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.changeMyPassword(publicId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting(ex -> ((BusinessException) ex).getCode())
+                .isEqualTo(ErrorCode.INVALID_PASSWORD_REAUTH_TOKEN);
+
+        verify(applicantProvider, never()).findByPublicId(anyString());
+        verify(passwordEncoder, never()).encode(anyString());
+        verify(tokenVersionRepository, never()).increaseVersion(anyString(), any(UserRole.class));
+        verify(refreshTokenRepository, never()).deleteByPublicId(anyString(), any(UserRole.class));
+    }
+
+    @Test
+    @DisplayName("changeMyPassword: 새 비밀번호와 확인값이 다르면 PASSWORD_CONFIRM_NOT_MATCH 예외 (토큰 소비 이전 차단)")
     void changeMyPassword_confirmMismatch_throwsPasswordConfirmNotMatch() {
         // given
         ApplicantPasswordUpdateRequestDTO request = new ApplicantPasswordUpdateRequestDTO(
-                "OldPass1234!", "Pass1234!", "Different1!"
+                "reauth-token", "Pass1234!", "Different1!"
         );
 
         // when & then
@@ -954,6 +1030,7 @@ public class ApplicantAuthServiceTest {
                 .extracting(ex -> ((BusinessException) ex).getCode())
                 .isEqualTo(ErrorCode.PASSWORD_CONFIRM_NOT_MATCH);
 
+        verify(passwordReauthTokenRepository, never()).findAndDelete(anyString());
         verify(applicantProvider, never()).findByPublicId(anyString());
         verify(passwordEncoder, never()).encode(anyString());
     }

@@ -8,9 +8,11 @@ import com.weiver.auth.dto.request.ApplicantEmailVerifyRequestDTO;
 import com.weiver.auth.dto.request.ApplicantLoginRequestDTO;
 import com.weiver.auth.dto.request.ApplicantPasswordChangeRequestDTO;
 import com.weiver.auth.dto.request.ApplicantPasswordUpdateRequestDTO;
+import com.weiver.auth.dto.request.ApplicantPasswordVerifyRequestDTO;
 import com.weiver.auth.dto.request.ApplicantSignupCompleteRequestDTO;
 import com.weiver.auth.dto.request.ApplicantSignupInitRequestDTO;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
+import com.weiver.auth.dto.response.ApplicantPasswordVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
 import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
@@ -427,7 +429,79 @@ public class ApplicantAuthControllerTest {
     }
 
     @Test
-    @DisplayName("로그인 상태 비밀번호 변경 성공 시 200 응답")
+    @DisplayName("로그인 상태 비밀번호 재인증(1단계) 성공 시 200 응답")
+    public void verifyMyPassword_success() throws Exception {
+        // given
+        String publicId = "uuid-applicant-1";
+        AuthenticatedPrincipal principal = new AuthenticatedPrincipal(publicId, UserRole.APPLICANT);
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                principal, null, List.of(new SimpleGrantedAuthority("ROLE_APPLICANT"))
+        );
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        ApplicantPasswordVerifyRequestDTO request = new ApplicantPasswordVerifyRequestDTO("OldPass1234!");
+        when(applicantAuthService.verifyCurrentPassword(eq(publicId), any(ApplicantPasswordVerifyRequestDTO.class)))
+                .thenReturn(new ApplicantPasswordVerifyResponseDTO("reauth-token"));
+
+        try {
+            // when & then
+            mockMvc.perform(post("/api/auth/applicants/me/password/verify")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.code").value(200))
+                    .andExpect(jsonPath("$.data.reauthToken").value("reauth-token"))
+                    .andExpect(jsonPath("$.message").value("현재 비밀번호 확인에 성공했습니다."));
+
+            verify(applicantAuthService).verifyCurrentPassword(eq(publicId), any(ApplicantPasswordVerifyRequestDTO.class));
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("엣지 케이스: 로그인 상태 비밀번호 재인증(1단계) 시 현재 비밀번호 불일치면 400 INVALID_CURRENT_PASSWORD")
+    public void verifyMyPassword_invalidCurrentPassword() throws Exception {
+        // given
+        String publicId = "uuid-applicant-1";
+        AuthenticatedPrincipal principal = new AuthenticatedPrincipal(publicId, UserRole.APPLICANT);
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                principal, null, List.of(new SimpleGrantedAuthority("ROLE_APPLICANT"))
+        );
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        ApplicantPasswordVerifyRequestDTO request = new ApplicantPasswordVerifyRequestDTO("WrongOld1!");
+        doThrow(new BusinessException(ErrorCode.INVALID_CURRENT_PASSWORD))
+                .when(applicantAuthService).verifyCurrentPassword(eq(publicId), any(ApplicantPasswordVerifyRequestDTO.class));
+
+        try {
+            // when & then
+            mockMvc.perform(post("/api/auth/applicants/me/password/verify")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(objectMapper.writeValueAsString(request)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.errorCode").value("INVALID_CURRENT_PASSWORD"));
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    @DisplayName("엣지 케이스: 로그인 상태 비밀번호 재인증(1단계) 시 미인증이면 401 UNAUTHORIZED")
+    public void verifyMyPassword_unauthorized() throws Exception {
+        // given
+        ApplicantPasswordVerifyRequestDTO request = new ApplicantPasswordVerifyRequestDTO("OldPass1234!");
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/me/password/verify")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
+    }
+
+    @Test
+    @DisplayName("로그인 상태 비밀번호 변경(2단계) 성공 시 200 응답")
     public void changeMyPassword_success() throws Exception {
         // given
         String publicId = "uuid-applicant-1";
@@ -438,7 +512,7 @@ public class ApplicantAuthControllerTest {
         SecurityContextHolder.getContext().setAuthentication(auth);
 
         ApplicantPasswordUpdateRequestDTO request = new ApplicantPasswordUpdateRequestDTO(
-                "OldPass1234!", "Pass1234!", "Pass1234!"
+                "reauth-token", "Pass1234!", "Pass1234!"
         );
 
         try {
@@ -457,11 +531,11 @@ public class ApplicantAuthControllerTest {
     }
 
     @Test
-    @DisplayName("엣지 케이스: 로그인 상태 비밀번호 변경 시 미인증이면 401 UNAUTHORIZED")
+    @DisplayName("엣지 케이스: 로그인 상태 비밀번호 변경(2단계) 시 미인증이면 401 UNAUTHORIZED")
     public void changeMyPassword_unauthorized() throws Exception {
         // given
         ApplicantPasswordUpdateRequestDTO request = new ApplicantPasswordUpdateRequestDTO(
-                "OldPass1234!", "Pass1234!", "Pass1234!"
+                "reauth-token", "Pass1234!", "Pass1234!"
         );
 
         // when & then
@@ -473,7 +547,7 @@ public class ApplicantAuthControllerTest {
     }
 
     @Test
-    @DisplayName("엣지 케이스: 로그인 상태 비밀번호 변경 시 비밀번호 복잡도 미달 -> 400 VALIDATION_FAILED")
+    @DisplayName("엣지 케이스: 로그인 상태 비밀번호 변경(2단계) 시 비밀번호 복잡도 미달 -> 400 VALIDATION_FAILED")
     public void changeMyPassword_weakPassword() throws Exception {
         // given
         String publicId = "uuid-applicant-1";
@@ -485,7 +559,7 @@ public class ApplicantAuthControllerTest {
 
         // 영문만, 숫자/특수문자 없음
         ApplicantPasswordUpdateRequestDTO request = new ApplicantPasswordUpdateRequestDTO(
-                "OldPass1234!", "onlyletters", "onlyletters"
+                "reauth-token", "onlyletters", "onlyletters"
         );
 
         try {
