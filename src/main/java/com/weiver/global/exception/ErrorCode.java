@@ -93,6 +93,11 @@ public enum ErrorCode {
     // ===================== ANALYSIS =====================
     DETAIL_ANALYSIS_REPORT_NOT_FOUND("DETAIL_ANALYSIS_REPORT_NOT_FOUND", HttpStatus.NOT_FOUND, "상세 분석 리포트를 찾을 수 없습니다."),
 
+    // ===================== SPEECH =====================
+    SPEECH_PROVIDER_RATE_LIMITED("SPEECH_PROVIDER_RATE_LIMITED", HttpStatus.TOO_MANY_REQUESTS, "음성 처리 요청 한도를 초과했습니다. 잠시 후 다시 시도해 주세요."),
+    SPEECH_TRANSCRIPTION_FAILED("SPEECH_TRANSCRIPTION_FAILED", HttpStatus.BAD_GATEWAY, "음성 인식에 실패했습니다. 다시 시도해 주세요."),
+    SPEECH_SYNTHESIS_FAILED("SPEECH_SYNTHESIS_FAILED", HttpStatus.BAD_GATEWAY, "음성 합성에 실패했습니다."),
+
     // ===================== SERVER =====================
     BAD_REQUEST("BAD_REQUEST", HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
     INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", HttpStatus.INTERNAL_SERVER_ERROR, "서버 오류가 발생했습니다."),
