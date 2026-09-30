@@ -115,8 +115,8 @@ public class GeminiSpeechSynthesizer implements SpeechSynthesizer {
                     PROVIDER, tts.model(), elapsedMs(startedAt));
         } else {
             // 5xx·타임아웃·요청/인증 오류(400·401·403)는 모두 log.error(Sentry). 응답 본문은 남기지 않는다.
-            log.error("[Speech] TTS 실패. provider={}, model={}, elapsedMs={}, reason={}, errorType={}, fallback=true",
-                    PROVIDER, tts.model(), elapsedMs(startedAt), failure.reason(), e.getClass().getSimpleName());
+            log.error("[Speech] TTS 실패. provider={}, model={}, elapsedMs={}, reason={}, errorType={}, causeType={}, fallback=true",
+                    PROVIDER, tts.model(), elapsedMs(startedAt), failure.reason(), e.getClass().getSimpleName(), failure.causeType());
         }
         return new BusinessException(ErrorCode.SPEECH_SYNTHESIS_FAILED);
     }

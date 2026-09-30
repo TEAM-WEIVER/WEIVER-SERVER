@@ -104,8 +104,8 @@ public class GroqSpeechTranscriber implements SpeechTranscriber {
             return new BusinessException(ErrorCode.SPEECH_PROVIDER_RATE_LIMITED);
         }
         // 5xx·타임아웃·요청/인증 오류(400·401·403)는 모두 log.error(Sentry). 응답 본문은 남기지 않는다.
-        log.error("[Speech] STT 실패. provider={}, model={}, elapsedMs={}, audioBytes={}, reason={}, errorType={}, fallback=false",
-                PROVIDER, stt.model(), elapsedMs(startedAt), audioBytes, failure.reason(), e.getClass().getSimpleName());
+        log.error("[Speech] STT 실패. provider={}, model={}, elapsedMs={}, audioBytes={}, reason={}, errorType={}, causeType={}, fallback=false",
+                PROVIDER, stt.model(), elapsedMs(startedAt), audioBytes, failure.reason(), e.getClass().getSimpleName(), failure.causeType());
         return new BusinessException(ErrorCode.SPEECH_TRANSCRIPTION_FAILED);
     }
 
