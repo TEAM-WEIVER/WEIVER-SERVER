@@ -90,6 +90,7 @@ class InterviewFlowServiceTest {
     @Spy private CulturefitAxisService culturefitAxisService = new CulturefitAxisService();
     @Mock private DomainEventPublisher domainEventPublisher;
     @Mock private SimpMessagingTemplate messagingTemplate;
+    @Mock private InterviewQuestionVoiceService interviewQuestionVoiceService;
 
     @Test
     @DisplayName("면접 시작 시 새 세션을 만들고 첫 질문 생성 요청 이벤트를 발행한다")
@@ -304,6 +305,43 @@ class InterviewFlowServiceTest {
 
         assertThat(session.getTranscript()).hasSize(1);
         verifyNoInteractions(domainEventPublisher);
+        verifyNoInteractions(interviewQuestionVoiceService);
+    }
+
+    @Test
+    @DisplayName("새 질문이 생성되면 transcript에 append하고 QUESTION_READY 상태로 바꾼 뒤 TTS 작업을 위임한다")
+    void handleQuestionGenerated_AppendsQuestionAndDispatchesVoice() {
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = session(sessionId, applicant, InterviewSessionStatus.WAITING_FOR_QUESTION,
+                List.of(new InterviewTurnDTO("S_01_00", 1, "첫 질문", "첫 답변")));
+
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        interviewFlowService.handleQuestionGenerated(new InterviewQuestionGeneratedData(
+                1L,
+                sessionId,
+                "S_02_00",
+                2,
+                "Kafka를 선택한 이유가 무엇인가요?"
+        ));
+
+        assertThat(session.getSessionStatus()).isEqualTo(InterviewSessionStatus.QUESTION_READY);
+        assertThat(session.getTranscript()).hasSize(2);
+
+        ArgumentCaptor<InterviewQuestionVoiceService.QuestionVoiceCommand> commandCaptor =
+                ArgumentCaptor.forClass(InterviewQuestionVoiceService.QuestionVoiceCommand.class);
+        verify(interviewQuestionVoiceService).dispatch(commandCaptor.capture());
+
+        InterviewQuestionVoiceService.QuestionVoiceCommand command = commandCaptor.getValue();
+        assertThat(command.interviewSessionId()).isEqualTo(sessionId);
+        assertThat(command.applicantPublicId()).isEqualTo(APPLICANT_PUBLIC_ID);
+        assertThat(command.questionCode()).isEqualTo("S_02_00");
+        assertThat(command.sequence()).isEqualTo(2);
+        assertThat(command.question()).isEqualTo("Kafka를 선택한 이유가 무엇인가요?");
+
+        // QUESTION_READY는 TTS 서비스가 푸시하므로 여기서 직접 보내지 않는다.
+        verifyNoInteractions(messagingTemplate);
     }
 
     @Test
@@ -330,6 +368,7 @@ class InterviewFlowServiceTest {
         assertThat(session.getSessionStatus()).isEqualTo(InterviewSessionStatus.FINISHED);
         assertThat(session.getTranscript()).hasSize(3);
         verifyNoInteractions(domainEventPublisher);
+        verifyNoInteractions(interviewQuestionVoiceService);
 
         ArgumentCaptor<InterviewWebSocketMessageResponse> messageCaptor =
                 ArgumentCaptor.forClass(InterviewWebSocketMessageResponse.class);
