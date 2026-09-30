@@ -31,6 +31,7 @@ import com.weiver.interview.event.dto.InterviewReportRequestedData;
 import com.weiver.interview.event.dto.InterviewTranscriptSaveRequestedData;
 import com.weiver.interview.event.dto.InterviewTranscriptSavedData;
 import com.weiver.interview.repository.InterviewSessionRepository;
+import com.weiver.interview.service.InterviewQuestionVoiceService.QuestionVoiceCommand;
 import com.weiver.interview.type.InterviewSessionStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -65,6 +66,7 @@ public class InterviewFlowService {
     private final CulturefitAxisService culturefitAxisService;
     private final DomainEventPublisher domainEventPublisher;
     private final SimpMessagingTemplate messagingTemplate;
+    private final InterviewQuestionVoiceService interviewQuestionVoiceService;
 
     /**
      * 새 면접 세션을 만들고 첫 질문 생성 요청 이벤트를 발행한다.
@@ -127,9 +129,11 @@ public class InterviewFlowService {
     }
 
     /**
-     * AI가 생성한 질문을 transcript에 멱등 append하고, 종료 질문이면 transcript 저장 요청으로 이어간다.
+     * AI가 생성한 질문을 transcript에 멱등 append하고, 종료 질문이면 종료 처리한다.
+     * 일반 질문은 커밋 후 TTS 작업을 전용 스레드풀에 넘기며, QUESTION_READY(텍스트 + 음성)는 그쪽에서 푸시한다.
      */
     public void handleQuestionGenerated(InterviewQuestionGeneratedData data) {
+        long receivedAtNanos = System.nanoTime();
         validateQuestionGenerated(data);
 
         InterviewSession session = getSession(data.interviewSessionId());
@@ -146,7 +150,7 @@ public class InterviewFlowService {
 
         if (isEndQuestion(data.nextQuestionCode())) {
             // 면접 Q&A 종료 표시까지만. 실제 제출(transcript 저장 요청)은 구직자가
-            // requestAnalysis로 직접 요청할 때 시작한다.
+            // requestAnalysis로 직접 요청할 때 시작한다. 종료 질문은 TTS 대상이 아니다.
             session.updateStatus(InterviewSessionStatus.FINISHED);
             sendInterviewMessage(
                     session,
@@ -156,14 +160,18 @@ public class InterviewFlowService {
         }
 
         session.updateStatus(InterviewSessionStatus.QUESTION_READY);
-        sendInterviewMessage(
-                session,
-                InterviewWebSocketMessageResponse.questionReady(
-                        session.getInterviewSessionId(),
-                        session.getSessionStatus(),
-                        session.getTranscript().get(session.getTranscript().size() - 1)
-                )
+
+        InterviewTurnDTO question = session.getTranscript().get(session.getTranscript().size() - 1);
+        QuestionVoiceCommand command = new QuestionVoiceCommand(
+                session.getInterviewSessionId(),
+                session.getApplicant().getPublicId(),
+                question.questionCode(),
+                question.sequence(),
+                question.question(),
+                receivedAtNanos
         );
+        // 커밋된 뒤에 TTS를 시작한다. 트랜잭션·리스너 스레드 안에서는 TTS를 부르지 않는다.
+        runAfterCommit(() -> interviewQuestionVoiceService.dispatch(command));
     }
 
     /**
@@ -409,22 +417,27 @@ public class InterviewFlowService {
      */
     private void sendInterviewMessage(InterviewSession session, InterviewWebSocketMessageResponse response) {
         String applicantPublicId = session.getApplicant().getPublicId();
-        Runnable sender = () -> messagingTemplate.convertAndSendToUser(
+        runAfterCommit(() -> messagingTemplate.convertAndSendToUser(
                 applicantPublicId,
                 "/queue/interviews",
                 response
-        );
+        ));
+    }
 
+    /**
+     * 트랜잭션이 있으면 커밋 후에, 없으면 즉시 실행한다.
+     */
+    private void runAfterCommit(Runnable action) {
         if (!TransactionSynchronizationManager.isActualTransactionActive()
                 || !TransactionSynchronizationManager.isSynchronizationActive()) {
-            sender.run();
+            action.run();
             return;
         }
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                sender.run();
+                action.run();
             }
         });
     }
