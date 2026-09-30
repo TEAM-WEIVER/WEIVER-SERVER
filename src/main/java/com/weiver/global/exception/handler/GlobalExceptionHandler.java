@@ -23,6 +23,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -33,6 +34,8 @@ import java.util.List;
 @RestControllerAdvice
 @RequiredArgsConstructor
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
+
+    private static final String AUDIO_ANSWER_PATH_SUFFIX = "/answers/audio";
 
     private final CookieProvider cookieProvider;
 
@@ -179,6 +182,23 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             WebRequest request) {
 
         return toResponseObject(ErrorCode.UNSUPPORTED_MEDIA_TYPE, getPath(request), List.of());
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
+
+        String path = getPath(request);
+        log.warn("[MaxUploadSizeExceeded] maxUploadSize={}, path={}", ex.getMaxUploadSize(), path);
+
+        // 답변 녹음 업로드만 전용 에러 코드를 내려주고, 다른 업로드는 기존처럼 413 상태코드로만 응답한다.
+        if (path.endsWith(AUDIO_ANSWER_PATH_SUFFIX)) {
+            return toResponseObject(ErrorCode.INTERVIEW_ANSWER_AUDIO_TOO_LARGE, path, List.of());
+        }
+        return toResponseObject(status, path, List.of());
     }
 
     @Override
