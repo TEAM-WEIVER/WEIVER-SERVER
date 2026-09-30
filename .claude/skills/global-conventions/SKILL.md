@@ -18,7 +18,7 @@ Java 21 · Spring Boot 3.5.13 · Gradle · PostgreSQL 15 · Redis 7 · RabbitMQ 
 
 ```
 com.weiver.<context>.<layer>[.<sub>]     ← 컨텍스트 (controller/service/domain/dto/repository/event/type)
-com.weiver.global.<area>[.<sub>]         ← 공통 기반 (common/exception/event/security/auth/s3/email/logging/config)
+com.weiver.global.<area>[.<sub>]         ← 공통 기반 (common/exception/event/security/auth/s3/email/speech/logging/config)
 ```
 
 > `com.weiver.domain.<context>` 같은 묶음 디렉터리는 **없다.** 컨텍스트는 `com.weiver` 바로 아래다.
@@ -232,7 +232,26 @@ public class BusinessException extends RuntimeException {
     실패 시 `EMAIL_SEND_FAILED`.
   - `LoggingEmailSender` — 비-prod 대체(로그만).
 - `email/config`(`ResendConfig`, `ResendProperties`), `email/dto`(`EmailSendRequest` record — `ofText`/`ofHtml`).
-- **WebClient는 이메일 전용**이다. `global/config`에 `WebClientConfig`는 없다.
+- **WebClient는 외부 공급자 연동(이메일 Resend, 음성 Groq·Gemini)에서만 쓴다.** 공급자마다 자기 영역(`email/config`,
+  `speech/config`)에서 `WebClient` 빈을 만들며, `global/config`에 공용 `WebClientConfig`는 없다. 빈이 여럿이므로
+  주입할 때는 빈 이름으로 구분한다(`@Qualifier`).
+
+---
+
+## 7.1 음성 STT·TTS (`global/speech`)
+
+이메일과 같은 모양(인터페이스 + 공급자 구현 + 대체 구현)이다.
+
+- `SpeechTranscriber`(STT) ← `GroqSpeechTranscriber`, `SpeechSynthesizer`(TTS) ← `GeminiSpeechSynthesizer`.
+  둘 다 `@Profile("prod")`. 비-prod 대체는 `FakeSpeechTranscriber`·`FakeSpeechSynthesizer`(`@Profile("!prod")`).
+- `speech/config`(`SpeechConfig` — WebClient 빈 `groqWebClient`·`geminiWebClient`, `SpeechProperties` — `weiver.speech.*`),
+  `speech/dto`(`Transcription`, `SynthesizedAudio` 등).
+- 모델·보이스·스타일·언어·타임아웃·스레드풀·API 키는 모두 `weiver.speech.*` 프로퍼티로 주입한다. 코드에 하드코딩하지 않는다.
+- API 키는 환경변수(`GROQ_API_KEY`, `GEMINI_API_KEY`)로 주입하고 **헤더로 전달**한다. URL·로그·예외 메시지에 남기지 않는다.
+  키가 비어 있어도 서버는 기동하며, 이 경우 외부 호출 없이 바로 실패 처리한다.
+- 실패는 `BusinessException`으로 던진다: STT는 `SPEECH_PROVIDER_RATE_LIMITED`(429)·`SPEECH_TRANSCRIPTION_FAILED`(502),
+  TTS는 `SPEECH_SYNTHESIS_FAILED`(호출자가 텍스트만 푸시로 폴백). 응답 본문·transcript·질문 원문은 로그에 남기지 않는다.
+- 호출은 **DB 트랜잭션 밖**에서 한다. 서버 자동 재시도·서킷 브레이커는 없다(정책 미확정).
 
 ---
 
