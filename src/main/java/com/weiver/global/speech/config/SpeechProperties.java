@@ -53,7 +53,9 @@ public record SpeechProperties(
     public record Executor(
             @Positive @DefaultValue("4") int coreSize,
             @Positive @DefaultValue("8") int maxSize,
-            @PositiveOrZero @DefaultValue("50") int queueCapacity
+            @PositiveOrZero @DefaultValue("50") int queueCapacity,
+            // 대기열에서 이 시간 넘게 기다린 작업은 TTS를 건너뛰고 텍스트만 푸시한다.
+            @NotNull @DefaultValue("5s") Duration maxQueueWait
     ) {
     }
 }

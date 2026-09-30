@@ -22,7 +22,7 @@ public final class SpeechTestProperties {
                 120, Duration.ofSeconds(5), List.of("audio/webm", "audio/ogg", "audio/mp4"), timeout);
         SpeechProperties.Tts tts = new SpeechProperties.Tts(
                 baseUrl, apiKey, TTS_MODEL, "Charon", "calm and professional", timeout,
-                "interview-tts", new SpeechProperties.Executor(4, 8, 50));
+                "interview-tts", new SpeechProperties.Executor(4, 8, 50, Duration.ofSeconds(5)));
         return new SpeechProperties(stt, tts);
     }
 }
