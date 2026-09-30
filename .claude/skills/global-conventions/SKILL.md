@@ -252,6 +252,10 @@ public class BusinessException extends RuntimeException {
 - 실패는 `BusinessException`으로 던진다: STT는 `SPEECH_PROVIDER_RATE_LIMITED`(429)·`SPEECH_TRANSCRIPTION_FAILED`(502),
   TTS는 `SPEECH_SYNTHESIS_FAILED`(호출자가 텍스트만 푸시로 폴백). 응답 본문·transcript·질문 원문은 로그에 남기지 않는다.
 - 호출은 **DB 트랜잭션 밖**에서 한다. 서버 자동 재시도·서킷 브레이커는 없다(정책 미확정).
+- TTS는 RabbitMQ 리스너 스레드가 아닌 전용 스레드풀 `SpeechTtsExecutor`(`speech/config`)에서 실행한다. 크기·대기열·대기 한도는
+  `weiver.speech.tts.executor.*`이며, 가득 차거나 대기 한도를 넘으면 텍스트만 보낸다. **`java.util.concurrent.Executor`를
+  구현하는 빈으로 만들지 않는다** — `Executor` 빈이 있으면 Spring Boot 기본 `applicationTaskExecutor`가 사라져
+  이후 `@Async`가 이 풀을 대신 쓴다.
 
 ---
 
