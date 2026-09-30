@@ -129,6 +129,43 @@ public class InterviewFlowService {
     }
 
     /**
+     * 답변 녹음을 외부 STT로 보내기 전에, 이 질문에 지금 답변할 수 있는지 먼저 검증한다(읽기 전용).
+     * 불필요한 외부 호출을 막기 위한 사전 검증이며, 실제 반영 시 {@link #submitAnswer}가 다시 검증한다.
+     *
+     * @throws BusinessException 타인 세션({@link ErrorCode#FORBIDDEN}), 종료된 세션({@link ErrorCode#INTERVIEW_ALREADY_COMPLETED}),
+     *                           질문 대기 상태가 아님({@link ErrorCode#INTERVIEW_QUESTION_NOT_READY}),
+     *                           대상 질문이 없거나 이미 답변함({@link ErrorCode#BAD_REQUEST})
+     */
+    @Transactional(readOnly = true)
+    public void validateAnswerTarget(
+            UUID interviewSessionId,
+            String applicantPublicId,
+            String questionCode,
+            Integer sequence
+    ) {
+        InterviewSession session = getSessionForApplicant(interviewSessionId, applicantPublicId);
+        InterviewSessionStatus status = session.getSessionStatus();
+
+        if (isAnswerClosed(status)) {
+            throw new BusinessException(ErrorCode.INTERVIEW_ALREADY_COMPLETED);
+        }
+        if (status != InterviewSessionStatus.QUESTION_READY) {
+            throw new BusinessException(ErrorCode.INTERVIEW_QUESTION_NOT_READY);
+        }
+
+        InterviewTurnDTO target = session.getTranscript().stream()
+                .filter(Objects::nonNull)
+                .filter(turn -> Objects.equals(turn.questionCode(), questionCode)
+                        && Objects.equals(turn.sequence(), sequence))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.BAD_REQUEST, "답변 대상 질문을 찾을 수 없습니다."));
+
+        if (target.answer() != null) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "이미 답변한 질문입니다.");
+        }
+    }
+
+    /**
      * AI가 생성한 질문을 transcript에 멱등 append하고, 종료 질문이면 종료 처리한다.
      * 일반 질문은 커밋 후 TTS 작업을 전용 스레드풀에 넘기며, QUESTION_READY(텍스트 + 음성)는 그쪽에서 푸시한다.
      */

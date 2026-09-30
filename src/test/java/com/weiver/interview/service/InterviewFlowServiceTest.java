@@ -49,6 +49,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.assertj.core.api.Assertions.within;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -283,6 +284,76 @@ class InterviewFlowServiceTest {
 
         assertThat(session.getTranscript().get(0).answer()).isNull();
         verifyNoInteractions(domainEventPublisher);
+    }
+
+    @Test
+    @DisplayName("답변 사전 검증: 질문 대기 상태의 미답변 질문이면 통과한다")
+    void validateAnswerTarget_PassesForUnansweredQuestionInReadyState() {
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = session(sessionId, applicant(), InterviewSessionStatus.QUESTION_READY,
+                List.of(InterviewTurnDTO.questionOnly("S_01_00", 1, "첫 질문")));
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        assertThatNoException().isThrownBy(() ->
+                interviewFlowService.validateAnswerTarget(sessionId, APPLICANT_PUBLIC_ID, "S_01_00", 1));
+    }
+
+    @Test
+    @DisplayName("답변 사전 검증: 다른 지원자의 세션이면 FORBIDDEN 예외가 발생한다")
+    void validateAnswerTarget_RejectsOtherApplicantsSession() {
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = session(sessionId, applicant(), InterviewSessionStatus.QUESTION_READY,
+                List.of(InterviewTurnDTO.questionOnly("S_01_00", 1, "첫 질문")));
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        assertThatThrownBy(() -> interviewFlowService.validateAnswerTarget(sessionId, "other-public-id", "S_01_00", 1))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code").isEqualTo(ErrorCode.FORBIDDEN);
+    }
+
+    @Test
+    @DisplayName("답변 사전 검증: 종료·제출된 세션이면 INTERVIEW_ALREADY_COMPLETED 예외가 발생한다")
+    void validateAnswerTarget_RejectsClosedSession() {
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = session(sessionId, applicant(), InterviewSessionStatus.FINISHED,
+                List.of(new InterviewTurnDTO("S_01_00", 1, "첫 질문", "첫 답변")));
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        assertThatThrownBy(() -> interviewFlowService.validateAnswerTarget(sessionId, APPLICANT_PUBLIC_ID, "S_01_00", 1))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code").isEqualTo(ErrorCode.INTERVIEW_ALREADY_COMPLETED);
+    }
+
+    @Test
+    @DisplayName("답변 사전 검증: 질문 대기 상태가 아니면(이미 답변해 다음 질문 대기 중) INTERVIEW_QUESTION_NOT_READY 예외가 발생한다")
+    void validateAnswerTarget_RejectsWhenNotQuestionReady() {
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = session(sessionId, applicant(), InterviewSessionStatus.WAITING_FOR_QUESTION,
+                List.of(new InterviewTurnDTO("S_01_00", 1, "첫 질문", "첫 답변")));
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        assertThatThrownBy(() -> interviewFlowService.validateAnswerTarget(sessionId, APPLICANT_PUBLIC_ID, "S_01_00", 1))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code").isEqualTo(ErrorCode.INTERVIEW_QUESTION_NOT_READY);
+    }
+
+    @Test
+    @DisplayName("답변 사전 검증: 대상 질문(코드·sequence)이 없거나 이미 답변한 질문이면 BAD_REQUEST 예외가 발생한다")
+    void validateAnswerTarget_RejectsMissingOrAnsweredTurn() {
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = session(sessionId, applicant(), InterviewSessionStatus.QUESTION_READY,
+                List.of(
+                        new InterviewTurnDTO("S_01_00", 1, "첫 질문", "첫 답변"),
+                        InterviewTurnDTO.questionOnly("S_02_00", 2, "둘째 질문")
+                ));
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        assertThatThrownBy(() -> interviewFlowService.validateAnswerTarget(sessionId, APPLICANT_PUBLIC_ID, "S_02_00", 9))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code").isEqualTo(ErrorCode.BAD_REQUEST);
+        assertThatThrownBy(() -> interviewFlowService.validateAnswerTarget(sessionId, APPLICANT_PUBLIC_ID, "S_01_00", 1))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code").isEqualTo(ErrorCode.BAD_REQUEST);
     }
 
     @Test

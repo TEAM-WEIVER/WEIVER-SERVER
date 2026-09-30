@@ -5,8 +5,12 @@ import com.weiver.global.security.cookie.CookieProvider;
 import com.weiver.global.security.jwt.JwtAuthenticationFilter;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.principal.AuthenticatedPrincipal;
+import com.weiver.global.exception.BusinessException;
+import com.weiver.global.exception.ErrorCode;
 import com.weiver.interview.dto.response.InterviewAnalysisSubmitResponse;
+import com.weiver.interview.dto.response.InterviewAnswerAudioResponseDTO;
 import com.weiver.interview.dto.response.InterviewRemainingResponse;
+import com.weiver.interview.service.InterviewAnswerVoiceService;
 import com.weiver.interview.service.InterviewFlowService;
 import com.weiver.interview.service.InterviewSessionService;
 import org.junit.jupiter.api.AfterEach;
@@ -16,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -29,10 +34,14 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -49,6 +58,8 @@ class InterviewControllerTest {
     private InterviewSessionService interviewSessionService;
     @MockitoBean
     private InterviewFlowService interviewFlowService;
+    @MockitoBean
+    private InterviewAnswerVoiceService interviewAnswerVoiceService;
 
     @MockitoBean
     private JwtTokenProvider jwtTokenProvider;
@@ -142,5 +153,86 @@ class InterviewControllerTest {
                 .andDo(print())
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.errorCode").value("UNAUTHORIZED"));
+    }
+
+    // ===================== 답변 녹음 제출 =====================
+
+    private static final String AUDIO_URL = "/api/interviews/{id}/answers/audio";
+
+    private MockMultipartFile audioFile() {
+        return new MockMultipartFile("file", "answer.webm", "audio/webm;codecs=opus", "fake-audio".getBytes());
+    }
+
+    @Test
+    @DisplayName("답변 녹음 제출 성공 시 200과 세션 정보만 반환하고 인식 결과는 내려주지 않는다")
+    void submitAudioAnswer_Success() throws Exception {
+        // given
+        UUID sessionId = UUID.randomUUID();
+        given(interviewAnswerVoiceService.submitAudioAnswer(
+                eq(sessionId), eq("applicant-public-id"), eq("S_01_00"), eq(1), any()))
+                .willReturn(new InterviewAnswerAudioResponseDTO(sessionId, "WAITING_FOR_QUESTION", "S_01_00", 1));
+
+        // when & then
+        mockMvc.perform(multipart(AUDIO_URL, sessionId)
+                        .file(audioFile())
+                        .param("question_code", "S_01_00")
+                        .param("sequence", "1")
+                        .with(customAuth("applicant-public-id")))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.interview_session_id").value(sessionId.toString()))
+                .andExpect(jsonPath("$.data.status").value("WAITING_FOR_QUESTION"))
+                .andExpect(jsonPath("$.data.question_code").value("S_01_00"))
+                .andExpect(jsonPath("$.data.sequence").value(1))
+                .andExpect(jsonPath("$.data.answer").doesNotExist())
+                .andExpect(jsonPath("$.data.transcript").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("답변 녹음 제출 실패 경로는 HTTP 상태와 errorCode를 함께 반환한다")
+    void submitAudioAnswer_FailurePaths() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+        assertAudioFailure(sessionId, ErrorCode.INTERVIEW_ANSWER_AUDIO_INVALID, 400);
+        assertAudioFailure(sessionId, ErrorCode.INTERVIEW_ANSWER_TOO_LONG, 400);
+        assertAudioFailure(sessionId, ErrorCode.INTERVIEW_ANSWER_NOT_RECOGNIZED, 422);
+        assertAudioFailure(sessionId, ErrorCode.INTERVIEW_QUESTION_NOT_READY, 409);
+        assertAudioFailure(sessionId, ErrorCode.INTERVIEW_ALREADY_COMPLETED, 409);
+        assertAudioFailure(sessionId, ErrorCode.SPEECH_PROVIDER_RATE_LIMITED, 429);
+        assertAudioFailure(sessionId, ErrorCode.SPEECH_TRANSCRIPTION_FAILED, 502);
+    }
+
+    private void assertAudioFailure(UUID sessionId, ErrorCode errorCode, int httpStatus) throws Exception {
+        // 같은 mock에 예외를 반복 설정하므로 호출부가 예외를 던지지 않는 willThrow().given() 형태를 쓴다.
+        willThrow(new BusinessException(errorCode))
+                .given(interviewAnswerVoiceService).submitAudioAnswer(any(), any(), any(), any(), any());
+
+        mockMvc.perform(multipart(AUDIO_URL, sessionId)
+                        .file(audioFile())
+                        .param("question_code", "S_01_00")
+                        .param("sequence", "1")
+                        .with(customAuth("applicant-public-id")))
+                .andExpect(status().is(httpStatus))
+                .andExpect(jsonPath("$.errorCode").value(errorCode.name()));
+    }
+
+    @Test
+    @DisplayName("답변 녹음 제출 시 file 파트나 question_code·sequence가 없으면 400을 반환하고 서비스를 호출하지 않는다")
+    void submitAudioAnswer_MissingParts() throws Exception {
+        UUID sessionId = UUID.randomUUID();
+
+        mockMvc.perform(multipart(AUDIO_URL, sessionId)
+                        .param("question_code", "S_01_00")
+                        .param("sequence", "1")
+                        .with(customAuth("applicant-public-id")))
+                .andExpect(status().isBadRequest());
+
+        mockMvc.perform(multipart(AUDIO_URL, sessionId)
+                        .file(audioFile())
+                        .param("sequence", "1")
+                        .with(customAuth("applicant-public-id")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value(ErrorCode.BIND_FAILED.name()));
+
+        verifyNoInteractions(interviewAnswerVoiceService);
     }
 }

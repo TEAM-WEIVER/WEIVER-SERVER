@@ -2,6 +2,12 @@ spring:
   profiles:
     active: local
 
+  servlet:
+    multipart:
+      # 답변 녹음(120초, 약 2MB) 업로드 한도. 모든 multipart 업로드에 공통 적용된다.
+      max-file-size: 10MB
+      max-request-size: 11MB
+
   jpa:
     hibernate:
       ddl-auto: validate

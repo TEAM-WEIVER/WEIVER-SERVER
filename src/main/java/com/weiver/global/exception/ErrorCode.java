@@ -86,6 +86,11 @@ public enum ErrorCode {
     INTERVIEW_ANALYSIS_ALREADY_REQUESTED("INTERVIEW_ANALYSIS_ALREADY_REQUESTED", HttpStatus.CONFLICT, "이미 분석을 요청한 면접입니다."),
     INTERVIEW_COOLDOWN_NOT_EXPIRED("INTERVIEW_COOLDOWN_NOT_EXPIRED", HttpStatus.CONFLICT, "면접 재응시 가능 시점이 아닙니다."),
     INVALID_INTERVIEW_TYPE("INVALID_INTERVIEW_TYPE", HttpStatus.BAD_REQUEST, "잘못된 인터뷰 타입입니다."),
+    INTERVIEW_QUESTION_NOT_READY("INTERVIEW_QUESTION_NOT_READY", HttpStatus.CONFLICT, "답변할 수 있는 질문 상태가 아닙니다."),
+    INTERVIEW_ANSWER_AUDIO_INVALID("INTERVIEW_ANSWER_AUDIO_INVALID", HttpStatus.BAD_REQUEST, "답변 녹음 파일이 비어 있거나 지원하지 않는 형식입니다."),
+    INTERVIEW_ANSWER_AUDIO_TOO_LARGE("INTERVIEW_ANSWER_AUDIO_TOO_LARGE", HttpStatus.PAYLOAD_TOO_LARGE, "답변 녹음 파일이 허용된 크기를 초과했습니다."),
+    INTERVIEW_ANSWER_TOO_LONG("INTERVIEW_ANSWER_TOO_LONG", HttpStatus.BAD_REQUEST, "답변 녹음이 허용된 최대 시간을 초과했습니다."),
+    INTERVIEW_ANSWER_NOT_RECOGNIZED("INTERVIEW_ANSWER_NOT_RECOGNIZED", HttpStatus.UNPROCESSABLE_ENTITY, "음성이 인식되지 않았습니다. 다시 녹음해 주세요."),
 
     // ===================== MATCHING =====================
     MATCH_NOT_FOUND("MATCH_NOT_FOUND", HttpStatus.NOT_FOUND, "매칭 결과를 찾을 수 없습니다."),
