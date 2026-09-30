@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -43,7 +44,9 @@ public class S3Service {
 
             "doc", "docx", "xls", "xlsx", "ppt", "pptx",
 
-            "hwp", "hwpx"
+            "hwp", "hwpx",
+
+            "wav"
     );
 
     public String publicUpload(MultipartFile file, String dirName) {
@@ -52,6 +55,33 @@ public class S3Service {
 
     public String privateUpload(MultipartFile file, String dirName) {
         return uploadToS3(file, dirName, privateBucket);
+    }
+
+    /**
+     * 서버가 만든 바이트(예: TTS 질문 음성)를 private 버킷의 지정한 키에 저장하고 객체 URL을 돌려준다.
+     * Presigned URL은 반환된 URL로 {@link #getPresignedUrl(String)}을 호출해 만든다.
+     * 실패는 모두 BusinessException으로 변환한다(호출자가 폴백할 수 있도록).
+     */
+    public String privateUploadBytes(byte[] content, String objectKey, String contentType) {
+        if (content == null || content.length == 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "업로드할 파일이 없습니다.");
+        }
+        if (!StringUtils.hasText(contentType)) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "잘못된 파일 형식입니다.");
+        }
+        validateObjectKey(objectKey);
+        validateFileExtension(objectKey);
+
+        ObjectMetadata metadata = ObjectMetadata.builder()
+                .contentType(contentType)
+                .build();
+
+        try (InputStream inputStream = new ByteArrayInputStream(content)) {
+            return s3Template.upload(privateBucket, objectKey, inputStream, metadata).getURL().toString();
+        } catch (IOException | RuntimeException e) {
+            log.error("S3 바이트 업로드 실패. key={}, errorType={}", objectKey, e.getClass().getSimpleName());
+            throw new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR, "파일 업로드에 실패했습니다.");
+        }
     }
 
     public String getPresignedUrl(String fileUrl) {
@@ -119,6 +149,12 @@ public class S3Service {
         URL url = URI.create(fileUrl).toURL();
         String objectKey = url.getPath().substring(1);
         return URLDecoder.decode(objectKey, StandardCharsets.UTF_8);
+    }
+
+    private void validateObjectKey(String objectKey) {
+        if (!StringUtils.hasText(objectKey) || objectKey.startsWith("/") || objectKey.contains("..")) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "잘못된 파일 경로입니다.");
+        }
     }
 
     private void validateFileExtension(String originalFilename) {
