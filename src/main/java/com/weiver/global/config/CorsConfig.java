@@ -21,6 +21,8 @@ public class CorsConfig {
         CorsConfiguration corsConfiguration = new CorsConfiguration();
 
         corsConfiguration.setAllowedOrigins(List.of(
+                "https://www.weiverai.com",
+                "https://weiver.local.weiverai.com:3000",
                 "https://www.piuda.site",
                 "https://weiver.local.piuda.site:3000",
                 "http://localhost:3000"
