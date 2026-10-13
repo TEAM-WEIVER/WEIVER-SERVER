@@ -65,7 +65,7 @@ class SecurityCorsConfigTest {
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"));
     }
     @ParameterizedTest
-    @ValueSource(strings = {"https://weiverai.com", "https://www.weiverai.com", "https://www.piuda.site"})
+    @ValueSource(strings = {"https://weiverai.com", "https://www.weiverai.com"})
     void allowProductionPreflightWithAuthAndCsrfHeaders(String origin) throws Exception {
         mockMvc.perform(options("/api/auth/reissue")
                         .header(HttpHeaders.ORIGIN, origin)
@@ -77,7 +77,7 @@ class SecurityCorsConfigTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"https://weiverai.com.evil.example", "https://evil.example", "http://weiverai.com"})
+    @ValueSource(strings = {"https://weiverai.com.evil.example", "https://evil.example", "http://weiverai.com", "https://www.piuda.site", "https://weiver.local.piuda.site:3000"})
     void rejectUnregisteredOrigins(String origin) throws Exception {
         mockMvc.perform(options("/api/auth/reissue")
                         .header(HttpHeaders.ORIGIN, origin)

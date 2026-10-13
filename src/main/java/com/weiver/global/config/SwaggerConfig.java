@@ -33,7 +33,7 @@ public class SwaggerConfig {
         public OpenAPI openAPI() {
                 return new OpenAPI()
                         .servers(List.of(
-                                new Server().url("https://api.piuda.site").description("Production Server")
+                                new Server().url("https://api.weiverai.com").description("Production Server")
                         ));
         }
 }
