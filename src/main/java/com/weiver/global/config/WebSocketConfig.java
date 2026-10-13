@@ -21,6 +21,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint("/ws")
                 .setAllowedOrigins(
                         "https://www.piuda.site",
+                        "https://weiverai.com",
+                        "https://www.weiverai.com",
                         "https://weiver.local.piuda.site:3000",
                         "http://localhost:3000"
                 );
@@ -28,6 +30,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.addEndpoint("/ws-sockjs")
                 .setAllowedOrigins(
                         "https://www.piuda.site",
+                        "https://weiverai.com",
+                        "https://www.weiverai.com",
                         "https://weiver.local.piuda.site:3000",
                         "http://localhost:3000"
                 )

@@ -3,6 +3,7 @@ package com.weiver.global.config;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.csrf.CsrfCookieFilter;
 import com.weiver.global.security.csrf.CsrfCookieProperties;
+import com.weiver.global.security.csrf.HostAwareCsrfTokenRepository;
 import com.weiver.global.security.handler.SecurityErrorResponseWriter;
 import com.weiver.global.security.jwt.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +24,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CsrfException;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfigurationSource;
 
@@ -112,25 +113,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CookieCsrfTokenRepository cookieCsrfTokenRepository() {
-        CookieCsrfTokenRepository repository = new CookieCsrfTokenRepository();
-
-        repository.setCookieName(csrfCookieProperties.cookieName());
-        repository.setHeaderName(csrfCookieProperties.headerName());
-
-        repository.setCookieCustomizer(cookie -> {
-            cookie.httpOnly(false)
-                    .secure(csrfCookieProperties.secure())
-                    .sameSite(csrfCookieProperties.sameSite())
-                    .path(csrfCookieProperties.path());
-
-            String domain = csrfCookieProperties.domain();
-            if (domain != null && !domain.isBlank()) {
-                cookie.domain(domain);
-            }
-        });
-
-        return repository;
+    public CsrfTokenRepository cookieCsrfTokenRepository() {
+        return new HostAwareCsrfTokenRepository(csrfCookieProperties);
     }
 
     @Bean

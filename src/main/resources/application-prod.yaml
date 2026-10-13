@@ -162,6 +162,9 @@ cookie:
     header-name: X-XSRF-TOKEN
     path: /
     domain: piuda.site
+    domains:
+      "[api.piuda.site]": piuda.site
+      "[api.weiverai.com]": weiverai.com
     secure: true
     same-site: None
 
