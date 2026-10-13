@@ -161,7 +161,7 @@ cookie:
     cookie-name: XSRF-TOKEN
     header-name: X-XSRF-TOKEN
     path: /
-    domain: piuda.site
+    domain: weiverai.com
     secure: true
     same-site: None
 

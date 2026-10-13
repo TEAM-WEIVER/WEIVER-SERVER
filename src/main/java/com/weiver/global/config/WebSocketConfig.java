@@ -20,15 +20,17 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
                 .setAllowedOrigins(
-                        "https://www.piuda.site",
-                        "https://weiver.local.piuda.site:3000",
+                        "https://weiverai.com",
+                        "https://www.weiverai.com",
+                        "https://weiver.local.weiverai.com:3000",
                         "http://localhost:3000"
                 );
 
         registry.addEndpoint("/ws-sockjs")
                 .setAllowedOrigins(
-                        "https://www.piuda.site",
-                        "https://weiver.local.piuda.site:3000",
+                        "https://weiverai.com",
+                        "https://www.weiverai.com",
+                        "https://weiver.local.weiverai.com:3000",
                         "http://localhost:3000"
                 )
                 .withSockJS();
