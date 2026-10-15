@@ -47,4 +47,12 @@ logs/
 *.log
 
 ### 문서 (로컬 공유용)
-docs/
+# 기본은 로컬 전용. 팀과 공유할 하네스·명세·보고서 경로만 아래에서 추적한다.
+# `docs/`(디렉터리 패턴)로 쓰면 하위 예외(!)가 듣지 않으므로 `docs/*` 형태를 유지한다.
+docs/*
+!docs/templates/
+!docs/reports/
+!docs/superpowers/
+docs/superpowers/*
+!docs/superpowers/specs/
+!docs/superpowers/plans/
