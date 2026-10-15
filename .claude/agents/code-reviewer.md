@@ -51,6 +51,7 @@ com.weiver.global.{common, exception, event, security, auth, s3, email, logging,
 
 - 세 모드 모두 `origin/main`에 이미 있는 변경은 리뷰 대상이 아닙니다.
 - 브랜치·PR 모드에서 로컬 작업 트리와 리뷰 대상 커밋이 다르면, 판단에 쓰는 파일은 `git show <커밋>:<경로>`로 읽습니다.
+- 포크에서 온 PR은 head 커밋이 `origin`에 없을 수 있으니 `git fetch origin pull/<번호>/head`로 받아 읽습니다.
 
 ## 보고서 대조
 

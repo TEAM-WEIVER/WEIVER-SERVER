@@ -11,7 +11,7 @@
 ### 문제
 
 1. **분석 완료 판단이 면접 서비스 안에만 있다.** `job`·`role`이 둘 다 텍스트가 있어야 분석 완료로 보는 규칙이
-   `src/main/java/com/weiver/interview/service/InterviewFlowService.java:412`의 private 메서드 `getCompletedAnalysis`에만 있다.
+   private 메서드 `getCompletedAnalysis`(`src/main/java/com/weiver/interview/service/InterviewFlowService.java:408`)의 조건문(`:412`)에만 있다.
    지원자 제출 상태 조회(`src/main/java/com/weiver/applicant/service/ApplicantService.java:109`)는 이 판단을 쓰지 않고,
    응답 `ApplicantSubmissionStatusResponseDTO`(`src/main/java/com/weiver/applicant/dto/response/ApplicantSubmissionStatusResponseDTO.java:7`)에도
    분석 완료 필드가 없다. 그래서 프론트는 면접 시작 전에 분석 완료 여부를 알 수 없다.
@@ -51,7 +51,7 @@ STOMP SEND /app/interviews/start
 
 ### 영향 범위와 검증 계획
 
-- 수정 대상과 호출부: `TechnicalSkillReport`, `InterviewFlowService.getCompletedAnalysis`(호출부 `:385` 1곳), `ApplicantService.getSubmissionStatus`, `ApplicantSubmissionStatusResponseDTO`, `InterviewWebSocketMessageResponse`, `InterviewWebSocketController` — 설계 명세 3절의 여섯 파일과 같다.
+- 수정 대상과 호출부: `TechnicalSkillReport`, `InterviewFlowService.getCompletedAnalysis`(호출부 `:385` 1곳. 이 호출을 감싼 `publishQuestionRequested`는 면접 시작 `:91`과 답변 제출 `:127` 두 곳에서 불리므로 답변 제출 경로에도 영향), `ApplicantService.getSubmissionStatus`, `ApplicantSubmissionStatusResponseDTO`, `InterviewWebSocketMessageResponse`, `InterviewWebSocketController` — 설계 명세 3절의 여섯 파일과 같다.
 - 기존 테스트: `InterviewFlowServiceTest`, 지원자 서비스·컨트롤러 테스트, WebSocket 컨트롤러 테스트. 단언을 완화하지 않는다.
 - 실행할 검증: 구현 계획 T1~T5의 단계별 명령, 마지막에 `./gradlew test`와 `bash .github/scripts/check-docs.sh`.
 - 승인이 필요한 변경: REST 응답 필드 추가, WebSocket 응답 필드(`errorCode`) 추가 — 공개 API 계약 변경. DB 스키마 변경 없음.

@@ -8,8 +8,11 @@
 # - 링크 대상은 "Git이 추적하는 파일"이어야 통과한다. 로컬에만 있는 파일은 CI에서 없으므로 오류다.
 # - LOCAL_ONLY_PREFIXES 아래를 가리키는 링크는 의도적으로 Git에 올리지 않는 로컬 전용 문서다.
 #   검사하지 않고 "건너뜀(로컬 전용)"으로 따로 센다. 통과로 세지 않는다.
-# - 외부 URL, 앵커(#...)만 있는 링크, 코드 블록·인라인 코드 안의 링크는 검사하지 않는다.
-#   앵커가 붙은 링크는 파일 존재만 확인한다.
+# - 외부 URL, 앵커(#...)만 있는 링크, 펜스 코드 블록(```, ~~~)·인라인 코드 안의 링크는 검사하지 않는다.
+#   앵커가 붙은 링크는 파일 존재만 확인하고 앵커가 실제로 있는지는 보지 않는다.
+# - `/`로 시작하는 링크는 저장소 루트 기준으로, 퍼센트 인코딩(%20 등)은 풀어서 해석한다.
+# - 지원하지 않는 형식(검사하지 않고 지나감): 참조형 링크([r]: x.md), HTML <a href>/<img src>,
+#   공백이 든 꺾쇠 링크(<a b.md>). 4칸 들여쓴 코드 블록 안의 링크는 검사 대상이 된다.
 # 의존성: bash, git, python3(표준 라이브러리만).
 set -euo pipefail
 
@@ -21,6 +24,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import urllib.parse
 
 LOCAL_ONLY_PREFIXES = ("docs/prd/",)
 
@@ -34,6 +38,9 @@ REQUIRED_DOCS = [
     (".github/PULL_REQUEST_TEMPLATE.md", ["관련 명세·보고서", "검증 결과"]),
 ]
 
+# git hook 등에서 상속된 GIT_DIR·GIT_WORK_TREE가 있으면 -C <root>가 무시되므로 지운다.
+GIT_ENV = {k: v for k, v in os.environ.items() if k not in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE")}
+
 LINK_RE = re.compile(r"!?\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
 INLINE_CODE_RE = re.compile(r"`+[^`]*`+")
 FENCE_RE = re.compile(r"^\s*(```|~~~)")
@@ -45,7 +52,7 @@ def list_files(root):
     try:
         out = subprocess.run(
             ["git", "-C", root, "ls-files", "-z"],
-            check=True, capture_output=True,
+            check=True, capture_output=True, env=GIT_ENV,
         ).stdout.decode("utf-8")
         return {p for p in out.split("\0") if p}
     except (subprocess.CalledProcessError, FileNotFoundError):
@@ -96,8 +103,11 @@ def check(root):
         for lineno, target in iter_links(text):
             if EXTERNAL_RE.match(target) or target.startswith("#"):
                 continue
-            target_path = target.split("#", 1)[0].split("?", 1)[0]
-            resolved = os.path.normpath(os.path.join(base, target_path)).replace(os.sep, "/")
+            target_path = urllib.parse.unquote(target.split("#", 1)[0].split("?", 1)[0])
+            if target_path.startswith("/"):
+                resolved = os.path.normpath(target_path.lstrip("/")).replace(os.sep, "/")
+            else:
+                resolved = os.path.normpath(os.path.join(base, target_path)).replace(os.sep, "/")
             where = f"{md}:{lineno} -> {target}"
             if resolved.startswith("../") or resolved == "..":
                 errors.append(f"저장소 밖을 가리키는 링크: {where}")
@@ -128,13 +138,19 @@ def self_test():
     """검사기가 오류 사례를 실제로 실패로 잡는지 확인한다. 실패한 기대 목록을 돌려준다."""
     cases = []
 
-    def case(name, extra_files, *, remove=None, expect_errors, expect_skips=0):
+    def case(name, extra_files, *, remove=None, expect_errors, expect_skips=0, git=False, untracked=()):
         with tempfile.TemporaryDirectory() as root:
             make_valid_fixture(root)
             for rel, text in extra_files.items():
                 write(root, rel, text)
             if remove:
                 os.remove(os.path.join(root, remove))
+            if git:
+                # 실제 저장소처럼 git ls-files 경로를 타게 한다. untracked 파일은 디스크에만 둔다.
+                subprocess.run(["git", "init", "-q", root], check=True, env=GIT_ENV)
+                subprocess.run(["git", "-C", root, "add", "-A"], check=True, env=GIT_ENV)
+                for rel in untracked:
+                    subprocess.run(["git", "-C", root, "rm", "-q", "--cached", rel], check=True, env=GIT_ENV)
             errors, _, skipped = check(root)
             got = (len(errors) > 0, len(skipped))
             want = (expect_errors, expect_skips)
@@ -149,6 +165,10 @@ def self_test():
     case("코드 블록 안 링크는 무시", {"docs/a.md": "```\n[없음](missing.md)\n```\n`[없음](missing.md)`\n"}, expect_errors=False)
     case("로컬 전용 링크는 건너뜀", {"docs/a.md": "[prd](prd/x.md)\n"}, expect_errors=False, expect_skips=1)
     case("저장소 밖 링크는 실패", {"a.md": "[밖](../x.md)\n"}, expect_errors=True)
+    case("퍼센트 인코딩 링크는 통과", {"docs/a.md": "[b](my%20file.md)\n", "docs/my file.md": "x\n"}, expect_errors=False)
+    case("루트 기준 링크는 통과", {"docs/a.md": "[b](/docs/b.md)\n", "docs/b.md": "x\n"}, expect_errors=False)
+    case("Git 추적 파일 링크는 통과", {"docs/a.md": "[b](b.md)\n", "docs/b.md": "x\n"}, expect_errors=False, git=True)
+    case("Git 미추적 파일 링크는 실패", {"docs/a.md": "[b](b.md)\n", "docs/b.md": "x\n"}, expect_errors=True, git=True, untracked=("docs/b.md",))
     return cases
 
 

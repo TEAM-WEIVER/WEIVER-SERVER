@@ -4,7 +4,7 @@
 - 브랜치 / 기준 커밋: `chore/#163-ai-development-harness` / `d707797` (작업 시작 시 `origin/main`)
 - 관련 명세·계획: 없음(Issue 본문이 요구사항의 정본)
 - 보고 수준: 전체 보고
-- 상태: 구현 후
+- 상태: 리뷰 완료(PR #168, 리뷰 지적 반영. 사용자 결정 대기 2건은 3절 남은 위험)
 
 ## 1. 구현 전 — 문제·대안·선택 근거
 
@@ -40,7 +40,7 @@
 | 승인 대상 확장, contextLoads 경고, 비밀값 규칙 | 추가 | 기존 규칙에서 빠져 있던 위험 | 사용자 결정 |
 | docs 추적 범위 | A, PRD는 이번에 올리지 않음 | 공개 범위 최소화 | 사용자 결정("prd는 이번에 올리지마") |
 | PRD 링크 처리 | 명세 원문은 고치지 않고, 링크 검사에서 `docs/prd/`를 로컬 전용으로 건너뜀 집계(통과로 세지 않음) | 사용자가 고치라고 하지 않은 명세를 수정하지 않음 | 승인된 범위 안의 구현 판단 |
-| PR CI | A | | 사용자 결정 |
+| PR CI | A | 코드 회귀를 PR 단계에서 잡는다. 실제 DB가 필요한 1개만 미실행으로 남긴다 | 사용자 결정 |
 | 오류 감지 확인 | A(자체 검사) | 위 표 | 승인된 범위 안의 구현 판단(advisor 제안 반영) |
 | 링크 검사 기준 | 링크 대상이 Git 추적 파일이어야 통과 | 로컬에만 있는 파일이 로컬 검사는 통과하고 CI에서만 깨지는 차이를 없앤다 | 승인된 범위 안의 구현 판단 |
 | 검사기 구현 | bash 진입점 + python3 표준 라이브러리 | 새 의존성·외부 Action 없음 | 승인된 범위 안의 구현 판단 |
@@ -61,6 +61,10 @@
 | `codereview.md`를 감싼 코드 펜스(```)를 지우고 frontmatter를 살린다 | 펜스를 그대로 두고 문구만 고친다 | 펜스 때문에 지금은 frontmatter가 해석되지 않는다. 지우면 `allowed-tools: ... Bash`가 새로 적용돼 권한이 바뀐다 | 승인된 범위 안의 구현 판단(권한 변경은 승인 대상이라 하지 않음) |
 | 명세 3개를 그대로 올리면 링크가 모두 열린다고 봤다 | PRD 링크 3곳(처음에 4곳으로 잘못 셈)을 로컬 전용 건너뜀으로 처리 | 명세 3개가 모두 Git에 올리지 않는 PRD를 링크한다 | 사용자 결정(PRD 미공개) + 구현 판단(처리 방식) |
 | Issue 템플릿 끝에 새 절을 덧붙인다 | `### 유의사항` 앞에 넣는다 | 원래 파일 끝에 줄바꿈이 없어 새 절이 제목에 붙었다 | 승인된 범위 안의 구현 판단 |
+| `AGENTS.md`에서 "요청하지 않은 작업", "무관한 파일 수정"을 승인 기준(확인 후 가능) 목록에 넣었다 | 일반 규칙의 절대 금지로 되돌렸다 | 리뷰에서 기존 절대 금지가 승인되지 않은 채 완화됐다고 지적받음 | 승인된 범위 안의 구현 판단(원래 뜻 복원) |
+| 비밀값 규칙이 `application-*.yaml`을 커밋하지 않는 파일처럼 적었다 | "Git 추적 파일이므로 `${ENV}` 플레이스홀더만 쓴다"로 고쳤다 | 리뷰에서 두 파일이 이미 Git 추적 중임을 확인(플레이스홀더 줄 local 9개·prod 23개, 값은 열람하지 않음) | 승인된 범위 안의 구현 판단 |
+| 템플릿 5절은 리뷰어가 쓴다 | 리뷰어 출력의 대조 표를 구현자가 옮겨 적는다 | 리뷰어는 읽기 전용이라 파일을 쓸 수 없다 | 승인된 범위 안의 구현 판단 |
+| 링크 검사기 자체 검사 8개 경우 | 12개 경우(퍼센트 인코딩, 루트 기준 링크, Git 추적/미추적 링크 추가), `GIT_DIR` 등 상속 환경변수 제거 | 리뷰에서 오탐 2종과 "미추적 파일" 경우를 자체 검사가 다루지 않는 빈틈, `GIT_DIR` 환경에서의 비정상 종료를 재현해 지적 | 승인된 범위 안의 구현 판단 |
 | 결정 출처를 셋(AI 제안·사용자 결정·구현 판단)으로 나눈다 | "명세 기재"를 넷째 출처로 추가하고, Issue가 없을 때 파일 이름에 `tbd`를 쓰는 규칙을 추가한다 | 9번 시범에서 명세에만 적히고 승인 기록이 없는 결정을 분류할 수 없었다. 기능 Issue도 아직 없었다 | 승인된 범위 안의 구현 판단(9번 점검 결과) |
 
 ## 3. 구현 후 — 호출 흐름·핵심 코드·검증 결과
@@ -74,7 +78,7 @@
 | `docs/templates/implementation-report.md`(새 파일) | 구현 전·중·후, 완료 상태, 리뷰 대조, 짧은 보고 양식 |
 | `.claude/agents/backend-developer.md` | 필수 문서, 구현 전·중·후 보고 단계, 인계 형식 확장 |
 | `.claude/agents/code-reviewer.md` | 필수 문서, 리뷰 대상 구분(미커밋/브랜치/PR), 보고서 대조, 출력에 대조 표 |
-| `.claude/commands/codereview.md` | 리뷰 모드 인자, 프로젝트 이름 수정 |
+| `.claude/commands/codereview.md` | 리뷰 모드 인자, 프로젝트 이름 문구 수정(파일 전체가 코드 펜스 안이라 frontmatter의 `description`은 실제로 적용되지 않음) |
 | `.github/PULL_REQUEST_TEMPLATE.md`, `.github/ISSUE_TEMPLATE/*` | 관련 명세·보고서, 검증 결과 항목 |
 | `.gitignore` | `docs/*` + 공유 경로 예외 |
 | `docs/superpowers/{specs,plans}/…readiness*`(3개) | 기존 로컬 명세를 Git에 추가(내용 변경 없음) |
@@ -85,22 +89,24 @@
 ### 호출 흐름
 
 ```text
-pull_request(main 대상) → .github/workflows/pr-check.yml
-  ├ job docs: bash .github/scripts/check-docs.sh
-  │   → self_test(): 임시 디렉터리 예시 8개로 check() 판정 확인 — 기대와 다르면 종료 코드 1
-  │   → check(저장소): REQUIRED_DOCS 존재·내용 확인 → git ls-files의 *.md 링크를 추적 파일 목록과 대조
-  │   → 오류 1개 이상이면 종료 코드 1
-  └ job test: ./gradlew test --no-daemon -I .github/ci/exclude-context-loads.gradle
-      → init 스크립트가 모든 Test 태스크에서 WeiverBackendApplicationTests 제외
+pull_request(main 대상) (.github/workflows/pr-check.yml:3-8, 권한 contents: read)
+  ├ job docs (pr-check.yml:15-24): bash .github/scripts/check-docs.sh
+  │   → main() (.github/scripts/check-docs.sh:175)
+  │     → self_test() (check-docs.sh:137): 임시 디렉터리 예시 12개로 check() 판정 확인 — 기대와 다르면 종료 코드 1
+  │     → check(저장소) (check-docs.sh:78): REQUIRED_DOCS(:32) 존재·내용 확인
+  │       → list_files() (check-docs.sh:50)의 git ls-files 목록과 *.md 링크 대상 대조, LOCAL_ONLY_PREFIXES(:29)는 건너뜀
+  │     → 오류 1개 이상이면 종료 코드 1
+  └ job test (pr-check.yml:26-47): ./gradlew test --no-daemon -I .github/ci/exclude-context-loads.gradle (pr-check.yml:47)
+      → init 스크립트가 모든 Test 태스크에서 WeiverBackendApplicationTests 제외 (.github/ci/exclude-context-loads.gradle:9)
 ```
 
 ### 핵심 코드
 
 | 위치 | 하는 일 | 왜 이렇게 했는가 |
 | --- | --- | --- |
-| `.github/scripts/check-docs.sh`의 `check()` | 링크 대상을 `git ls-files` 목록과 대조. `docs/prd/`는 건너뜀, 로컬에만 있는 파일은 "Git이 추적하지 않는 파일" 오류 | 로컬과 CI의 판정을 같게 만든다 |
-| `.github/scripts/check-docs.sh`의 `self_test()` | 정상 링크 통과, 깨진 링크·앵커 붙은 깨진 링크·필수 문서 누락·필수 내용 누락·저장소 밖 링크 실패, 코드 블록 무시, 로컬 전용 건너뜀 — 8개 경우를 판정 | 검사기가 망가져 늘 통과하는 상황을 매 실행마다 잡는다 |
-| `.github/workflows/pr-check.yml` | `pull_request` 트리거, `permissions: contents: read` | `pull_request_target`을 쓰지 않아 포크 PR에 비밀값·쓰기 권한이 넘어가지 않는다 |
+| `.github/scripts/check-docs.sh:78` (`check()`) | 링크 대상을 `git ls-files` 목록과 대조. `docs/prd/`는 건너뜀, 로컬에만 있는 파일은 "Git이 추적하지 않는 파일" 오류 | 로컬과 CI의 판정을 같게 만든다 |
+| `.github/scripts/check-docs.sh:137` (`self_test()`) | 정상 링크·퍼센트 인코딩·루트 기준·Git 추적 링크 통과, 깨진 링크·앵커 붙은 깨진 링크·필수 문서 누락·필수 내용 누락·저장소 밖 링크·Git 미추적 링크 실패, 코드 블록 무시, 로컬 전용 건너뜀 — 12개 경우를 판정 | 검사기가 망가져 늘 통과하는 상황을 매 실행마다 잡는다 |
+| `.github/workflows/pr-check.yml:3-8` | `pull_request` 트리거, `permissions: contents: read` | `pull_request_target`을 쓰지 않아 포크 PR에 비밀값·쓰기 권한이 넘어가지 않는다 |
 
 ### 검증 결과
 
@@ -116,6 +122,13 @@ pull_request(main 대상) → .github/workflows/pr-check.yml
 
 ### 남은 위험·후속 작업
 
+- **사용자 결정 대기:** PR 본문의 `close #163`은 병합 시 Issue를 닫는데, 9번은 부분 완료다.
+- **사용자 결정 대기:** 설계 명세 `:141`과 구현 계획 `:165`에 "`docs/`는 `.gitignore` 제외 대상"이라는, 이 PR로 사실과 달라진 문장이 있다(원문 미수정).
+- 검사기가 지원하지 않는 형식(참조형 링크, HTML 링크, 공백이 든 꺾쇠 링크)과 4칸 들여쓴 코드 블록 안의 링크 처리를 헤더 주석에 밝혔다. 코드는 고치지 않았다.
+- 워크플로 액션을 커밋 SHA로 고정하지 않았고 `gradle/actions/wrapper-validation`을 추가하지 않았다. 새 외부 Action 도입이라 별도 결정이 필요하다.
+- README와 `.gitignore`는 `application-*.yml`을 무시한다고 하지만, 실제 파일은 `.yaml`이고 Git이 추적한다. 이 불일치는 원래 있던 것이라 별도 Issue가 필요하다.
+- Windows(Git Bash)와 포크 PR에서의 동작은 확인하지 않았다(미실행).
+
 - `pr-check`를 필수 검사로 지정하는 것은 저장소 보호 규칙 변경이라 이 PR에서 하지 않았다.
 - `codereview.md`는 코드 펜스 때문에 frontmatter(`description`, `allowed-tools`)가 해석되지 않는다. 펜스를 지울지는 권한 변경이라 별도 결정이 필요하다.
 - 링크 검사는 파일 존재만 보고 앵커(`#절`)가 실제로 있는지는 확인하지 않는다.
@@ -127,8 +140,26 @@ pull_request(main 대상) → .github/workflows/pr-check.yml
 - [ ] 검증 완료 — PR CI 결과와 리뷰 대조를 확인한 뒤 체크한다. contextLoads와 9번 실제 기능 적용은 미실행이다.
 - [ ] 설명 전달 완료 — PR 본문에 이 보고서 링크와 검증 결과를 적은 뒤 체크한다.
 
-## 5. 리뷰 대조 (리뷰어 작성)
+## 5. 리뷰 대조 (리뷰어 출력을 구현자가 옮겨 적음)
+
+- 리뷰 모드 / 기준 커밋: PR #168 / `98cf774` (팀 `code-reviewer`, 이 PR에서 바뀐 정의로 실행)
+- 지적: 치명적 0, 경고 7, 제안 9. 반영 결과는 2절과 3절 "남은 위험"에 적었다.
 
 | 보고서의 주장 | 확인한 코드·증거 | 결과 |
 | --- | --- | --- |
-| | | |
+| 변경 파일 표가 PR 변경 19개 파일을 포괄 | `gh pr view 168 --json files` | 일치 |
+| 호출 흐름(pull_request → docs/test job) | `pr-check.yml`, `check-docs.sh` main, init 스크립트 | 일치(`파일:줄` 누락 지적 → 반영) |
+| 자체 검사 경우 수 | `case(...)` 호출 | 일치(당시 8개, 이후 12개로 확장) |
+| check(): git ls-files 대조, 미추적 오류, docs/prd 건너뜀 | 테스트용 git 저장소에서 재현 | 일치 |
+| `pull_request_target` 미사용으로 포크에 비밀값·쓰기 권한 없음 | `pr-check.yml:3-8` | 일치 |
+| 문서 검사 로컬 통과 18·건너뜀 3·오류 0 | 리뷰어가 직접 실행, 종료 코드 0 | 일치 |
+| 고장 낸 복사본 2개가 자체 검사 실패 | 원본 복사본은 없음. 리뷰어가 같은 취지로 재현해 둘 다 종료 코드 1 | 원본 확인 불가 / 재현 일치 |
+| 로컬 기준선 411 통과 | 로컬 로그 없음. CI 두 실행 로그에서 PASSED 411 | 로컬 확인 불가 / CI로 일치 |
+| PR CI test: Testcontainers 4클래스, contextLoads 0건 | CI 로그 | 일치 |
+| `deploy.yml`은 `-x test` | `deploy.yml:25` | 일치 |
+| 사용자 결정(커밋·push 문구, 승인 대상 확장, contextLoads, 비밀값) | 호출자 지시와 `AGENTS.md` | 일치 |
+| 사용자 결정(공통 규칙 위치, PRD 미공개, PR CI) | 리뷰어는 대화 기록에 접근 불가 | 확인 불가 |
+| PRD 링크 3곳 | 검사기 건너뜀 3건 | 일치 |
+| 명세 3개 내용 변경 없음 | 이전 상태가 Git에 없어 비교 불가 | 확인 불가 |
+| 4절 검증 완료 미체크 | 미실행 항목이 남아 있음 | 일치 |
+| [시범 보고서] 근거 코드 줄 번호 6건, `@MessageExceptionHandler` 0건, 공개 API 변경 분류 | 각 줄 직접 확인, `git grep` | 일치(`:412` 표현과 `:127` 영향 범위 누락 지적 → 반영) |

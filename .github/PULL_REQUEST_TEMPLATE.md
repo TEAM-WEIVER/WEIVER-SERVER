@@ -18,7 +18,7 @@
 | --- | --- | --- | --- |
 | 관련 테스트 | | | |
 | 전체 테스트 | `./gradlew test` | | |
-| 문서 검사 | `.github/scripts/check-docs.sh` | | |
+| 문서 검사 | `bash .github/scripts/check-docs.sh` | | |
 
 
 ## 🙏 Question & PR point
