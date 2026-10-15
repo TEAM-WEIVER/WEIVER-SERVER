@@ -109,8 +109,8 @@ pull_request(main 대상) → .github/workflows/pr-check.yml
 | 문서 검사(로컬) | `bash .github/scripts/check-docs.sh` | 통과 | 자체 검사 통과, 통과 링크 18개·건너뜀(로컬 전용) 3개·오류 0개(보고서 추가 후 기준, PR 본문에 최종값) |
 | 오류 감지 확인(로컬) | 검사기 복사본 2개를 고의로 고장(링크 정규식 무력화 / 깨진 링크를 통과로 셈) | 통과 | 두 복사본 모두 `[자체 검사 실패]`, 종료 코드 1 |
 | 기준선 테스트(로컬) | `./gradlew clean test --rerun-tasks --no-build-cache -I <제외 init 스크립트>` | 통과 | `d707797`에서 63클래스 411테스트 통과. 이 PR은 Java·Gradle 파일을 바꾸지 않아 변경 뒤 로컬 재실행은 하지 않았다(미실행) |
-| PR CI docs job | GitHub Actions | PR 생성 후 기록 | PR 본문 참고 |
-| PR CI test job | GitHub Actions | PR 생성 후 기록 | PR 본문 참고 |
+| PR CI docs job | `pr-check / 문서·링크 검사` | 통과 | [실행 38718945331](https://github.com/TEAM-WEIVER/WEIVER-SERVER/actions/runs/38718945331) — 자체 검사 통과, 통과 링크 18 · 건너뜀 3 · 오류 0 (커밋 `2288ac6`) |
+| PR CI test job | `pr-check / 테스트 (contextLoads 제외)` | 통과 | [실행 38718945331](https://github.com/TEAM-WEIVER/WEIVER-SERVER/actions/runs/38718945331) — 로그에서 PASSED 411 · FAILED 0 · SKIPPED 0, Testcontainers 리포지토리 테스트 4클래스 실행 확인, `WeiverBackendApplicationTests` 0건(제외 확인) |
 | contextLoads | — | 미실행 | 로컬 DB(create-drop) 필요. 로컬·CI 모두 제외 |
 | 9번: 실제 기능 구현에 적용 | — | 미실행 | 기능 구현은 이 Issue 범위 밖. 구현 전 보고서만 시범 작성 |
 
