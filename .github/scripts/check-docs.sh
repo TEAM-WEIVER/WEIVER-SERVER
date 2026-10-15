@@ -6,8 +6,6 @@
 # - 매 실행마다 먼저 자체 검사(깨진 링크·누락 문서 예시가 실제로 실패로 잡히는지)를 돌린다.
 #   자체 검사가 기대와 다르면 검사기 자체가 고장 난 것으로 보고 실패한다.
 # - 링크 대상은 "Git이 추적하는 파일"이어야 통과한다. 로컬에만 있는 파일은 CI에서 없으므로 오류다.
-# - LOCAL_ONLY_PREFIXES(docs/) 아래를 가리키는 링크는 의도적으로 Git에 올리지 않는 개인 로컬 문서다.
-#   검사하지 않고 "건너뜀(로컬 전용)"으로 따로 센다. 통과로 세지 않는다.
 # - 외부 URL, 앵커(#...)만 있는 링크, 펜스 코드 블록(```, ~~~)·인라인 코드 안의 링크는 검사하지 않는다.
 #   앵커가 붙은 링크는 파일 존재만 확인하고 앵커가 실제로 있는지는 보지 않는다.
 # - `/`로 시작하는 링크는 저장소 루트 기준으로, 퍼센트 인코딩(%20 등)은 풀어서 해석한다.
@@ -25,8 +23,6 @@ import subprocess
 import sys
 import tempfile
 import urllib.parse
-
-LOCAL_ONLY_PREFIXES = ("docs/",)
 
 # (경로, 반드시 포함해야 하는 문자열 목록)
 REQUIRED_DOCS = [
@@ -76,7 +72,7 @@ def iter_links(text):
 
 
 def check(root):
-    """(오류 목록, 통과 링크 수, 건너뜀 목록)을 돌려준다."""
+    """(오류 목록, 통과 링크 수)를 돌려준다."""
     files = list_files(root)
     dirs = {os.path.dirname(f) for f in files}
     for f in list(dirs):
@@ -84,7 +80,7 @@ def check(root):
             f = os.path.dirname(f)
             dirs.add(f)
 
-    errors, skipped, ok = [], [], 0
+    errors, ok = [], 0
 
     for path, needles in REQUIRED_DOCS:
         if path not in files:
@@ -111,15 +107,13 @@ def check(root):
             where = f"{md}:{lineno} -> {target}"
             if resolved.startswith("../") or resolved == "..":
                 errors.append(f"저장소 밖을 가리키는 링크: {where}")
-            elif resolved.startswith(LOCAL_ONLY_PREFIXES):
-                skipped.append(where)
             elif resolved in files or resolved in dirs:
                 ok += 1
             elif os.path.exists(os.path.join(root, resolved)):
                 errors.append(f"Git이 추적하지 않는 파일을 가리키는 링크: {where}")
             else:
                 errors.append(f"깨진 링크: {where}")
-    return errors, ok, skipped
+    return errors, ok
 
 
 def write(root, rel, text):
@@ -138,7 +132,7 @@ def self_test():
     """검사기가 오류 사례를 실제로 실패로 잡는지 확인한다. 실패한 기대 목록을 돌려준다."""
     cases = []
 
-    def case(name, extra_files, *, remove=None, expect_errors, expect_skips=0, git=False, untracked=()):
+    def case(name, extra_files, *, remove=None, expect_errors, git=False, untracked=()):
         with tempfile.TemporaryDirectory() as root:
             make_valid_fixture(root)
             for rel, text in extra_files.items():
@@ -151,11 +145,9 @@ def self_test():
                 subprocess.run(["git", "-C", root, "add", "-A"], check=True, env=GIT_ENV)
                 for rel in untracked:
                     subprocess.run(["git", "-C", root, "rm", "-q", "--cached", rel], check=True, env=GIT_ENV)
-            errors, _, skipped = check(root)
-            got = (len(errors) > 0, len(skipped))
-            want = (expect_errors, expect_skips)
-            if got != want:
-                cases.append(f"{name}: 기대 (오류 있음={want[0]}, 건너뜀={want[1]}), 실제 (오류 있음={got[0]}, 건너뜀={got[1]}) {errors}")
+            errors, _ = check(root)
+            if (len(errors) > 0) != expect_errors:
+                cases.append(f"{name}: 기대 오류 있음={expect_errors}, 실제 오류 있음={len(errors) > 0} {errors}")
 
     case("정상 링크는 통과", {"notes/a.md": "[b](b.md)\n", "notes/b.md": "x\n"}, expect_errors=False)
     case("깨진 링크는 실패", {"notes/a.md": "[없음](missing.md)\n"}, expect_errors=True)
@@ -163,7 +155,6 @@ def self_test():
     case("필수 문서 누락은 실패", {}, remove="AGENTS.md", expect_errors=True)
     case("필수 내용 누락은 실패", {"CLAUDE.md": "가져오기 없음\n"}, expect_errors=True)
     case("코드 블록 안 링크는 무시", {"notes/a.md": "```\n[없음](missing.md)\n```\n`[없음](missing.md)`\n"}, expect_errors=False)
-    case("로컬 전용 링크는 건너뜀", {"notes/a.md": "[prd](../docs/prd/x.md)\n"}, expect_errors=False, expect_skips=1)
     case("저장소 밖 링크는 실패", {"a.md": "[밖](../x.md)\n"}, expect_errors=True)
     case("퍼센트 인코딩 링크는 통과", {"notes/a.md": "[b](my%20file.md)\n", "notes/my file.md": "x\n"}, expect_errors=False)
     case("루트 기준 링크는 통과", {"notes/a.md": "[b](/notes/b.md)\n", "notes/b.md": "x\n"}, expect_errors=False)
@@ -183,12 +174,10 @@ def main():
         return 1
     print("[자체 검사 통과] 깨진 링크·누락 문서 예시를 실패로 잡는 것을 확인했다.")
 
-    errors, ok, skipped = check(root)
-    for s in skipped:
-        print(f"[건너뜀(로컬 전용)] {s}")
+    errors, ok = check(root)
     for e in errors:
         print(f"[오류] {e}")
-    print(f"결과: 통과 링크 {ok}개, 건너뜀(로컬 전용) {len(skipped)}개, 오류 {len(errors)}개")
+    print(f"결과: 통과 링크 {ok}개, 오류 {len(errors)}개")
     return 1 if errors else 0
 
 

@@ -54,7 +54,6 @@ com.weiver.global.<area>         컨텍스트에 속하지 않는 공통 기반
 | JPA 엔티티·BaseTimeEntity, Repository(파생 쿼리/JPQL/QueryDSL), 트랜잭션 경계, ddl-auto 스키마 변경 | [persistence-conventions](.claude/skills/persistence-conventions/SKILL.md) |
 | Redis 키-값 저장소(JWT 토큰·인증 토큰), 키 네임스페이스·TTL·해시 저장·원자적 회전 | [redis-conventions](.claude/skills/redis-conventions/SKILL.md) |
 | 구현 판단·코드 이해 보고서 템플릿과 작성 기준 | [implementation-report](.claude/templates/implementation-report.md) |
-| 개인 문서(PRD·명세·계획·보고서) | `docs/` — 각자 로컬 전용이며 Git에 올리지 않는다. 있으면 읽되 링크하지 않는다 |
 | 브랜치·커밋 명명, 실행 방법 | [README](README.md) |
 
 ## 공통 작업 흐름
@@ -69,8 +68,8 @@ com.weiver.global.<area>         컨텍스트에 속하지 않는 공통 기반
 5. **검증** — 관련 테스트부터 좁게 돌리고 범위를 넓힌다. 결과는 아래 완료 기준의 상태로 기록한다.
 6. **구현 후 보고와 리뷰** — 보고서의 "구현 후" 부분(호출 흐름·핵심 코드·검증 결과)을 쓰고, 리뷰어가
    보고서의 설명을 실제 코드와 검증 증거에 대조한다.
-7. **PR** — 팀 PR 템플릿을 따른다. 보고서는 Git에 올리지 않으므로, 핵심(결정·근거·판단 변경·호출 흐름)을
-   PR 본문 `구현 보고` 절에, 검증 결과를 `검증 결과` 절에 옮겨 적는다. 병합은 사람이 한다.
+7. **PR** — 팀 PR 템플릿을 따른다. 보고서의 핵심(결정·근거·판단 변경·호출 흐름)은 PR 본문 `구현 보고` 절에,
+   검증 결과는 `검증 결과` 절에 적는다. 보고서 파일은 커밋하지 않는다. 병합은 사람이 한다.
 
 ## 승인 기준 (먼저 묻는다)
 
@@ -113,7 +112,7 @@ com.weiver.global.<area>         컨텍스트에 속하지 않는 공통 기반
   `localhost:5432/weiver_db`에 붙고 `ddl-auto: create-drop`이라, 로컬 DB가 떠 있으면 스키마를 지울 수 있다.
   로컬 DB를 쓰는 중이면 이 테스트를 빼고 돌리고, 미실행으로 기록한다.
 - **문서 검사:** 하네스 문서를 바꿨으면 `bash .github/scripts/check-docs.sh`로 필수 문서와 로컬 링크를
-  검사한다. 링크 대상은 Git이 추적하는 파일이어야 하고, `docs/`(로컬 전용)를 가리키는 링크는 건너뜀으로 센다.
+  검사한다. 링크 대상은 Git이 추적하는 파일이어야 한다.
 - **PR CI:** `main` 대상 PR마다 `.github/workflows/pr-check.yml`이 문서 검사와 `./gradlew test`(contextLoads 제외)를 돌린다.
 - 실패 경로 테스트는 HTTP 상태뿐 아니라 응답의 `errorCode`(=`ErrorCode` 이름)까지 단언한다.
 - 공통 `IntegrationTestSupport` 베이스 클래스, `src/test/resources`, `test` 프로파일, 전용 Fixture
@@ -135,7 +134,6 @@ com.weiver.global.<area>         컨텍스트에 속하지 않는 공통 기반
 - 사용자가 명시적으로 요청하지 않은 코드 변경이나 작업을 하지 않는다. 사용자 지시를 엄격히 따르고
   선제적 수정·추가를 하지 않는다.
 - 사용자가 요청한 변경과 무관한 파일을 수정하지 않는다.
-- `docs/`는 개인 로컬 문서다. Git에 추적·커밋하지 않고, `.gitignore`의 `docs/` 무시를 바꾸지 않는다.
 - 항상 한국어로 응답한다. 지침·보고서·리뷰도 한국어로 쓴다.
 - 비밀값을 읽어 출력하거나 커밋하지 않는다. `.env`는 Git 무시 대상이다. `application-local.yaml`·
   `application-prod.yaml`은 **Git이 추적하는 파일**이므로 비밀값을 직접 쓰지 않고 `${ENV}` 플레이스홀더만 쓴다.
