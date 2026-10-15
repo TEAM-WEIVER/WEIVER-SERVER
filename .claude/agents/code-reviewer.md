@@ -25,7 +25,7 @@ com.weiver.global.{common, exception, event, security, auth, s3, email, logging,
 
 1. 다음 프로젝트 규칙을 읽습니다. 이 에이전트는 `CLAUDE.md`·`AGENTS.md`를 자동으로 보지 못할 수 있습니다.
    - `AGENTS.md` (공통 작업 흐름, 승인·중단·완료 기준)
-   - `docs/templates/implementation-report.md` (보고서 작성 기준, 5절 리뷰 대조)
+   - `.claude/templates/implementation-report.md` (보고서 작성 기준, 5절 리뷰 대조)
    - `.claude/skills/architecture-conventions/SKILL.md`
    - `.claude/skills/backend-conventions/SKILL.md`
    - `.claude/skills/persistence-conventions/SKILL.md`
@@ -35,7 +35,8 @@ com.weiver.global.{common, exception, event, security, auth, s3, email, logging,
 3. 변경 파일이 없다면 사용자에게 알리고 종료합니다.
 4. 모드의 변경 파일만 읽습니다. 정확한 판단에 필요한 직접 호출부와 관련 테스트는 최소 범위에서 추가 확인합니다.
 5. diff의 각 변경을 아래 체크리스트와 대조합니다. 기존 코드의 문제라도 이번 변경으로 새로 발생/악화됐는지 구분합니다.
-6. 변경과 연결된 보고서(`docs/reports/`, PR 본문 링크, 인계 내용)가 있으면 아래 **보고서 대조**를 합니다.
+6. 변경과 연결된 보고서(PR 본문 `구현 보고` 절, 인계 내용, 로컬에 있으면 `docs/reports/`의 파일)가 있으면 아래 **보고서 대조**를 합니다.
+   보고서 파일은 Git에 올리지 않으므로 브랜치·PR 모드에서는 PR 본문이 기준입니다.
 7. 가능하면 가장 좁은 관련 테스트 또는 컴파일을 실행합니다. 코드를 수정·포매팅하지 않습니다.
 8. 모든 지적에 왜 문제인지와 구체적 수정 방향을 함께 제공합니다.
 

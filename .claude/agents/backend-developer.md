@@ -25,8 +25,8 @@ com.weiver.global.{common, exception, event, security, auth, s3, email, logging,
 작업을 시작하기 전에 아래를 읽는다. 이 에이전트는 `CLAUDE.md`·`AGENTS.md`를 자동으로 보지 못할 수 있다.
 
 - `AGENTS.md` — 공통 작업 흐름, 승인·중단·완료 기준, 검증 규칙
-- `docs/templates/implementation-report.md` — 구현 판단·코드 이해 보고서 템플릿과 작성 기준
-- 전달받은 Issue의 관련 명세·계획(`docs/superpowers/specs/`, `docs/superpowers/plans/`)이 있으면 그 문서
+- `.claude/templates/implementation-report.md` — 구현 판단·코드 이해 보고서 템플릿과 작성 기준
+- 전달받은 Issue의 관련 명세·계획이 로컬 `docs/`에 있으면 그 문서(개인 로컬 문서라 없을 수 있다)
 
 ## 작업 절차
 
@@ -35,7 +35,7 @@ com.weiver.global.{common, exception, event, security, auth, s3, email, logging,
 3. 같은 컨텍스트의 기존 클래스에서 패턴을 먼저 확인한다(`jobposting`·`applicant`가 CRUD·이벤트 발행의 기준 형태다).
 4. 대상 파일, 직접 호출부, 관련 테스트만 조사한다. 저장소 전체를 읽지 않는다.
 5. **구현 전 보고:** 보고 수준(짧은 보고 / 전체 보고)을 템플릿 기준으로 정한다. 전체 보고면
-   `docs/reports/YYYY-MM-DD-issue-<번호>-<간단설명>.md`(Issue가 없으면 번호 자리에 `tbd`)에 1절(문제·대안·선택 근거·영향 범위·검증 계획)을
+   로컬 `docs/reports/YYYY-MM-DD-issue-<번호>-<간단설명>.md`(Issue가 없으면 번호 자리에 `tbd`, Git에 커밋하지 않음)에 1절(문제·대안·선택 근거·영향 범위·검증 계획)을
    먼저 쓴다. 문제의 근거 코드는 `파일경로:줄번호`로 적고, 각 결정의 출처를 AI 제안 / 사용자 결정 /
    승인된 범위 안의 구현 판단 / 명세 기재로 구분한다. 사용자 결정이 필요한 항목은 여기서 멈추고 묻는다.
 6. 권한이 이미 주어진 범위는 바로 구현한다. 결과를 크게 바꾸는 새 결정만 질문한다.
@@ -47,7 +47,8 @@ com.weiver.global.{common, exception, event, security, auth, s3, email, logging,
    리포지토리 테스트는 Testcontainers PostgreSQL을 쓰므로 **Docker 데몬이 떠 있어야** 돈다.
 10. **구현 후 보고:** 보고서 3절에 변경 파일, 진입점부터의 호출 흐름, 핵심 코드(`파일경로:줄번호`와 이유),
     검증 결과를 쓴다. 검증 상태는 통과 / 실패 / 미실행 / 환경 차단으로만 적고, 실행한 명령과 결과를 함께 적는다.
-11. 4절 완료 상태(구현 완료 / 검증 완료 / 설명 전달 완료)를 사실대로 체크하고, 정해진 인계 형식으로 결과를 반환한다.
+11. 4절 완료 상태(구현 완료 / 검증 완료 / 설명 전달 완료)를 사실대로 체크한다. PR을 만들 때는 보고서 핵심을
+    PR 본문 `구현 보고`·`검증 결과` 절에 옮겨 적는다. 정해진 인계 형식으로 결과를 반환한다.
 
 ## 구현 순서 (바깥에서 안으로)
 
@@ -87,7 +88,7 @@ domain(엔티티 확인/보강) → dto(request/response) → repository → ser
 ## 인계 형식
 
 ```text
-보고서: docs/reports/<파일>.md (짧은 보고면 아래 항목만)
+보고서: 로컬 docs/reports/<파일>.md (커밋하지 않음. 짧은 보고면 아래 항목만)
 변경 파일:
 컨텍스트/계층:
 핵심 결정: <결정> — 근거 / 출처(AI 제안·사용자 결정·승인된 범위 안의 구현 판단·명세 기재)

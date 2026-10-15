@@ -6,7 +6,7 @@
 # - 매 실행마다 먼저 자체 검사(깨진 링크·누락 문서 예시가 실제로 실패로 잡히는지)를 돌린다.
 #   자체 검사가 기대와 다르면 검사기 자체가 고장 난 것으로 보고 실패한다.
 # - 링크 대상은 "Git이 추적하는 파일"이어야 통과한다. 로컬에만 있는 파일은 CI에서 없으므로 오류다.
-# - LOCAL_ONLY_PREFIXES 아래를 가리키는 링크는 의도적으로 Git에 올리지 않는 로컬 전용 문서다.
+# - LOCAL_ONLY_PREFIXES(docs/) 아래를 가리키는 링크는 의도적으로 Git에 올리지 않는 개인 로컬 문서다.
 #   검사하지 않고 "건너뜀(로컬 전용)"으로 따로 센다. 통과로 세지 않는다.
 # - 외부 URL, 앵커(#...)만 있는 링크, 펜스 코드 블록(```, ~~~)·인라인 코드 안의 링크는 검사하지 않는다.
 #   앵커가 붙은 링크는 파일 존재만 확인하고 앵커가 실제로 있는지는 보지 않는다.
@@ -26,16 +26,16 @@ import sys
 import tempfile
 import urllib.parse
 
-LOCAL_ONLY_PREFIXES = ("docs/prd/",)
+LOCAL_ONLY_PREFIXES = ("docs/",)
 
 # (경로, 반드시 포함해야 하는 문자열 목록)
 REQUIRED_DOCS = [
     ("AGENTS.md", ["## 매뉴얼 지도", "## 승인 기준", "## 중단 기준", "## 완료 기준"]),
     ("CLAUDE.md", ["@AGENTS.md"]),
-    ("docs/templates/implementation-report.md", ["## 1. 구현 전", "## 2. 구현 중", "## 3. 구현 후", "## 5. 리뷰 대조"]),
-    (".claude/agents/backend-developer.md", ["AGENTS.md", "docs/templates/implementation-report.md"]),
-    (".claude/agents/code-reviewer.md", ["AGENTS.md", "docs/templates/implementation-report.md", "## 보고서 대조"]),
-    (".github/PULL_REQUEST_TEMPLATE.md", ["관련 명세·보고서", "검증 결과"]),
+    (".claude/templates/implementation-report.md", ["## 1. 구현 전", "## 2. 구현 중", "## 3. 구현 후", "## 5. 리뷰 대조"]),
+    (".claude/agents/backend-developer.md", ["AGENTS.md", ".claude/templates/implementation-report.md"]),
+    (".claude/agents/code-reviewer.md", ["AGENTS.md", ".claude/templates/implementation-report.md", "## 보고서 대조"]),
+    (".github/PULL_REQUEST_TEMPLATE.md", ["## 📚 구현 보고", "## ✅ 검증 결과"]),
 ]
 
 # git hook 등에서 상속된 GIT_DIR·GIT_WORK_TREE가 있으면 -C <root>가 무시되므로 지운다.
@@ -157,18 +157,18 @@ def self_test():
             if got != want:
                 cases.append(f"{name}: 기대 (오류 있음={want[0]}, 건너뜀={want[1]}), 실제 (오류 있음={got[0]}, 건너뜀={got[1]}) {errors}")
 
-    case("정상 링크는 통과", {"docs/a.md": "[b](b.md)\n", "docs/b.md": "x\n"}, expect_errors=False)
-    case("깨진 링크는 실패", {"docs/a.md": "[없음](missing.md)\n"}, expect_errors=True)
-    case("앵커가 붙은 깨진 링크도 실패", {"docs/a.md": "[없음](missing.md#sec)\n"}, expect_errors=True)
+    case("정상 링크는 통과", {"notes/a.md": "[b](b.md)\n", "notes/b.md": "x\n"}, expect_errors=False)
+    case("깨진 링크는 실패", {"notes/a.md": "[없음](missing.md)\n"}, expect_errors=True)
+    case("앵커가 붙은 깨진 링크도 실패", {"notes/a.md": "[없음](missing.md#sec)\n"}, expect_errors=True)
     case("필수 문서 누락은 실패", {}, remove="AGENTS.md", expect_errors=True)
     case("필수 내용 누락은 실패", {"CLAUDE.md": "가져오기 없음\n"}, expect_errors=True)
-    case("코드 블록 안 링크는 무시", {"docs/a.md": "```\n[없음](missing.md)\n```\n`[없음](missing.md)`\n"}, expect_errors=False)
-    case("로컬 전용 링크는 건너뜀", {"docs/a.md": "[prd](prd/x.md)\n"}, expect_errors=False, expect_skips=1)
+    case("코드 블록 안 링크는 무시", {"notes/a.md": "```\n[없음](missing.md)\n```\n`[없음](missing.md)`\n"}, expect_errors=False)
+    case("로컬 전용 링크는 건너뜀", {"notes/a.md": "[prd](../docs/prd/x.md)\n"}, expect_errors=False, expect_skips=1)
     case("저장소 밖 링크는 실패", {"a.md": "[밖](../x.md)\n"}, expect_errors=True)
-    case("퍼센트 인코딩 링크는 통과", {"docs/a.md": "[b](my%20file.md)\n", "docs/my file.md": "x\n"}, expect_errors=False)
-    case("루트 기준 링크는 통과", {"docs/a.md": "[b](/docs/b.md)\n", "docs/b.md": "x\n"}, expect_errors=False)
-    case("Git 추적 파일 링크는 통과", {"docs/a.md": "[b](b.md)\n", "docs/b.md": "x\n"}, expect_errors=False, git=True)
-    case("Git 미추적 파일 링크는 실패", {"docs/a.md": "[b](b.md)\n", "docs/b.md": "x\n"}, expect_errors=True, git=True, untracked=("docs/b.md",))
+    case("퍼센트 인코딩 링크는 통과", {"notes/a.md": "[b](my%20file.md)\n", "notes/my file.md": "x\n"}, expect_errors=False)
+    case("루트 기준 링크는 통과", {"notes/a.md": "[b](/notes/b.md)\n", "notes/b.md": "x\n"}, expect_errors=False)
+    case("Git 추적 파일 링크는 통과", {"notes/a.md": "[b](b.md)\n", "notes/b.md": "x\n"}, expect_errors=False, git=True)
+    case("Git 미추적 파일 링크는 실패", {"notes/a.md": "[b](b.md)\n", "notes/b.md": "x\n"}, expect_errors=True, git=True, untracked=("notes/b.md",))
     return cases
 
 
