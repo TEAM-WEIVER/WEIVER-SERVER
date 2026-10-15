@@ -1,0 +1,53 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-check-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: 문서·링크 검사
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Check harness docs and local links
+        run: bash .github/scripts/check-docs.sh
+
+  test:
+    name: 테스트 (contextLoads 제외)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # 리포지토리 테스트는 Testcontainers(postgres:15-alpine)를 쓴다. ubuntu-latest에는 Docker가 있다.
+      # WeiverBackendApplicationTests는 실제 DB·외부 설정이 필요해 제외한다(미실행).
+      - name: Test with Gradle
+        run: ./gradlew test --no-daemon -I .github/ci/exclude-context-loads.gradle
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: build/reports/tests/test
+          retention-days: 7

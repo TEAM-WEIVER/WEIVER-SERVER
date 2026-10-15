@@ -1,0 +1,12 @@
+// PR 테스트 CI 전용 Gradle init 스크립트. build.gradle은 건드리지 않는다.
+//
+// WeiverBackendApplicationTests(@SpringBootTest contextLoads)는 local 프로필로
+// localhost:5432/weiver_db에 붙고 ddl-auto: create-drop이다. CI에는 이 DB가 없으므로 제외하고,
+// PR 검증 결과에는 "미실행"으로 적는다.
+allprojects {
+    tasks.withType(Test).configureEach {
+        filter {
+            excludeTestsMatching 'com.weiver.WeiverBackendApplicationTests'
+        }
+    }
+}

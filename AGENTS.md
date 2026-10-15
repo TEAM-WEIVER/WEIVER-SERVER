@@ -114,6 +114,9 @@ com.weiver.global.<area>         컨텍스트에 속하지 않는 공통 기반
 - **`WeiverBackendApplicationTests`(`@SpringBootTest` contextLoads)는 주의한다.** `local` 프로필로
   `localhost:5432/weiver_db`에 붙고 `ddl-auto: create-drop`이라, 로컬 DB가 떠 있으면 스키마를 지울 수 있다.
   로컬 DB를 쓰는 중이면 이 테스트를 빼고 돌리고, 미실행으로 기록한다.
+- **문서 검사:** 하네스 문서나 `docs/`를 바꿨으면 `bash .github/scripts/check-docs.sh`로 필수 문서와 로컬 링크를
+  검사한다. 링크 대상은 Git이 추적하는 파일이어야 하고, `docs/prd/`(로컬 전용)를 가리키는 링크는 건너뜀으로 센다.
+- **PR CI:** `main` 대상 PR마다 `.github/workflows/pr-check.yml`이 문서 검사와 `./gradlew test`(contextLoads 제외)를 돌린다.
 - 실패 경로 테스트는 HTTP 상태뿐 아니라 응답의 `errorCode`(=`ErrorCode` 이름)까지 단언한다.
 - 공통 `IntegrationTestSupport` 베이스 클래스, `src/test/resources`, `test` 프로파일, 전용 Fixture
   클래스는 **없다**. 테스트 데이터는 엔티티 `@Builder`로 인라인 생성한다.
