@@ -1,5 +1,7 @@
 package com.weiver.applicant.service;
 
+import com.weiver.analysis.domain.TechnicalSkillReport;
+import com.weiver.analysis.repository.TechnicalSkillReportRepository;
 import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.request.post.AwardDetailDTO;
 import com.weiver.applicant.dto.request.post.AwardRequestDTO;
@@ -53,6 +55,7 @@ class ApplicantServiceTest {
     @Mock private PortfolioRepository portfolioRepository;
     @Mock private S3Service s3Service;
     @Mock private ApplicantProfileEventService applicantProfileEventService;
+    @Mock private TechnicalSkillReportRepository technicalSkillReportRepository;
 
     @InjectMocks
     private ApplicantService applicantService;
@@ -453,6 +456,77 @@ class ApplicantServiceTest {
         assertThat(responseDTO.submitted()).isTrue();
         // 동기화가 실패했으면 재제출을 허용한다.
         assertThat(responseDTO.submittable()).isTrue();
+    }
+
+    @Test
+    @DisplayName("프로필 제출 여부 조회 시 기술 리포트가 없으면 동기화가 COMPLETED여도 analysisCompleted는 false를 반환한다.")
+    void getSubmissionStatus_NoTechnicalSkillReport_ReturnsAnalysisFalse() {
+        // Given
+        String publicId = "2222";
+        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.COMPLETED);
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(educationRepository.existsByApplicant(applicant)).willReturn(true);
+        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
+        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.empty());
+
+        // When
+        ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.syncStatus()).isEqualTo(ProfileSyncStatus.COMPLETED);
+        assertThat(responseDTO.analysisCompleted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("프로필 제출 여부 조회 시 기술 리포트의 job 또는 role이 비어 있으면 analysisCompleted는 false를 반환한다.")
+    void getSubmissionStatus_BlankJobOrRole_ReturnsAnalysisFalse() {
+        // Given
+        String publicId = "2222";
+        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.COMPLETED);
+        TechnicalSkillReport report = TechnicalSkillReport.builder()
+                .applicant(applicant)
+                .job("DEVELOPER")
+                .role(" ")
+                .build();
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(educationRepository.existsByApplicant(applicant)).willReturn(true);
+        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
+        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.of(report));
+
+        // When
+        ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.analysisCompleted()).isFalse();
+    }
+
+    @Test
+    @DisplayName("프로필 제출 여부 조회 시 기술 리포트에 job과 role이 모두 있으면 analysisCompleted는 true를 반환한다.")
+    void getSubmissionStatus_JobAndRole_ReturnsAnalysisTrue() {
+        // Given
+        String publicId = "2222";
+        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.COMPLETED);
+        TechnicalSkillReport report = TechnicalSkillReport.builder()
+                .applicant(applicant)
+                .job("DEVELOPER")
+                .role("BACKEND")
+                .build();
+
+        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(educationRepository.existsByApplicant(applicant)).willReturn(true);
+        given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
+        given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
+        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.of(report));
+
+        // When
+        ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
+
+        // Then
+        assertThat(responseDTO.analysisCompleted()).isTrue();
     }
 
     @Test
