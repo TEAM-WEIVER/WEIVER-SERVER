@@ -39,7 +39,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -409,7 +408,7 @@ public class InterviewFlowService {
         TechnicalSkillReport report = technicalSkillReportRepository.findByApplicant(applicant)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_ANALYSIS_NOT_COMPLETED));
 
-        if (!StringUtils.hasText(report.getJob()) || !StringUtils.hasText(report.getRole())) {
+        if (!report.isAnalysisCompleted()) {
             throw new BusinessException(ErrorCode.APPLICANT_ANALYSIS_NOT_COMPLETED);
         }
         return report;

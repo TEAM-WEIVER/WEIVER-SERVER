@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 
@@ -59,6 +60,14 @@ public class TechnicalSkillReport extends BaseTimeEntity {
         this.skillTags = skillTags;
         this.job = job;
         this.role = role;
+    }
+
+    /**
+     * 프로필 분석 결과로 직무(job)와 역할(role)이 모두 저장됐는지 판단한다.
+     * 제출 상태 조회와 면접 시작 검증이 같은 기준을 쓴다. 저장 값은 바꾸지 않는다.
+     */
+    public boolean isAnalysisCompleted() {
+        return StringUtils.hasText(job) && StringUtils.hasText(role);
     }
 
     /**

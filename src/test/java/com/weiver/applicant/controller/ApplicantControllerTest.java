@@ -194,6 +194,7 @@ class ApplicantControllerTest {
                 false,
                 true,
                 false,
+                true,
                 true
         );
 
@@ -211,7 +212,8 @@ class ApplicantControllerTest {
                 .andExpect(jsonPath("$.data.submittable").value(false))
                 .andExpect(jsonPath("$.data.resumeCompleted").value(true))
                 .andExpect(jsonPath("$.data.essayCompleted").value(false))
-                .andExpect(jsonPath("$.data.portfolioCompleted").value(true));
+                .andExpect(jsonPath("$.data.portfolioCompleted").value(true))
+                .andExpect(jsonPath("$.data.analysisCompleted").value(true));
     }
 
     @Test
