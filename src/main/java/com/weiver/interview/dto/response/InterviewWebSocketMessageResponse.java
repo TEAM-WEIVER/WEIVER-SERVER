@@ -1,6 +1,7 @@
 package com.weiver.interview.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.weiver.global.exception.ErrorCode;
 import com.weiver.interview.type.AudioStatus;
 import com.weiver.interview.type.InterviewSessionStatus;
 
@@ -25,7 +26,10 @@ public record InterviewWebSocketMessageResponse(
         String audioUrl,
 
         @JsonProperty("audio_status")
-        AudioStatus audioStatus
+        AudioStatus audioStatus,
+
+        @JsonProperty("error_code")
+        String errorCode
 ) {
     public static InterviewWebSocketMessageResponse sessionStarted(InterviewStartResponse response) {
         return new InterviewWebSocketMessageResponse(
@@ -36,6 +40,7 @@ public record InterviewWebSocketMessageResponse(
                 null,
                 null,
                 "면접 세션이 시작되었습니다.",
+                null,
                 null,
                 null
         );
@@ -50,6 +55,7 @@ public record InterviewWebSocketMessageResponse(
                 null,
                 null,
                 "답변이 제출되었습니다.",
+                null,
                 null,
                 null
         );
@@ -75,7 +81,8 @@ public record InterviewWebSocketMessageResponse(
                 question,
                 null,
                 audioUrl,
-                audioStatus
+                audioStatus,
+                null
         );
     }
 
@@ -89,7 +96,26 @@ public record InterviewWebSocketMessageResponse(
                 null,
                 "면접이 종료되었습니다.",
                 null,
+                null,
                 null
+        );
+    }
+
+    /**
+     * 면접 요청 처리 중 발생한 업무 예외를 요청한 연결에 알린다. 세션·질문 정보는 모두 null이다.
+     */
+    public static InterviewWebSocketMessageResponse error(ErrorCode code, String message) {
+        return new InterviewWebSocketMessageResponse(
+                "ERROR",
+                null,
+                null,
+                null,
+                null,
+                null,
+                message,
+                null,
+                null,
+                code.code
         );
     }
 }

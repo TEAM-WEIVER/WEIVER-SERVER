@@ -27,6 +27,14 @@ public record ApplicantSubmissionStatusResponseDTO(
         boolean essayCompleted,
 
         @Schema(description = "포트폴리오 작성 완료 여부", example = "true")
-        boolean portfolioCompleted
+        boolean portfolioCompleted,
+
+        @Schema(
+                description = "AI 프로필 분석 완료 여부. 기술 리포트에 직무(job)와 역할(role)이 모두 저장됐으면 true. "
+                        + "syncStatus=COMPLETED는 프로필 동기화 완료일 뿐 분석 완료가 아니다. "
+                        + "면접 시작 버튼은 이 값이 true일 때만 활성화하고, false면 다시 조회해 분석 완료를 기다린다.",
+                example = "true"
+        )
+        boolean analysisCompleted
 ) {
 }

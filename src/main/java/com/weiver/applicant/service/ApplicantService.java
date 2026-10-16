@@ -1,5 +1,7 @@
 package com.weiver.applicant.service;
 
+import com.weiver.analysis.domain.TechnicalSkillReport;
+import com.weiver.analysis.repository.TechnicalSkillReportRepository;
 import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.dto.response.*;
@@ -33,6 +35,7 @@ public class ApplicantService {
     private final WorkExperienceRepository workExperienceRepository;
     private final EssayAnswerRepository essayAnswerRepository;
     private final PortfolioRepository portfolioRepository;
+    private final TechnicalSkillReportRepository technicalSkillReportRepository;
     private final WorkExperienceService workExperienceService;
     private final ApplicantProfileEventService applicantProfileEventService;
     private final S3Service s3Service;
@@ -117,8 +120,18 @@ public class ApplicantService {
                 isSubmittable(applicant, documentStatus),
                 documentStatus.resumeCompleted(),
                 documentStatus.essayCompleted(),
-                documentStatus.portfolioCompleted()
+                documentStatus.portfolioCompleted(),
+                isAnalysisCompleted(applicant)
         );
+    }
+
+    /**
+     * 면접 시작 버튼 활성화 판단용: 기술 리포트가 있고 직무·역할 분석이 끝난 상태. 리포트가 없으면 false.
+     */
+    private boolean isAnalysisCompleted(Applicant applicant) {
+        return technicalSkillReportRepository.findByApplicant(applicant)
+                .map(TechnicalSkillReport::isAnalysisCompleted)
+                .orElse(false);
     }
 
     /**
