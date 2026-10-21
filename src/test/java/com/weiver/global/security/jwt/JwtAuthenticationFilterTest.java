@@ -5,6 +5,8 @@ import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.handler.SecurityErrorResponseWriter;
 import com.weiver.global.security.jwt.repository.BlacklistTokenRepository;
 import com.weiver.global.security.jwt.repository.TokenVersionRepository;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -13,6 +15,10 @@ import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -125,8 +131,43 @@ public class JwtAuthenticationFilterTest {
             // then
             assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
             assertThat(filterChain.getRequest()).isNull();
-            // errorCode 값은 정책 미정이므로 any로 둔다
-            verify(errorResponseWriter).write(eq(response), eq(request), any(ErrorCode.class));
+            verify(errorResponseWriter).write(eq(response), eq(request), eq(ErrorCode.INVALID_TOKEN));
+        }
+
+        @Test
+        @DisplayName("token_type 클레임이 없는 기존 토큰을 Bearer로 보내면 INVALID_TOKEN 오류 응답을 쓴다")
+        void legacyTokenWithoutTokenType_Rejected() throws Exception {
+            // given
+            String legacyToken = buildLegacyToken();
+            MockHttpServletRequest request = new MockHttpServletRequest();
+            request.setRequestURI("/api/test");
+            request.addHeader("Authorization", "Bearer " + legacyToken);
+            MockHttpServletResponse response = new MockHttpServletResponse();
+            MockFilterChain filterChain = new MockFilterChain();
+
+            when(blacklistRepository.exists(legacyToken)).thenReturn(false);
+            when(versionRepository.getCurrentVersion(PUBLIC_ID, ROLE)).thenReturn(TOKEN_VERSION);
+
+            // when
+            filter.doFilter(request, response, filterChain);
+
+            // then
+            assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+            assertThat(filterChain.getRequest()).isNull();
+            verify(errorResponseWriter).write(eq(response), eq(request), eq(ErrorCode.INVALID_TOKEN));
+        }
+
+        private String buildLegacyToken() {
+            SecretKey secretKey = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+            Date now = new Date();
+            return Jwts.builder()
+                    .subject(PUBLIC_ID)
+                    .claim("role", ROLE.name())
+                    .claim("tokenVersion", TOKEN_VERSION)
+                    .issuedAt(now)
+                    .expiration(new Date(now.getTime() + ACCESS_TOKEN_EXPIRATION))
+                    .signWith(secretKey)
+                    .compact();
         }
     }
 }

@@ -3,6 +3,7 @@ package com.weiver.global.security.jwt;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.common.UserRole;
+import com.weiver.global.security.jwt.type.TokenType;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -19,6 +20,8 @@ import java.util.Date;
 @EnableConfigurationProperties(JwtProperties.class)
 public class JwtTokenProvider {
 
+    private static final String TOKEN_TYPE_CLAIM = "token_type";
+
     private final JwtProperties jwtProperties;
     private final SecretKey secretKey;
 
@@ -30,11 +33,28 @@ public class JwtTokenProvider {
     }
 
     public String createAccessToken(String publicId, UserRole role, long tokenVersion) {
-        return createToken(publicId, role, tokenVersion, jwtProperties.accessTokenExpiration());
+        return createToken(publicId, role, tokenVersion, jwtProperties.accessTokenExpiration(), TokenType.ACCESS);
     }
 
     public String createRefreshToken(String publicId, UserRole role, long tokenVersion) {
-        return createToken(publicId, role, tokenVersion, jwtProperties.refreshTokenExpiration());
+        return createToken(publicId, role, tokenVersion, jwtProperties.refreshTokenExpiration(), TokenType.REFRESH);
+    }
+
+    /**
+     * token_type 클레임이 access인지 확인한다. 클레임이 없거나 다른 값이면 false.
+     * 만료·위조 토큰은 다른 조회 메서드와 같이 BusinessException을 던진다.
+     */
+    public boolean isAccessToken(String token) {
+        return TokenType.ACCESS.getClaimValue().equals(getClaims(token).get(TOKEN_TYPE_CLAIM));
+    }
+
+    /**
+     * Access Token이 아니면 INVALID_TOKEN 예외를 던진다.
+     */
+    public void validateAccessToken(String token) {
+        if(!isAccessToken(token)) {
+            throw new BusinessException(ErrorCode.INVALID_TOKEN);
+        }
     }
 
     public void validateRefreshToken(String token) {
@@ -82,7 +102,7 @@ public class JwtTokenProvider {
         return tokenVersion;
     }
 
-    private String createToken(String publicId, UserRole role, long tokenVersion, long expirationMillis) {
+    private String createToken(String publicId, UserRole role, long tokenVersion, long expirationMillis, TokenType tokenType) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationMillis);
 
@@ -90,6 +110,7 @@ public class JwtTokenProvider {
                 .subject(publicId)
                 .claim("role", role.name())
                 .claim("tokenVersion", tokenVersion)
+                .claim(TOKEN_TYPE_CLAIM, tokenType.getClaimValue())
                 .issuedAt(now)
                 .expiration(expiration)
                 .signWith(secretKey)

@@ -6,6 +6,8 @@ import com.weiver.global.security.jwt.JwtProperties;
 import com.weiver.global.security.jwt.JwtTokenProvider;
 import com.weiver.global.security.jwt.repository.BlacklistTokenRepository;
 import com.weiver.global.security.jwt.repository.TokenVersionRepository;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.messaging.Message;
@@ -14,6 +16,10 @@ import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.security.access.AccessDeniedException;
+
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -85,6 +91,34 @@ class WebSocketAuthChannelInterceptorTest {
         // when & then
         assertThatThrownBy(() -> interceptor.preSend(message, channel))
                 .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    @DisplayName("CONNECT에 token_type 클레임이 없는 기존 토큰을 넣으면 AccessDeniedException이 발생한다")
+    void connect_WithLegacyTokenWithoutTokenType_Denied() {
+        // given
+        String legacyToken = buildLegacyToken();
+        StompHeaderAccessor accessor = connectAccessor("Authorization", "Bearer " + legacyToken);
+        Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        stubRepositories(legacyToken);
+
+        // when & then
+        assertThatThrownBy(() -> interceptor.preSend(message, channel))
+                .isInstanceOf(AccessDeniedException.class);
+        assertThat(accessor.getUser()).isNull();
+    }
+
+    private String buildLegacyToken() {
+        SecretKey secretKey = Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
+        Date now = new Date();
+        return Jwts.builder()
+                .subject(PUBLIC_ID)
+                .claim("role", ROLE.name())
+                .claim("tokenVersion", TOKEN_VERSION)
+                .issuedAt(now)
+                .expiration(new Date(now.getTime() + ACCESS_TOKEN_EXPIRATION))
+                .signWith(secretKey)
+                .compact();
     }
 
     private StompHeaderAccessor connectAccessor(String headerName, String headerValue) {

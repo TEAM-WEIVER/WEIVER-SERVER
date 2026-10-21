@@ -3,6 +3,7 @@ package com.weiver.global.security.jwt;
 import com.weiver.global.common.UserRole;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Date;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 public class JwtTokenProviderTest {
@@ -75,6 +77,87 @@ public class JwtTokenProviderTest {
         assertThat(jwtTokenProvider.getRemainingExpiration(token))
                 .isLessThanOrEqualTo(REFRESH_TOKEN_EXPIRATION)
                 .isGreaterThan(REFRESH_TOKEN_EXPIRATION - 1000);
+    }
+
+    @Test
+    @DisplayName("createAccessToken: token_type 클레임을 \"access\"로 넣는다")
+    public void createAccessToken_tokenTypeAccess() {
+        // when
+        String token = jwtTokenProvider.createAccessToken("uuid-applicant-1", UserRole.APPLICANT, 0L);
+
+        // then
+        assertThat(parseClaims(token).get("token_type")).isEqualTo("access");
+    }
+
+    @Test
+    @DisplayName("createRefreshToken: token_type 클레임을 \"refresh\"로 넣는다")
+    public void createRefreshToken_tokenTypeRefresh() {
+        // when
+        String token = jwtTokenProvider.createRefreshToken("uuid-applicant-1", UserRole.APPLICANT, 0L);
+
+        // then
+        assertThat(parseClaims(token).get("token_type")).isEqualTo("refresh");
+    }
+
+    // ===================== isAccessToken / validateAccessToken =====================
+
+    @Test
+    @DisplayName("validateAccessToken: Access Token이면 예외 없이 통과하고 isAccessToken은 true")
+    public void validateAccessToken_accessToken() {
+        // given
+        String token = jwtTokenProvider.createAccessToken("uuid-applicant-1", UserRole.APPLICANT, 0L);
+
+        // when & then
+        assertThat(jwtTokenProvider.isAccessToken(token)).isTrue();
+        assertThatCode(() -> jwtTokenProvider.validateAccessToken(token)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("validateAccessToken: Refresh Token이면 INVALID_TOKEN 예외")
+    public void validateAccessToken_refreshToken() {
+        // given
+        String token = jwtTokenProvider.createRefreshToken("uuid-applicant-1", UserRole.APPLICANT, 0L);
+
+        // when & then
+        assertThat(jwtTokenProvider.isAccessToken(token)).isFalse();
+        assertThatThrownBy(() -> jwtTokenProvider.validateAccessToken(token))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.INVALID_TOKEN);
+    }
+
+    @Test
+    @DisplayName("validateAccessToken: token_type 클레임이 없는 기존 토큰이면 INVALID_TOKEN 예외")
+    public void validateAccessToken_legacyTokenWithoutTokenType() {
+        // given
+        String legacyToken = Jwts.builder()
+                .subject("uuid-applicant-1")
+                .claim("role", UserRole.APPLICANT.name())
+                .claim("tokenVersion", 0L)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + ACCESS_TOKEN_EXPIRATION))
+                .signWith(secretKey)
+                .compact();
+
+        // when & then
+        assertThat(jwtTokenProvider.isAccessToken(legacyToken)).isFalse();
+        assertThatThrownBy(() -> jwtTokenProvider.validateAccessToken(legacyToken))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.INVALID_TOKEN);
+    }
+
+    @Test
+    @DisplayName("validateAccessToken: 만료된 토큰이면 기존과 같이 TOKEN_EXPIRED 예외")
+    public void validateAccessToken_expired() {
+        // given
+        String expiredToken = buildExpiredToken("uuid-applicant-1", UserRole.APPLICANT, 0L);
+
+        // when & then
+        assertThatThrownBy(() -> jwtTokenProvider.validateAccessToken(expiredToken))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.TOKEN_EXPIRED);
     }
 
     // ===================== validateRefreshToken =====================
@@ -248,6 +331,10 @@ public class JwtTokenProviderTest {
     }
 
     // ===================== helpers =====================
+
+    private Claims parseClaims(String token) {
+        return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
+    }
 
     private String buildExpiredToken(String publicId, UserRole role, long tokenVersion) {
         Date past = new Date(System.currentTimeMillis() - 60_000);
