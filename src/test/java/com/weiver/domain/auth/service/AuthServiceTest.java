@@ -248,10 +248,6 @@ public class AuthServiceTest {
 
     // ===================== reissueToken: 실제 토큰 종류 회귀 (Issue #171) =====================
 
-    /**
-     * 실제 JwtTokenProvider로 만든 토큰으로 재발급 경로를 확인한다. 저장소는 mock이며,
-     * rotateIfMatches는 Redis에 저장된 Refresh Token 해시와 입력 토큰 해시를 비교하는 동작을 흉내 낸다.
-     */
     @Nested
     @DisplayName("실제 토큰으로 재발급 (Issue #171)")
     class RealTokenReissueTest {

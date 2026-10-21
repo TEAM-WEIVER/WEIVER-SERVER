@@ -48,9 +48,6 @@ public class JwtTokenProvider {
         return TokenType.ACCESS.getClaimValue().equals(getClaims(token).get(TOKEN_TYPE_CLAIM));
     }
 
-    /**
-     * Access Token이 아니면 INVALID_TOKEN 예외를 던진다.
-     */
     public void validateAccessToken(String token) {
         if(!isAccessToken(token)) {
             throw new BusinessException(ErrorCode.INVALID_TOKEN);

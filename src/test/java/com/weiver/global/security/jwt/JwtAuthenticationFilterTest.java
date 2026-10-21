@@ -59,10 +59,6 @@ public class JwtAuthenticationFilterTest {
         verify(jwtTokenProvider, never()).getPublicId(anyString());
     }
 
-    /**
-     * Issue #171 재현: 실제 JwtTokenProvider·BearerTokenResolver로 만든 토큰을 필터에 통과시킨다.
-     * 저장소와 오류 응답 작성기만 mock으로 둔다.
-     */
     @Nested
     @DisplayName("실제 토큰 종류별 인증 (Issue #171)")
     class RealTokenTypeTest {
@@ -123,7 +119,6 @@ public class JwtAuthenticationFilterTest {
             MockFilterChain filterChain = new MockFilterChain();
 
             when(blacklistRepository.exists(refreshToken)).thenReturn(false);
-            when(versionRepository.getCurrentVersion(PUBLIC_ID, ROLE)).thenReturn(TOKEN_VERSION);
 
             // when
             filter.doFilter(request, response, filterChain);
@@ -132,6 +127,7 @@ public class JwtAuthenticationFilterTest {
             assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
             assertThat(filterChain.getRequest()).isNull();
             verify(errorResponseWriter).write(eq(response), eq(request), eq(ErrorCode.INVALID_TOKEN));
+            verify(versionRepository, never()).getCurrentVersion(any(), any());
         }
 
         @Test
@@ -146,7 +142,6 @@ public class JwtAuthenticationFilterTest {
             MockFilterChain filterChain = new MockFilterChain();
 
             when(blacklistRepository.exists(legacyToken)).thenReturn(false);
-            when(versionRepository.getCurrentVersion(PUBLIC_ID, ROLE)).thenReturn(TOKEN_VERSION);
 
             // when
             filter.doFilter(request, response, filterChain);
@@ -155,6 +150,7 @@ public class JwtAuthenticationFilterTest {
             assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
             assertThat(filterChain.getRequest()).isNull();
             verify(errorResponseWriter).write(eq(response), eq(request), eq(ErrorCode.INVALID_TOKEN));
+            verify(versionRepository, never()).getCurrentVersion(any(), any());
         }
 
         private String buildLegacyToken() {

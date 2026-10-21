@@ -1,6 +1,8 @@
 package com.weiver.global.security.websocket;
 
 import com.weiver.global.common.UserRole;
+import com.weiver.global.exception.BusinessException;
+import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.security.jwt.BearerTokenResolver;
 import com.weiver.global.security.jwt.JwtProperties;
 import com.weiver.global.security.jwt.JwtTokenProvider;
@@ -26,10 +28,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-/**
- * Issue #171 재현: 실제 JwtTokenProvider·BearerTokenResolver로 만든 토큰으로 STOMP CONNECT 인증을 검증한다.
- * 저장소만 mock으로 둔다.
- */
 class WebSocketAuthChannelInterceptorTest {
 
     private static final String SECRET = "test-secret-key-for-jwt-token-provider-unit-test-1234567890";
@@ -105,6 +103,25 @@ class WebSocketAuthChannelInterceptorTest {
         // when & then
         assertThatThrownBy(() -> interceptor.preSend(message, channel))
                 .isInstanceOf(AccessDeniedException.class);
+        assertThat(accessor.getUser()).isNull();
+    }
+
+    @Test
+    @DisplayName("CONNECT에 만료된 Access Token을 넣으면 기존처럼 TOKEN_EXPIRED BusinessException이 전파된다")
+    void connect_WithExpiredAccessToken_ThrowsTokenExpired() {
+        // given
+        JwtTokenProvider expiredAccessTokenProvider = new JwtTokenProvider(
+                new JwtProperties(SECRET, -60_000L, REFRESH_TOKEN_EXPIRATION));
+        String expiredAccessToken = expiredAccessTokenProvider.createAccessToken(PUBLIC_ID, ROLE, TOKEN_VERSION);
+        StompHeaderAccessor accessor = connectAccessor("Authorization", "Bearer " + expiredAccessToken);
+        Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        when(blacklistTokenRepository.exists(expiredAccessToken)).thenReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> interceptor.preSend(message, channel))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.TOKEN_EXPIRED);
         assertThat(accessor.getUser()).isNull();
     }
 
