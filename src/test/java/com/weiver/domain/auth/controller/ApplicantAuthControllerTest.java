@@ -577,4 +577,52 @@ public class ApplicantAuthControllerTest {
     private static ApplicantAgreementRequestDTO allTrueAgreements() {
         return new ApplicantAgreementRequestDTO(true, true, true, true, true, true);
     }
+
+    @Test
+    @DisplayName("정책D: 이메일 인증번호 발송 제한에 걸리면 429 TOO_MANY_EMAIL_REQUESTS")
+    public void sendEmailCode_tooManyRequests() throws Exception {
+        // given
+        doThrow(new BusinessException(ErrorCode.TOO_MANY_EMAIL_REQUESTS))
+                .when(applicantAuthService).sendEmailCode(any(ApplicantEmailSendRequestDTO.class));
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/email/send")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ApplicantEmailSendRequestDTO("user@test.com"))))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.httpStatus").value(429))
+                .andExpect(jsonPath("$.errorCode").value("TOO_MANY_EMAIL_REQUESTS"));
+    }
+
+    @Test
+    @DisplayName("정책D: 비밀번호 재설정 인증번호 발송 제한에 걸리면 429 TOO_MANY_EMAIL_REQUESTS")
+    public void sendPasswordResetCode_tooManyRequests() throws Exception {
+        // given
+        doThrow(new BusinessException(ErrorCode.TOO_MANY_EMAIL_REQUESTS))
+                .when(applicantAuthService).sendPasswordResetCode(any(ApplicantEmailSendRequestDTO.class));
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/password/email/send")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ApplicantEmailSendRequestDTO("user@test.com"))))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.httpStatus").value(429))
+                .andExpect(jsonPath("$.errorCode").value("TOO_MANY_EMAIL_REQUESTS"));
+    }
+
+    @Test
+    @DisplayName("정책D: 로그인 차단 중이면 429 TOO_MANY_LOGIN_ATTEMPTS")
+    public void login_tooManyAttempts() throws Exception {
+        // given
+        when(applicantAuthService.login(any()))
+                .thenThrow(new BusinessException(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS));
+
+        // when & then
+        mockMvc.perform(post("/api/auth/applicants/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new ApplicantLoginRequestDTO("user@test.com", "Pass1234!"))))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.httpStatus").value(429))
+                .andExpect(jsonPath("$.errorCode").value("TOO_MANY_LOGIN_ATTEMPTS"));
+    }
 }
