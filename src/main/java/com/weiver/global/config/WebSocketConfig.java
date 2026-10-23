@@ -22,16 +22,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .setAllowedOrigins(
                         "https://weiverai.com",
                         "https://www.weiverai.com",
-                        "https://weiver.local.weiverai.com:3000",
-                        "http://localhost:3000"
+                        "https://weiver.local.weiverai.com:3000"
                 );
 
         registry.addEndpoint("/ws-sockjs")
                 .setAllowedOrigins(
                         "https://weiverai.com",
                         "https://www.weiverai.com",
-                        "https://weiver.local.weiverai.com:3000",
-                        "http://localhost:3000"
+                        "https://weiver.local.weiverai.com:3000"
                 )
                 .withSockJS();
     }
