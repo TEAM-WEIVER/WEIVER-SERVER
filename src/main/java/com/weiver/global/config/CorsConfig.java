@@ -23,8 +23,7 @@ public class CorsConfig {
         corsConfiguration.setAllowedOrigins(List.of(
                 "https://weiverai.com",
                 "https://www.weiverai.com",
-                "https://weiver.local.weiverai.com:3000",
-                "http://localhost:3000"
+                "https://weiver.local.weiverai.com:3000"
         ));
 
         corsConfiguration.setAllowedMethods(List.of(
