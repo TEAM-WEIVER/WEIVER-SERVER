@@ -5,6 +5,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -35,13 +36,16 @@ public class ApplicantEmailVerificationRepository {
         redisTemplate.delete(generateCodeKey(email));
     }
 
+    /**
+     * 시도 횟수를 1 증가시킨다. TTL은 첫 증가 때만 걸고 이후 증가로 연장하지 않는다(증가와 TTL 설정은 원자적).
+     */
     public long incrementAttemptCount(String email, Duration ttl) {
-        String key = generateAttemptKey(email);
-        Long count = redisTemplate.opsForValue().increment(key);
-        if (count != null && count == 1L) {
-            redisTemplate.expire(key, ttl);
-        }
-        return count == null ? 0L : count;
+        Long count = redisTemplate.execute(
+                RedisCounterScripts.INCREMENT_WITH_TTL_ON_FIRST,
+                List.of(generateAttemptKey(email)),
+                String.valueOf(ttl.toMillis())
+        );
+        return RedisCounterScripts.toCount(count);
     }
 
     public void deleteAttemptCount(String email) {

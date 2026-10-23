@@ -9,6 +9,7 @@ public enum ErrorCode {
     FORBIDDEN("FORBIDDEN", HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
     MISSING_COOKIE("MISSING_COOKIE", HttpStatus.BAD_REQUEST, "필수 쿠키가 누락되었습니다."),
     USER_NOT_FOUND("USER_NOT_FOUND", HttpStatus.NOT_FOUND, "존재하지 않는 사용자입니다."),
+    TOO_MANY_LOGIN_ATTEMPTS("TOO_MANY_LOGIN_ATTEMPTS", HttpStatus.TOO_MANY_REQUESTS, "로그인 시도 횟수를 초과했습니다. 잠시 후 다시 시도해 주세요."),
 
     // ===================== TOKEN =====================
     TOKEN_EXPIRED("TOKEN_EXPIRED", HttpStatus.UNAUTHORIZED, "액세스 토큰이 만료되었습니다."),
@@ -24,7 +25,8 @@ public enum ErrorCode {
     EMAIL_SEND_FAILED("EMAIL_SEND_FAILED", HttpStatus.INTERNAL_SERVER_ERROR, "이메일 인증번호 전송에 실패했습니다."),
     INVALID_VERIFICATION_CODE("INVALID_VERIFICATION_CODE", HttpStatus.BAD_REQUEST, "이메일 인증번호가 올바르지 않습니다."),
     VERIFICATION_CODE_EXPIRED("VERIFICATION_CODE_EXPIRED", HttpStatus.BAD_REQUEST, "이메일 인증번호가 만료되었습니다. 다시 요청해 주세요."),
-    TOO_MANY_VERIFICATION_ATTEMPTS("TOO_MANY_VERIFICATION_ATTEMPTS", HttpStatus.BAD_REQUEST, "인증 시도 횟수를 초과했습니다. 인증번호를 다시 요청해 주세요."),
+    TOO_MANY_VERIFICATION_ATTEMPTS("TOO_MANY_VERIFICATION_ATTEMPTS", HttpStatus.BAD_REQUEST, "인증 시도 횟수를 초과했습니다. 잠시 후 다시 시도해 주세요."),
+    TOO_MANY_EMAIL_REQUESTS("TOO_MANY_EMAIL_REQUESTS", HttpStatus.TOO_MANY_REQUESTS, "인증번호 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
     EMAIL_NOT_VERIFIED("EMAIL_NOT_VERIFIED", HttpStatus.FORBIDDEN, "이메일 인증이 완료되지 않았습니다."),
 
     // ===================== VALIDATION =====================

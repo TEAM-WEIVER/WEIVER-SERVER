@@ -9,9 +9,11 @@ import com.weiver.auth.dto.request.*;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantPasswordVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
+import com.weiver.auth.repository.ApplicantEmailSendLimitRepository;
 import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
 import com.weiver.auth.repository.ApplicantPasswordReauthTokenRepository;
 import com.weiver.auth.repository.ApplicantSignupTokenRepository;
+import com.weiver.auth.repository.LoginAttemptRepository;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
 import com.weiver.global.common.UserRole;
 import com.weiver.applicant.service.ApplicantProvider;
@@ -42,6 +44,19 @@ public class ApplicantAuthService {
     private static final Duration SIGNUP_TOKEN_TTL = Duration.ofMinutes(30);
     private static final Duration REAUTH_TOKEN_TTL = Duration.ofMinutes(10);
     private static final int MAX_VERIFICATION_ATTEMPTS = 5;
+    // 시도 카운터는 재발송으로 초기화되지 않도록 코드 TTL(5분)과 분리해 30분 동안 유지한다.
+    private static final Duration VERIFICATION_ATTEMPT_TTL = Duration.ofMinutes(30);
+
+    // 이메일 기준 인증번호 발송 제한: 1분에 1회, 1시간에 5회 (회원가입 인증·비밀번호 재설정 공통)
+    private static final Duration EMAIL_SEND_MINUTE_WINDOW = Duration.ofMinutes(1);
+    private static final int MAX_EMAIL_SENDS_PER_MINUTE = 1;
+    private static final Duration EMAIL_SEND_HOUR_WINDOW = Duration.ofHours(1);
+    private static final int MAX_EMAIL_SENDS_PER_HOUR = 5;
+
+    // 로그인 시도 제한: 15분 안에 5회까지 비밀번호를 검사하고, 6번째 시도부터 15분 동안 차단(성공하면 카운터 삭제)
+    private static final int MAX_LOGIN_ATTEMPTS = 5;
+    private static final Duration LOGIN_ATTEMPT_WINDOW = Duration.ofMinutes(15);
+    private static final Duration LOGIN_BLOCK_DURATION = Duration.ofMinutes(15);
 
     // 배포 이후 테스트 우회가 필요 없어지면 TEST_EMAIL_* 상수, isTestEmail(), send/verify 분기, 관련 테스트를 함께 삭제하세요.
     private static final String TEST_EMAIL_DOMAIN = "weiver.test";
@@ -59,6 +74,8 @@ public class ApplicantAuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final ApplicantProvider applicantProvider;
     private final EmailVerificationService emailVerificationService;
+    private final ApplicantEmailSendLimitRepository emailSendLimitRepository;
+    private final LoginAttemptRepository loginAttemptRepository;
 
     // 비-prod 테스트 편의용 이메일 인증 우회 스위치. prod에서는 반드시 false여야 한다(기본 false).
     @Value("${weiver.auth.test-email-bypass.enabled:false}")
@@ -66,6 +83,8 @@ public class ApplicantAuthService {
 
     public void sendEmailCode(ApplicantEmailSendRequestDTO request) {
         String email = request.email();
+
+        checkEmailSendLimit(email);
 
         applicantRepository.findByEmailAndDeletedFalse(email)
                 .filter(existing -> existing.getStatus() == ApplicantStatus.ACTIVE)
@@ -79,6 +98,9 @@ public class ApplicantAuthService {
     public void sendPasswordResetCode(ApplicantEmailSendRequestDTO request) {
         String email = request.email();
 
+        // 가입 여부 확인 전에 검사해, 제한 응답도 가입 여부와 무관하게 똑같이 나가게 한다(이메일 열거 방지).
+        checkEmailSendLimit(email);
+
         boolean activeApplicantExists = applicantRepository.findByEmailAndDeletedFalse(email)
                 .filter(existing -> existing.getStatus() == ApplicantStatus.ACTIVE)
                 .isPresent();
@@ -89,6 +111,24 @@ public class ApplicantAuthService {
         }
 
         issueAndSendVerificationCode(email, "[PasswordReset]");
+    }
+
+    /**
+     * 이메일 기준 발송 횟수 제한. 가입 여부를 확인하기 전에 호출한다.
+     * 1분 카운터를 먼저 검사하고, 통과한 요청만 1시간 카운터에 센다. 테스트 도메인 우회 이메일은 제한하지 않는다.
+     */
+    private void checkEmailSendLimit(String email) {
+        if (testEmailBypassEnabled && isTestEmail(email)) {
+            return;
+        }
+
+        if (emailSendLimitRepository.incrementMinuteCount(email, EMAIL_SEND_MINUTE_WINDOW) > MAX_EMAIL_SENDS_PER_MINUTE) {
+            throw new BusinessException(ErrorCode.TOO_MANY_EMAIL_REQUESTS);
+        }
+
+        if (emailSendLimitRepository.incrementHourCount(email, EMAIL_SEND_HOUR_WINDOW) > MAX_EMAIL_SENDS_PER_HOUR) {
+            throw new BusinessException(ErrorCode.TOO_MANY_EMAIL_REQUESTS);
+        }
     }
 
     /**
@@ -104,7 +144,7 @@ public class ApplicantAuthService {
 
         String code = codeGenerator.generateCode();
 
-        emailVerificationRepository.deleteAttemptCount(email);
+        // 시도 카운터는 지우지 않는다. 재발송으로 확인 시도 한도를 초기화할 수 없게 하기 위함이다.
         emailVerificationRepository.saveCode(email, code, EMAIL_CODE_TTL);
 
         try {
@@ -133,13 +173,12 @@ public class ApplicantAuthService {
         String savedCode = emailVerificationRepository.findCodeByEmail(email)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VERIFICATION_CODE_EXPIRED));
 
-        // 2) 시도 횟수 증가 (TTL은 코드와 동일하게 부여)
-        long attemptCount = emailVerificationRepository.incrementAttemptCount(email, EMAIL_CODE_TTL);
+        // 2) 시도 횟수 증가 (TTL 30분은 첫 증가 때만 걸리고 재발송·재시도로 연장되지 않는다)
+        long attemptCount = emailVerificationRepository.incrementAttemptCount(email, VERIFICATION_ATTEMPT_TTL);
 
-        // 3) 한도 초과 시 코드/카운터 모두 소각하고 차단
+        // 3) 한도 초과 시 코드만 소각하고 카운터는 남긴다 (재발송으로 우회 불가)
         if (attemptCount > MAX_VERIFICATION_ATTEMPTS) {
             emailVerificationRepository.deleteCode(email);
-            emailVerificationRepository.deleteAttemptCount(email);
             throw new BusinessException(ErrorCode.TOO_MANY_VERIFICATION_ATTEMPTS);
         }
 
@@ -340,13 +379,24 @@ public class ApplicantAuthService {
 
     @Transactional
     public ApplicantLoginResult login(ApplicantLoginRequestDTO request) {
-        // 로그인 경로에서는 계정 미존재와 비밀번호 불일치를 동일한 오류(INVALID_PASSWORD)로 통일해 이메일 열거를 차단한다.
-        Applicant applicant = applicantRepository.findByEmailAndDeletedFalse(request.email())
-                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_PASSWORD));
+        String email = request.email();
 
-        if(!passwordEncoder.matches(request.password(), applicant.getPassword())) {
+        // 계정 조회·비밀번호 비교 전에 시도를 원자적으로 기록하고 허용 여부를 확인한다.
+        // 한도를 넘었거나 차단 중이면 비밀번호가 맞아도 거절한다.
+        if (!loginAttemptRepository.tryAcquire(email, UserRole.APPLICANT, MAX_LOGIN_ATTEMPTS, LOGIN_ATTEMPT_WINDOW, LOGIN_BLOCK_DURATION)) {
+            throw new BusinessException(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+        }
+
+        // 로그인 경로에서는 계정 미존재와 비밀번호 불일치를 동일한 오류(INVALID_PASSWORD)로 통일해 이메일 열거를 차단한다.
+        // 계정이 없는 경우도 시도로 센다.
+        Applicant applicant = applicantRepository.findByEmailAndDeletedFalse(email).orElse(null);
+
+        // 시도는 tryAcquire에서 이미 셌으므로 실패 시 추가 Redis 호출은 없다.
+        if (applicant == null || !passwordEncoder.matches(request.password(), applicant.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
         }
+
+        loginAttemptRepository.clearAttempts(email, UserRole.APPLICANT);
 
         if (applicant.getStatus() != ApplicantStatus.ACTIVE) {
             throw new BusinessException(ErrorCode.SIGNUP_NOT_COMPLETED);
