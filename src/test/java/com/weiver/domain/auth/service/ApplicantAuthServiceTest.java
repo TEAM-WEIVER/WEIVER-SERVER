@@ -17,9 +17,11 @@ import com.weiver.auth.dto.request.ApplicantSignupInitRequestDTO;
 import com.weiver.auth.dto.response.ApplicantEmailVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantPasswordVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
+import com.weiver.auth.repository.ApplicantEmailSendLimitRepository;
 import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
 import com.weiver.auth.repository.ApplicantPasswordReauthTokenRepository;
 import com.weiver.auth.repository.ApplicantSignupTokenRepository;
+import com.weiver.auth.repository.LoginAttemptRepository;
 import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.ApplicantVerificationCodeGenerator;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
@@ -56,6 +58,8 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -76,6 +80,8 @@ public class ApplicantAuthServiceTest {
     @Mock private RefreshTokenRepository refreshTokenRepository;
     @Mock private TokenVersionRepository tokenVersionRepository;
     @Mock private ApplicantProvider applicantProvider;
+    @Mock private ApplicantEmailSendLimitRepository emailSendLimitRepository;
+    @Mock private LoginAttemptRepository loginAttemptRepository;
 
     @BeforeEach
     void enableTestEmailBypass() {
@@ -84,7 +90,7 @@ public class ApplicantAuthServiceTest {
     }
 
     @Test
-    @DisplayName("이메일 인증번호 전송 성공 시 시도 카운터 초기화 후 코드 저장 + 메일 발송")
+    @DisplayName("이메일 인증번호 전송 성공 시 시도 카운터는 유지한 채 코드 저장 + 메일 발송")
     public void sendEmailCode_success() {
         // given
         String email = "user@test.com";
@@ -98,7 +104,7 @@ public class ApplicantAuthServiceTest {
         applicantAuthService.sendEmailCode(request);
 
         // then
-        verify(emailVerificationRepository).deleteAttemptCount(email);
+        verify(emailVerificationRepository, never()).deleteAttemptCount(anyString());
         verify(emailVerificationRepository).saveCode(eq(email), eq(code), any(Duration.class));
         verify(emailVerificationService).sendVerificationCode(email, code);
         verify(emailVerificationRepository, never()).deleteCode(anyString());
@@ -181,7 +187,7 @@ public class ApplicantAuthServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .hasMessage(ErrorCode.EMAIL_SEND_FAILED.defaultMessage);
 
-        verify(emailVerificationRepository).deleteAttemptCount(email);
+        verify(emailVerificationRepository, never()).deleteAttemptCount(anyString());
         verify(emailVerificationRepository).saveCode(eq(email), eq(code), any(Duration.class));
         verify(emailVerificationRepository).deleteCode(email);
     }
@@ -287,7 +293,7 @@ public class ApplicantAuthServiceTest {
     }
 
     @Test
-    @DisplayName("시도 횟수 한도 초과 시 코드/카운터 소각 후 TOO_MANY_VERIFICATION_ATTEMPTS 예외")
+    @DisplayName("시도 횟수 한도 초과 시 코드만 소각하고 카운터는 남긴 채 TOO_MANY_VERIFICATION_ATTEMPTS 예외")
     public void verifyEmailCode_tooManyAttempts() {
         // given
         String email = "user@test.com";
@@ -303,7 +309,7 @@ public class ApplicantAuthServiceTest {
                 .hasMessage(ErrorCode.TOO_MANY_VERIFICATION_ATTEMPTS.defaultMessage);
 
         verify(emailVerificationRepository).deleteCode(email);
-        verify(emailVerificationRepository).deleteAttemptCount(email);
+        verify(emailVerificationRepository, never()).deleteAttemptCount(anyString());
         verify(emailVerificationRepository, never()).saveVerifiedToken(anyString(), anyString(), any(Duration.class));
     }
 
@@ -583,6 +589,7 @@ public class ApplicantAuthServiceTest {
     @DisplayName("로그인 성공 시 현재 tokenVersion으로 access/refresh 토큰을 발급하고 RefreshToken을 저장한다.")
     public void login_success() {
         // given
+        allowLoginAttempt("user@test.com");
         String email = "user@test.com";
         String rawPassword = "Pass1234!";
         String publicId = "uuid-applicant-7";
@@ -622,6 +629,7 @@ public class ApplicantAuthServiceTest {
     @DisplayName("존재하지 않는 이메일이면 이메일 열거 방지를 위해 INVALID_PASSWORD 예외")
     public void login_applicantNotFound() {
         // given
+        allowLoginAttempt("none@test.com");
         ApplicantLoginRequestDTO request = new ApplicantLoginRequestDTO("none@test.com", "Pass1234!");
         when(applicantRepository.findByEmailAndDeletedFalse("none@test.com")).thenReturn(Optional.empty());
 
@@ -638,6 +646,7 @@ public class ApplicantAuthServiceTest {
     @DisplayName("비밀번호가 일치하지 않으면 INVALID_PASSWORD 예외")
     public void login_invalidPassword() {
         // given
+        allowLoginAttempt("user@test.com");
         ApplicantLoginRequestDTO request = new ApplicantLoginRequestDTO("user@test.com", "wrong");
         Applicant applicant = Applicant.builder()
                 .email("user@test.com")
@@ -663,6 +672,7 @@ public class ApplicantAuthServiceTest {
     @DisplayName("PENDING 상태의 회원이 로그인 시도하면 SIGNUP_NOT_COMPLETED 예외")
     public void login_pendingBlocked() {
         // given
+        allowLoginAttempt("pending@test.com");
         ApplicantLoginRequestDTO request = new ApplicantLoginRequestDTO("pending@test.com", "Pass1234!");
         Applicant pending = pendingApplicant("pending@test.com");
 
@@ -734,7 +744,7 @@ public class ApplicantAuthServiceTest {
         applicantAuthService.sendPasswordResetCode(new ApplicantEmailSendRequestDTO(email));
 
         // then
-        verify(emailVerificationRepository).deleteAttemptCount(email);
+        verify(emailVerificationRepository, never()).deleteAttemptCount(anyString());
         verify(emailVerificationRepository).saveCode(eq(email), eq("123456"), any(Duration.class));
         verify(emailVerificationService).sendVerificationCode(email, "123456");
     }
@@ -1037,6 +1047,303 @@ public class ApplicantAuthServiceTest {
 
     private static ApplicantAgreementRequestDTO allTrueAgreements() {
         return new ApplicantAgreementRequestDTO(true, true, true, true, true, true);
+    }
+
+    // ----------- #174 정책 A: 인증 시도 횟수 -----------
+
+    @Test
+    @DisplayName("정책A: 인증번호 확인 시 시도 카운터를 30분 TTL로 증가시킨다")
+    void verifyEmailCode_incrementsAttemptCountWith30MinuteTtl() {
+        // given
+        String email = "user@test.com";
+        when(emailVerificationRepository.findCodeByEmail(email)).thenReturn(Optional.of("999999"));
+        when(emailVerificationRepository.incrementAttemptCount(eq(email), any(Duration.class))).thenReturn(1L);
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.verifyEmailCode(new ApplicantEmailVerifyRequestDTO(email, "111111")))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.INVALID_VERIFICATION_CODE);
+
+        verify(emailVerificationRepository).incrementAttemptCount(email, Duration.ofMinutes(30));
+    }
+
+    @Test
+    @DisplayName("정책A: 한도를 넘긴 뒤 재발송해도 카운터가 유지되어 새 코드로도 TOO_MANY_VERIFICATION_ATTEMPTS가 난다")
+    void resendAfterTooManyAttempts_doesNotResetAttemptCount() {
+        // given
+        String email = "user@test.com";
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.empty());
+        when(codeGenerator.generateCode()).thenReturn("123456");
+        when(emailVerificationRepository.findCodeByEmail(email)).thenReturn(Optional.of("123456"));
+        // 재발송 후에도 카운터가 이어져 6번째 시도가 된다
+        when(emailVerificationRepository.incrementAttemptCount(eq(email), any(Duration.class))).thenReturn(6L);
+
+        // when
+        applicantAuthService.sendEmailCode(new ApplicantEmailSendRequestDTO(email));
+
+        // then: 올바른 새 코드를 넣어도 차단된다
+        assertThatThrownBy(() -> applicantAuthService.verifyEmailCode(new ApplicantEmailVerifyRequestDTO(email, "123456")))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.TOO_MANY_VERIFICATION_ATTEMPTS);
+
+        verify(emailVerificationRepository, never()).deleteAttemptCount(anyString());
+        verify(emailVerificationRepository, never()).saveVerifiedToken(anyString(), anyString(), any(Duration.class));
+    }
+
+    // ----------- #174 정책 B: 발송 횟수 제한 -----------
+
+    @Test
+    @DisplayName("정책B: 발송 시 이메일 기준 1분/1시간 카운터를 각 TTL로 증가시킨다")
+    void sendEmailCode_incrementsSendCounters() {
+        // given
+        String email = "user@test.com";
+        when(emailSendLimitRepository.incrementMinuteCount(email, Duration.ofMinutes(1))).thenReturn(1L);
+        when(emailSendLimitRepository.incrementHourCount(email, Duration.ofHours(1))).thenReturn(1L);
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.empty());
+        when(codeGenerator.generateCode()).thenReturn("123456");
+
+        // when
+        applicantAuthService.sendEmailCode(new ApplicantEmailSendRequestDTO(email));
+
+        // then
+        verify(emailSendLimitRepository).incrementMinuteCount(email, Duration.ofMinutes(1));
+        verify(emailSendLimitRepository).incrementHourCount(email, Duration.ofHours(1));
+        verify(emailVerificationService).sendVerificationCode(email, "123456");
+    }
+
+    @Test
+    @DisplayName("정책B: 1분 안에 두 번째 발송이면 가입 여부 확인 전에 TOO_MANY_EMAIL_REQUESTS 예외")
+    void sendEmailCode_minuteLimitExceeded() {
+        // given
+        String email = "user@test.com";
+        when(emailSendLimitRepository.incrementMinuteCount(email, Duration.ofMinutes(1))).thenReturn(2L);
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.sendEmailCode(new ApplicantEmailSendRequestDTO(email)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.TOO_MANY_EMAIL_REQUESTS);
+
+        verifyNoInteractions(applicantRepository, codeGenerator, emailVerificationService);
+        verify(emailSendLimitRepository, never()).incrementHourCount(anyString(), any(Duration.class));
+    }
+
+    @Test
+    @DisplayName("정책B: 1시간 안에 여섯 번째 발송이면 TOO_MANY_EMAIL_REQUESTS 예외")
+    void sendEmailCode_hourLimitExceeded() {
+        // given
+        String email = "user@test.com";
+        when(emailSendLimitRepository.incrementMinuteCount(email, Duration.ofMinutes(1))).thenReturn(1L);
+        when(emailSendLimitRepository.incrementHourCount(email, Duration.ofHours(1))).thenReturn(6L);
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.sendEmailCode(new ApplicantEmailSendRequestDTO(email)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.TOO_MANY_EMAIL_REQUESTS);
+
+        verifyNoInteractions(applicantRepository, codeGenerator, emailVerificationService);
+    }
+
+    @Test
+    @DisplayName("정책B: 1시간 안에 다섯 번째 발송까지는 허용한다")
+    void sendEmailCode_fifthSendInHourAllowed() {
+        // given
+        String email = "user@test.com";
+        when(emailSendLimitRepository.incrementMinuteCount(email, Duration.ofMinutes(1))).thenReturn(1L);
+        when(emailSendLimitRepository.incrementHourCount(email, Duration.ofHours(1))).thenReturn(5L);
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.empty());
+        when(codeGenerator.generateCode()).thenReturn("123456");
+
+        // when
+        applicantAuthService.sendEmailCode(new ApplicantEmailSendRequestDTO(email));
+
+        // then
+        verify(emailVerificationService).sendVerificationCode(email, "123456");
+    }
+
+    @Test
+    @DisplayName("정책B: 비밀번호 재설정 발송 제한은 가입 이메일과 미가입 이메일에 똑같이 TOO_MANY_EMAIL_REQUESTS로 나간다")
+    void sendPasswordResetCode_limitExceeded_sameForRegisteredAndUnregistered() {
+        // given
+        String registered = "reset@example.com";
+        String unregistered = "none@example.com";
+        when(emailSendLimitRepository.incrementMinuteCount(anyString(), eq(Duration.ofMinutes(1)))).thenReturn(2L);
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.sendPasswordResetCode(new ApplicantEmailSendRequestDTO(registered)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.TOO_MANY_EMAIL_REQUESTS);
+        assertThatThrownBy(() -> applicantAuthService.sendPasswordResetCode(new ApplicantEmailSendRequestDTO(unregistered)))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.TOO_MANY_EMAIL_REQUESTS);
+
+        // 가입 여부를 조회하기 전에 막는다
+        verifyNoInteractions(applicantRepository, codeGenerator, emailVerificationService);
+    }
+
+    @Test
+    @DisplayName("정책B: 비밀번호 재설정 1시간 6번째 발송은 가입·미가입 모두 가입 여부 조회 전에 TOO_MANY_EMAIL_REQUESTS로 거절한다")
+    void sendPasswordResetCode_hourLimitExceeded_sameForRegisteredAndUnregistered() {
+        // given
+        given(emailSendLimitRepository.incrementMinuteCount(anyString(), eq(Duration.ofMinutes(1)))).willReturn(1L);
+        given(emailSendLimitRepository.incrementHourCount(anyString(), eq(Duration.ofHours(1)))).willReturn(6L);
+
+        // when & then
+        for (String email : new String[]{"reset@example.com", "none@example.com"}) {
+            assertThatThrownBy(() -> applicantAuthService.sendPasswordResetCode(new ApplicantEmailSendRequestDTO(email)))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getCode())
+                    .isEqualTo(ErrorCode.TOO_MANY_EMAIL_REQUESTS);
+        }
+
+        verifyNoInteractions(applicantRepository, codeGenerator, emailVerificationService);
+    }
+
+    @Test
+    @DisplayName("정책B: 미가입 이메일의 비밀번호 재설정 요청도 발송 카운터를 증가시킨다")
+    void sendPasswordResetCode_unregisteredEmail_countsSend() {
+        // given
+        String email = "none@example.com";
+        when(emailSendLimitRepository.incrementMinuteCount(email, Duration.ofMinutes(1))).thenReturn(1L);
+        when(emailSendLimitRepository.incrementHourCount(email, Duration.ofHours(1))).thenReturn(1L);
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.empty());
+
+        // when
+        applicantAuthService.sendPasswordResetCode(new ApplicantEmailSendRequestDTO(email));
+
+        // then
+        verify(emailSendLimitRepository).incrementMinuteCount(email, Duration.ofMinutes(1));
+        verify(emailSendLimitRepository).incrementHourCount(email, Duration.ofHours(1));
+        verify(emailVerificationService, never()).sendVerificationCode(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("정책B: 테스트 도메인 이메일은 발송 제한을 적용하지 않는다")
+    void sendCode_testBypassEmail_skipsSendLimit() {
+        // given
+        String email = "qa@weiver.test";
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.of(activeApplicant(email)));
+
+        // when
+        applicantAuthService.sendPasswordResetCode(new ApplicantEmailSendRequestDTO(email));
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.empty());
+        applicantAuthService.sendEmailCode(new ApplicantEmailSendRequestDTO(email));
+
+        // then
+        verifyNoInteractions(emailSendLimitRepository);
+        verify(emailVerificationService, never()).sendVerificationCode(anyString(), anyString());
+    }
+
+    // ----------- #174 정책 C: 로그인 시도 제한 -----------
+
+    @Test
+    @DisplayName("정책C: 시도 허용 확인이 차단을 돌려주면 계정 조회·비밀번호 비교·카운터 삭제 없이 TOO_MANY_LOGIN_ATTEMPTS 예외")
+    void login_blocked() {
+        // given
+        String email = "user@test.com";
+        given(loginAttemptRepository.tryAcquire(email, UserRole.APPLICANT, 5, Duration.ofMinutes(15), Duration.ofMinutes(15)))
+                .willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.login(new ApplicantLoginRequestDTO(email, "Pass1234!")))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+
+        verifyNoInteractions(applicantRepository, passwordEncoder, jwtTokenProvider, refreshTokenRepository);
+        verify(loginAttemptRepository, never()).clearAttempts(anyString(), any(UserRole.class));
+    }
+
+    @Test
+    @DisplayName("정책C: 계정이 없으면 시도 확인 한 번 외에 추가 Redis 호출 없이 INVALID_PASSWORD 예외")
+    void login_applicantNotFound_noExtraRedisCall() {
+        // given
+        String email = "none@test.com";
+        allowLoginAttempt(email);
+        given(applicantRepository.findByEmailAndDeletedFalse(email)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.login(new ApplicantLoginRequestDTO(email, "Pass1234!")))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.INVALID_PASSWORD);
+
+        verify(loginAttemptRepository).tryAcquire(email, UserRole.APPLICANT, 5, Duration.ofMinutes(15), Duration.ofMinutes(15));
+        verifyNoMoreInteractions(loginAttemptRepository);
+    }
+
+    @Test
+    @DisplayName("정책C: 비밀번호가 틀리면 시도 확인 한 번 외에 추가 Redis 호출 없이 INVALID_PASSWORD 예외")
+    void login_invalidPassword_noExtraRedisCall() {
+        // given
+        String email = "user@test.com";
+        allowLoginAttempt(email);
+        given(applicantRepository.findByEmailAndDeletedFalse(email)).willReturn(Optional.of(activeApplicant(email)));
+        given(passwordEncoder.matches("wrong", "encoded")).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> applicantAuthService.login(new ApplicantLoginRequestDTO(email, "wrong")))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.INVALID_PASSWORD);
+
+        verify(loginAttemptRepository).tryAcquire(email, UserRole.APPLICANT, 5, Duration.ofMinutes(15), Duration.ofMinutes(15));
+        verifyNoMoreInteractions(loginAttemptRepository);
+    }
+
+    @Test
+    @DisplayName("정책C: 로그인에 성공하면 시도 카운터를 지운다")
+    void login_success_clearsAttempts() {
+        // given
+        String email = "user@test.com";
+        allowLoginAttempt(email);
+        given(applicantRepository.findByEmailAndDeletedFalse(email)).willReturn(Optional.of(activeApplicant(email)));
+        given(passwordEncoder.matches("Pass1234!", "encoded")).willReturn(true);
+
+        // when
+        applicantAuthService.login(new ApplicantLoginRequestDTO(email, "Pass1234!"));
+
+        // then
+        verify(loginAttemptRepository).clearAttempts(email, UserRole.APPLICANT);
+    }
+
+    @Test
+    @DisplayName("정책C: 차례로 요청하면 1~5번째는 비밀번호를 검사하고 6번째는 비밀번호가 맞아도 429로 거절한다")
+    void login_sequentialBoundary_sixthRejectedEvenWithCorrectPassword() {
+        // given: 저장소는 1~5번째 허용, 6번째 차단을 돌려준다 (실제 스크립트 동작은 LoginAttemptRepositoryTest가 증명)
+        String email = "user@test.com";
+        given(loginAttemptRepository.tryAcquire(email, UserRole.APPLICANT, 5, Duration.ofMinutes(15), Duration.ofMinutes(15)))
+                .willReturn(true, true, true, true, true, false);
+        given(applicantRepository.findByEmailAndDeletedFalse(email)).willReturn(Optional.of(activeApplicant(email)));
+        given(passwordEncoder.matches("wrong", "encoded")).willReturn(false);
+
+        // when & then: 1~5번째는 비밀번호 검사 후 INVALID_PASSWORD
+        for (int attempt = 1; attempt <= 5; attempt++) {
+            assertThatThrownBy(() -> applicantAuthService.login(new ApplicantLoginRequestDTO(email, "wrong")))
+                    .isInstanceOf(BusinessException.class)
+                    .extracting(e -> ((BusinessException) e).getCode())
+                    .isEqualTo(ErrorCode.INVALID_PASSWORD);
+        }
+
+        // 6번째는 올바른 비밀번호여도 비밀번호 검사 없이 차단
+        assertThatThrownBy(() -> applicantAuthService.login(new ApplicantLoginRequestDTO(email, "Pass1234!")))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getCode())
+                .isEqualTo(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+
+        verify(passwordEncoder, times(5)).matches(anyString(), anyString());
+        verify(passwordEncoder, never()).matches("Pass1234!", "encoded");
+        verify(loginAttemptRepository, never()).clearAttempts(anyString(), any(UserRole.class));
+    }
+
+    private void allowLoginAttempt(String email) {
+        given(loginAttemptRepository.tryAcquire(email, UserRole.APPLICANT, 5, Duration.ofMinutes(15), Duration.ofMinutes(15)))
+                .willReturn(true);
     }
 
     private static Applicant activeApplicant(String email) {
