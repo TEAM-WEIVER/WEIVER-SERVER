@@ -46,6 +46,9 @@ public class WebSocketAuthChannelInterceptor implements ChannelInterceptor {
         if (blacklistTokenRepository.exists(accessToken)) {
             throw new AccessDeniedException("Blacklisted WebSocket access token");
         }
+        if (!jwtTokenProvider.isAccessToken(accessToken)) {
+            throw new AccessDeniedException("Invalid WebSocket access token type");
+        }
 
         String publicId = jwtTokenProvider.getPublicId(accessToken);
         UserRole userRole = jwtTokenProvider.getRole(accessToken);

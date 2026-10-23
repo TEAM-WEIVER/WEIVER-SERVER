@@ -77,6 +77,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 return;
             }
 
+            jwtTokenProvider.validateAccessToken(accessToken);
+
             String publicId = jwtTokenProvider.getPublicId(accessToken);
             UserRole userRole = jwtTokenProvider.getRole(accessToken);
             long tokenVersion = jwtTokenProvider.getTokenVersion(accessToken);
