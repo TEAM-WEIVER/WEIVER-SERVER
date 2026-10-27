@@ -2,9 +2,12 @@ package com.weiver.global.event.publisher;
 
 import com.weiver.global.event.config.RabbitMqProperties;
 import com.weiver.global.event.dto.EventEnvelope;
+import com.weiver.global.event.util.EventHeaders;
 import com.weiver.global.event.util.EventRoutingKeys;
+import com.weiver.global.logging.util.TraceIdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.amqp.rabbit.connection.CorrelationData;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
@@ -20,6 +23,7 @@ import java.util.concurrent.TimeUnit;
 public class DomainEventPublisher {
 
     private static final long PUBLISH_CONFIRM_TIMEOUT_SECONDS = 10L;
+    private static final String TRACE_ID = "traceId";
 
     private final RabbitTemplate rabbitTemplate;
     private final RabbitMqProperties properties;
@@ -28,18 +32,25 @@ public class DomainEventPublisher {
         validateEnvelope(envelope);
 
         String routingKey = EventRoutingKeys.from(envelope.eventType());
+        // confirm 콜백은 다른 스레드에서 돌아 MDC가 없으므로, 발행 스레드에서 읽은 값을 콜백 로그에 직접 넘긴다.
+        String traceId = resolveTraceId();
         CorrelationData correlationData = new CorrelationData(envelope.eventId());
 
         rabbitTemplate.convertAndSend(
                 properties.domainExchange(),
                 routingKey,
                 envelope,
+                message -> {
+                    message.getMessageProperties().setHeader(EventHeaders.TRACE_ID, traceId);
+                    return message;
+                },
                 correlationData
         );
 
         correlationData.getFuture().orTimeout(PUBLISH_CONFIRM_TIMEOUT_SECONDS, TimeUnit.SECONDS).whenComplete((confirm, ex) -> {
             if (ex != null) {
-                log.error("RabbitMQ publish confirm failed. eventId={}, eventType={}, routingKey={}",
+                log.error("RabbitMQ publish confirm failed. traceId={}, eventId={}, eventType={}, routingKey={}",
+                        traceId,
                         envelope.eventId(),
                         envelope.eventType(),
                         routingKey,
@@ -49,7 +60,8 @@ public class DomainEventPublisher {
             }
             if (confirm == null || !confirm.isAck()) {
                 log.error(
-                        "RabbitMQ publish not acknowledged. eventId={}, eventType={}, routingKey={}, reason={}",
+                        "RabbitMQ publish not acknowledged. traceId={}, eventId={}, eventType={}, routingKey={}, reason={}",
+                        traceId,
                         envelope.eventId(),
                         envelope.eventType(),
                         routingKey,
@@ -59,7 +71,8 @@ public class DomainEventPublisher {
             }
 
             log.info(
-                    "RabbitMQ event published. eventId={}, eventType={}, correlationId={}, routingKey={}",
+                    "RabbitMQ event published. traceId={}, eventId={}, eventType={}, correlationId={}, routingKey={}",
+                    traceId,
                     envelope.eventId(),
                     envelope.eventType(),
                     envelope.correlationId(),
@@ -85,6 +98,18 @@ public class DomainEventPublisher {
                 publish(envelope);
             }
         });
+    }
+
+    /**
+     * HTTP 요청·리스너 스레드는 MDC traceId를 그대로 쓰고,
+     * MDC가 없는 스레드(스케줄러, 전용 스레드풀)는 새로 만든다.
+     */
+    private String resolveTraceId() {
+        String traceId = MDC.get(TRACE_ID);
+        if (StringUtils.hasText(traceId)) {
+            return traceId;
+        }
+        return TraceIdGenerator.generate();
     }
 
     private void validateEnvelope(EventEnvelope<?> envelope) {
