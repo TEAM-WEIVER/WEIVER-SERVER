@@ -18,6 +18,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -54,16 +55,40 @@ class SecurityCorsConfigTest {
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
-    @DisplayName("localhost:3000에서 보내는 이메일 인증 preflight 요청을 허용한다")
-    void allowApplicantEmailSendPreflightFromLocalhost() throws Exception {
-        mockMvc.perform(options("/api/auth/applicants/email/send")
-                        .header(HttpHeaders.ORIGIN, "http://localhost:3000")
-                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
-                        .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type"))
-                .andExpect(status().isOk())
-                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, "http://localhost:3000"))
+    @DisplayName("로컬 개발 출처 weiver.local.weiverai.com:3000의 이메일 인증 preflight 요청을 허용한다")
+    void allowApplicantEmailSendPreflightFromLocalDevOrigin() throws Exception {
+        // given
+        String origin = "https://weiver.local.weiverai.com:3000";
+
+        // when
+        ResultActions result = mockMvc.perform(options("/api/auth/applicants/email/send")
+                .header(HttpHeaders.ORIGIN, origin)
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type"));
+
+        // then
+        result.andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, origin))
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_CREDENTIALS, "true"));
     }
+
+    @Test
+    @DisplayName("허용 목록에서 제거한 http://localhost:3000의 preflight 요청을 거부한다")
+    void rejectPreflightFromRemovedLocalhostOrigin() throws Exception {
+        // given
+        String origin = "http://localhost:3000";
+
+        // when
+        ResultActions result = mockMvc.perform(options("/api/auth/applicants/email/send")
+                .header(HttpHeaders.ORIGIN, origin)
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_METHOD, "POST")
+                .header(HttpHeaders.ACCESS_CONTROL_REQUEST_HEADERS, "content-type"));
+
+        // then
+        result.andExpect(status().isForbidden())
+                .andExpect(header().doesNotExist(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN));
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {"https://weiverai.com", "https://www.weiverai.com"})
     void allowProductionPreflightWithAuthAndCsrfHeaders(String origin) throws Exception {

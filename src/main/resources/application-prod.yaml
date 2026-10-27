@@ -8,7 +8,7 @@
 server:
   port: 8080
   error:
-    include-stacktrace: always
+    include-stacktrace: never
 
 spring:
   config:
@@ -181,10 +181,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: health
   endpoint:
     health:
-      show-details: always
+      show-details: never
 
 # =============================================================================
 # 로깅 설정
