@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -25,8 +26,13 @@ import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.AndRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.web.cors.CorsConfigurationSource;
 
+import java.util.List;
 import java.util.stream.Stream;
 
 @Configuration
@@ -43,7 +49,10 @@ public class SecurityConfig {
     private final CorsConfigurationSource corsConfigurationSource;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(
+            HttpSecurity http,
+            @Value("${management.server.port:" + ManagementPortRequestMatcher.NOT_CONFIGURED + "}") int managementPort
+    ) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource));
 
         CsrfTokenRequestAttributeHandler requestHandler = new CsrfTokenRequestAttributeHandler();
@@ -86,6 +95,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(WhiteListConfig.swaggerWhitelist().toArray(String[]::new)).permitAll()
                         .requestMatchers(WhiteListConfig.serverWhitelist().toArray(String[]::new)).permitAll()
+                        .requestMatchers(managementPortWhitelistMatcher(managementPort)).permitAll()
                         .requestMatchers(WhiteListConfig.authWhitelist().toArray(String[]::new)).permitAll()
                         .requestMatchers("/ws").permitAll()
                         .requestMatchers("/ws/**").permitAll()
@@ -109,6 +119,23 @@ public class SecurityConfig {
         http.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * 관리 포트로 들어온 요청이면서 관리 포트 허용 경로일 때만 매칭한다.
+     * 앱 포트로 들어온 같은 경로 요청은 매칭하지 않아 anyRequest().authenticated()를 따른다.
+     */
+    private RequestMatcher managementPortWhitelistMatcher(int managementPort) {
+        PathPatternRequestMatcher.Builder paths = PathPatternRequestMatcher.withDefaults();
+        List<RequestMatcher> pathMatchers = WhiteListConfig.managementPortWhitelist().stream()
+                .map(paths::matcher)
+                .map(RequestMatcher.class::cast)
+                .toList();
+
+        return new AndRequestMatcher(
+                new ManagementPortRequestMatcher(managementPort),
+                new OrRequestMatcher(pathMatchers)
+        );
     }
 
     @Bean
