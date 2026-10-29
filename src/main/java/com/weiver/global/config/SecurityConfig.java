@@ -51,7 +51,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(
             HttpSecurity http,
-            @Value("${management.server.port:" + ManagementPortRequestMatcher.NOT_CONFIGURED + "}") int managementPort
+            @Value("${management.server.port:" + ManagementPortRequestMatcher.NOT_CONFIGURED + "}") int managementPort,
+            @Value("${server.port:8080}") int serverPort
     ) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource));
 
@@ -95,7 +96,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(WhiteListConfig.swaggerWhitelist().toArray(String[]::new)).permitAll()
                         .requestMatchers(WhiteListConfig.serverWhitelist().toArray(String[]::new)).permitAll()
-                        .requestMatchers(managementPortWhitelistMatcher(managementPort)).permitAll()
+                        .requestMatchers(managementPortWhitelistMatcher(managementPort, serverPort)).permitAll()
                         .requestMatchers(WhiteListConfig.authWhitelist().toArray(String[]::new)).permitAll()
                         .requestMatchers("/ws").permitAll()
                         .requestMatchers("/ws/**").permitAll()
@@ -125,7 +126,7 @@ public class SecurityConfig {
      * 관리 포트로 들어온 요청이면서 관리 포트 허용 경로일 때만 매칭한다.
      * 앱 포트로 들어온 같은 경로 요청은 매칭하지 않아 anyRequest().authenticated()를 따른다.
      */
-    private RequestMatcher managementPortWhitelistMatcher(int managementPort) {
+    private RequestMatcher managementPortWhitelistMatcher(int managementPort, int serverPort) {
         PathPatternRequestMatcher.Builder paths = PathPatternRequestMatcher.withDefaults();
         List<RequestMatcher> pathMatchers = WhiteListConfig.managementPortWhitelist().stream()
                 .map(paths::matcher)
@@ -133,7 +134,7 @@ public class SecurityConfig {
                 .toList();
 
         return new AndRequestMatcher(
-                new ManagementPortRequestMatcher(managementPort),
+                new ManagementPortRequestMatcher(managementPort, serverPort),
                 new OrRequestMatcher(pathMatchers)
         );
     }

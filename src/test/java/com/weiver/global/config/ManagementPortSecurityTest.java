@@ -17,6 +17,7 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.autoconfigure.endpoint.EndpointAutoConfiguration;
@@ -49,6 +50,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.NestedTestConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.io.IOException;
@@ -156,6 +158,10 @@ class ManagementPortSecurityTest {
      */
     @BeforeEach
     void setUp() throws Exception {
+        stubJwtFilterPassThrough(jwtAuthenticationFilter);
+    }
+
+    private static void stubJwtFilterPassThrough(JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
         willAnswer(invocation -> {
             ServletRequest request = invocation.getArgument(0);
             ServletResponse response = invocation.getArgument(1);
@@ -280,6 +286,72 @@ class ManagementPortSecurityTest {
                 .map(cookie -> cookie.substring("XSRF-TOKEN=".length(), cookie.indexOf(';')))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("XSRF-TOKEN 쿠키가 발급되지 않았습니다."));
+    }
+
+    /**
+     * management.server.port가 환경변수 등으로 server.port와 같은 값으로 덮어써진 경우.
+     * Boot는 관리 컨텍스트를 나누지 않고 actuator를 앱 포트에 올리므로, 포트 조건이 매칭하면 지표가 공개된다.
+     */
+    @Nested
+    @NestedTestConfiguration(NestedTestConfiguration.EnclosingConfiguration.OVERRIDE)
+    @AutoConfigureObservability(tracing = false)
+    @SpringBootTest(
+            classes = ManagementPortSecurityTest.TestApplication.class,
+            webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT,
+            properties = {
+                    "management.endpoints.web.exposure.include=health,prometheus",
+                    "management.endpoint.health.show-details=never",
+                    "cookie.csrf-token.cookie-name=XSRF-TOKEN",
+                    "cookie.csrf-token.header-name=X-XSRF-TOKEN",
+                    "cookie.csrf-token.path=/",
+                    "cookie.csrf-token.domain=",
+                    "cookie.csrf-token.secure=false",
+                    "cookie.csrf-token.same-site=Lax"
+            }
+    )
+    class WhenManagementPortEqualsServerPort {
+
+        private static final int SHARED_PORT = findFreePort();
+
+        @DynamicPropertySource
+        static void samePorts(DynamicPropertyRegistry registry) {
+            registry.add("server.port", () -> SHARED_PORT);
+            registry.add("management.server.port", () -> SHARED_PORT);
+        }
+
+        @Autowired
+        private ObjectMapper objectMapper;
+
+        @MockitoBean
+        private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+        @MockitoBean
+        private InterviewSessionService interviewSessionService;
+
+        @MockitoBean
+        private InterviewFlowService interviewFlowService;
+
+        @MockitoBean
+        private InterviewAnswerVoiceService interviewAnswerVoiceService;
+
+        @BeforeEach
+        void setUpNested() throws Exception {
+            stubJwtFilterPassThrough(jwtAuthenticationFilter);
+        }
+
+        @Test
+        @DisplayName("관리 포트가 앱 포트와 같으면 비인증 /actuator/prometheus 요청은 401 UNAUTHORIZED로 거절한다")
+        void prometheus_WhenManagementPortEqualsServerPort_Returns401() throws Exception {
+            // given
+            URI uri = URI.create("http://localhost:" + SHARED_PORT + "/actuator/prometheus");
+
+            // when
+            HttpResponse<String> response = get(uri);
+
+            // then
+            assertThat(response.statusCode()).isEqualTo(401);
+            assertThat(objectMapper.readTree(response.body()).path("errorCode").asText()).isEqualTo("UNAUTHORIZED");
+        }
     }
 
     private HttpResponse<String> get(URI uri) throws Exception {
