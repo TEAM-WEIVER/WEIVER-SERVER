@@ -186,7 +186,8 @@ public class BusinessException extends RuntimeException {
 - **handler**: `SecurityErrorResponseWriter`가 필터/EntryPoint/AccessDeniedHandler에서 `ErrorResponse`를
   JSON으로 직접 write 해 예외 응답 포맷을 통일한다.
 - **`SecurityConfig`**: `PasswordEncoder=BCrypt`, EntryPoint→`UNAUTHORIZED`, AccessDenied→`FORBIDDEN`.
-  permitAll: `OPTIONS /**`, swagger, `/actuator/health`, `/api/auth/reissue`·`/api/auth/csrf`,
+  permitAll: `OPTIONS /**`, swagger, `/actuator/health`, `/actuator/prometheus`(관리 포트로 들어온 요청에 한함,
+  `WhiteListConfig.managementPortWhitelist`), `/api/auth/reissue`·`/api/auth/csrf`,
   `/ws`·`/ws/**`, POST 한정 지원자/기업 인증 경로(이메일 인증·회원가입·로그인). 나머지 `authenticated`.
   화이트리스트는 `config/WhiteListConfig`(정적 메서드)로 분리한다 — **새 permitAll 경로는 여기에 추가**한다.
 - **WebSocket 인증**(`websocket/WebSocketAuthChannelInterceptor`): STOMP `CONNECT` 시 `Authorization`
