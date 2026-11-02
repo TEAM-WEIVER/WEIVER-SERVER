@@ -51,4 +51,11 @@ public class WhiteListConfig {
                 "/actuator/health"
         );
     }
+
+    // 관리 포트(management.server.port)로 들어온 요청에만 허용하는 운영 지표 경로
+    public static List<String> managementPortWhitelist() {
+        return List.of(
+                "/actuator/prometheus"
+        );
+    }
 }

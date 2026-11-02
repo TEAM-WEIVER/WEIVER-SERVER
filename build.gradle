@@ -110,6 +110,10 @@ dependencies {
     // ----------------------------------------------------------------------
     implementation 'org.springframework.boot:spring-boot-starter-aop'
 
+    // Actuator · Prometheus 지표 (버전은 Spring Boot BOM 관리)
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+
     implementation 'io.sentry:sentry-spring-boot-starter:8.43.0'
 
     // ----------------------------------------------------------------------

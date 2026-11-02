@@ -161,14 +161,19 @@ springdoc:
 # =============================================================================
 # Actuator
 # =============================================================================
+# local은 관리 포트를 나누지 않는다. 그래서 local의 /actuator/prometheus는 인증이 필요하다.
 management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: health,prometheus
   endpoint:
     health:
       show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name:weiver-backend}
+      environment: local
 
 # =============================================================================
 # 로깅 설정

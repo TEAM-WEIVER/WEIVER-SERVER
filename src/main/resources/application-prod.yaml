@@ -177,14 +177,22 @@ springdoc:
 # =============================================================================
 # Actuator
 # =============================================================================
+# 관리 포트(8081)는 외부에 공개하지 않는다. /actuator/prometheus는 이 포트로 들어온 요청만 인증 없이 허용한다.
+# management.server.address는 두지 않는다(127.0.0.1로 묶으면 같은 compose 네트워크의 Prometheus도 접근하지 못한다).
 management:
+  server:
+    port: 8081
   endpoints:
     web:
       exposure:
-        include: health
+        include: health,prometheus
   endpoint:
     health:
       show-details: never
+  metrics:
+    tags:
+      application: ${spring.application.name:weiver-backend}
+      environment: prod
 
 # =============================================================================
 # 로깅 설정
