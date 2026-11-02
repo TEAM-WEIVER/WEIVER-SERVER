@@ -156,8 +156,6 @@ class AiMetricsPrometheusExportTest {
         // when
         String metrics = get(URI.create("http://localhost:" + MANAGEMENT_PORT + "/actuator/prometheus"));
         List<String> aiLines = metrics.lines().filter(line -> line.startsWith("weiver_ai_")).toList();
-        // PR 검증 결과에 붙일 실제 출력 예시
-        aiLines.forEach(System.out::println);
 
         // then
         String common = "application=\"weiver-backend\",environment=\"local\"";

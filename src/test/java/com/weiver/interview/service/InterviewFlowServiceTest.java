@@ -963,6 +963,55 @@ class InterviewFlowServiceTest {
         assertThat(meterRegistry.find("weiver.ai.roundtrip").timers()).isEmpty();
     }
 
+    @Test
+    @DisplayName("이미 처리된(REPORT_REQUESTED) 세션의 스크립트 저장 결과 재수신은 지연 타이머에 기록하지 않는다")
+    void handleTranscriptSaved_DoesNotRecordRoundtrip_WhenAlreadyProcessed() {
+        // given
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = InterviewSession.builder()
+                .interviewSessionId(sessionId)
+                .applicant(applicant)
+                .quarter("2026Q4")
+                .sessionStatus(InterviewSessionStatus.REPORT_REQUESTED)
+                .transcriptSaveRequestedAt(LocalDateTime.now().minusSeconds(40))
+                .build();
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        // when
+        interviewFlowService.handleTranscriptSaved(new InterviewTranscriptSavedData(1L, sessionId, true));
+
+        // then
+        assertThat(session.getSessionStatus()).isEqualTo(InterviewSessionStatus.REPORT_REQUESTED);
+        assertThat(meterRegistry.find("weiver.ai.roundtrip").timers()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("이미 다음 질문 대기 중에 답변 제출을 재시도하면 질문 요청 시각을 바꾸지 않는다")
+    void submitAnswer_KeepsQuestionRequestedAt_WhenAlreadyWaiting() {
+        // given
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        LocalDateTime requestedAt = LocalDateTime.now().minusSeconds(30);
+        InterviewSession session = InterviewSession.builder()
+                .interviewSessionId(sessionId)
+                .applicant(applicant)
+                .quarter("2026Q4")
+                .sessionStatus(InterviewSessionStatus.WAITING_FOR_QUESTION)
+                .transcript(List.of(new InterviewTurnDTO("S_01_00", 1, "첫 질문", "첫 답변")))
+                .questionRequestedAt(requestedAt)
+                .build();
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        // when
+        interviewFlowService.submitAnswer(
+                sessionId, APPLICANT_PUBLIC_ID, new InterviewAnswerSubmitRequest("S_01_00", 1, "첫 답변"));
+
+        // then
+        assertThat(session.getQuestionRequestedAt()).isEqualTo(requestedAt);
+        verifyNoInteractions(domainEventPublisher);
+    }
+
     private long roundtripCount(String flow, String outcome) {
         var timer = meterRegistry.find("weiver.ai.roundtrip").tag("flow", flow).tag("outcome", outcome).timer();
         return timer == null ? 0 : timer.count();

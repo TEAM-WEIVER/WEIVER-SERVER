@@ -146,6 +146,26 @@ class ApplicantProfileSyncCompletedHandlerTest {
         assertThat(meterRegistry.find("weiver.ai.roundtrip").timers()).isEmpty();
     }
 
+    @Test
+    @DisplayName("요청 중(REQUESTED)이 아닌 지원자(FAILED)의 결과 수신은 지연 타이머에 기록하지 않는다")
+    void handle_DoesNotRecordRoundtrip_WhenNotRequested() {
+        // given
+        ApplicantProfileSyncCompletedHandler handler = handler();
+        Applicant applicant = Applicant.builder()
+                .applicantId(1L)
+                .profileSyncStatus(ProfileSyncStatus.FAILED)
+                .profileSyncRequestedAt(OffsetDateTime.now().minusSeconds(30))
+                .build();
+        given(applicantRepository.findById(1L)).willReturn(Optional.of(applicant));
+
+        // when
+        handler.handle(envelope(new ApplicantProfileSyncCompletedData(1L, true)));
+
+        // then
+        assertThat(applicant.getProfileSyncStatus()).isEqualTo(ProfileSyncStatus.COMPLETED);
+        assertThat(meterRegistry.find("weiver.ai.roundtrip").timers()).isEmpty();
+    }
+
     private ApplicantProfileSyncCompletedHandler handler() {
         return new ApplicantProfileSyncCompletedHandler(
                 objectMapper,
