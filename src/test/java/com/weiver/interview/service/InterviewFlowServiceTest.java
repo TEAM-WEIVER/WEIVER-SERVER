@@ -16,6 +16,7 @@ import com.weiver.global.event.exception.NonRetryableEventException;
 import com.weiver.global.event.publisher.DomainEventPublisher;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.metrics.AiRoundtripMetrics;
 import com.weiver.interview.domain.InterviewSession;
 import com.weiver.interview.dto.request.InterviewAnswerSubmitRequest;
 import com.weiver.interview.dto.request.InterviewStartRequest;
@@ -31,6 +32,7 @@ import com.weiver.interview.event.dto.InterviewTranscriptSaveRequestedData;
 import com.weiver.interview.event.dto.InterviewTranscriptSavedData;
 import com.weiver.interview.repository.InterviewSessionRepository;
 import com.weiver.interview.type.InterviewSessionStatus;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -92,6 +94,9 @@ class InterviewFlowServiceTest {
     @Mock private DomainEventPublisher domainEventPublisher;
     @Mock private SimpMessagingTemplate messagingTemplate;
     @Mock private InterviewQuestionVoiceService interviewQuestionVoiceService;
+    // 실제 타이머를 SimpleMeterRegistry에 기록해 flow·outcome 태그까지 검증한다.
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+    @Spy private AiRoundtripMetrics aiRoundtripMetrics = new AiRoundtripMetrics(meterRegistry);
 
     @Test
     @DisplayName("면접 시작 시 새 세션을 만들고 첫 질문 생성 요청 이벤트를 발행한다")
@@ -120,6 +125,7 @@ class InterviewFlowServiceTest {
         assertThat(response.interviewSessionId()).isEqualTo(session.getInterviewSessionId());
         assertThat(response.status()).isEqualTo(InterviewSessionStatus.WAITING_FOR_QUESTION.name());
         assertThat(session.getSessionStatus()).isEqualTo(InterviewSessionStatus.WAITING_FOR_QUESTION);
+        assertThat(session.getQuestionRequestedAt()).isNotNull();
         assertThat(session.getTranscript()).isEmpty();
         assertThat(session.getQuarter()).matches("\\d{4}Q[1-4]");
 
@@ -230,6 +236,7 @@ class InterviewFlowServiceTest {
         assertThat(session.getTranscript()).hasSize(1);
         assertThat(session.getTranscript().get(0).answer()).isEqualTo("첫 답변");
         assertThat(session.getSessionStatus()).isEqualTo(InterviewSessionStatus.WAITING_FOR_QUESTION);
+        assertThat(session.getQuestionRequestedAt()).isNotNull();
 
         ArgumentCaptor<EventEnvelope<?>> eventCaptor = ArgumentCaptor.forClass(EventEnvelope.class);
         verify(domainEventPublisher).publishAfterCommit(eventCaptor.capture());
@@ -473,6 +480,7 @@ class InterviewFlowServiceTest {
         InterviewAnalysisSubmitResponse response = interviewFlowService.requestAnalysis(sessionId, APPLICANT_PUBLIC_ID);
 
         assertThat(session.getSessionStatus()).isEqualTo(InterviewSessionStatus.TRANSCRIPT_SAVE_REQUESTED);
+        assertThat(session.getTranscriptSaveRequestedAt()).isAfterOrEqualTo(before);
         assertThat(response.interviewSessionId()).isEqualTo(sessionId);
         assertThat(response.status()).isEqualTo(InterviewSessionStatus.TRANSCRIPT_SAVE_REQUESTED.name());
 
@@ -577,6 +585,7 @@ class InterviewFlowServiceTest {
         interviewFlowService.handleTranscriptSaved(new InterviewTranscriptSavedData(1L, sessionId, true));
 
         assertThat(session.getSessionStatus()).isEqualTo(InterviewSessionStatus.REPORT_REQUESTED);
+        assertThat(session.getReportRequestedAt()).isNotNull();
 
         ArgumentCaptor<EventEnvelope<?>> eventCaptor = ArgumentCaptor.forClass(EventEnvelope.class);
         verify(domainEventPublisher).publishAfterCommit(eventCaptor.capture());
@@ -781,6 +790,187 @@ class InterviewFlowServiceTest {
                 .hasMessage("extracted_culturefit is required");
 
         verifyNoInteractions(interviewSessionRepository);
+    }
+
+    @Test
+    @DisplayName("질문 생성 결과를 처리하면 질문 요청 시각부터의 지연을 interview_question/completed로 기록한다")
+    void handleQuestionGenerated_RecordsRoundtrip() {
+        // given
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = InterviewSession.builder()
+                .interviewSessionId(sessionId)
+                .applicant(applicant)
+                .quarter("2026Q4")
+                .sessionStatus(InterviewSessionStatus.WAITING_FOR_QUESTION)
+                .transcript(List.of(new InterviewTurnDTO("S_01_00", 1, "첫 질문", "첫 답변")))
+                .questionRequestedAt(LocalDateTime.now().minusSeconds(20))
+                .build();
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        // when
+        interviewFlowService.handleQuestionGenerated(new InterviewQuestionGeneratedData(
+                1L, sessionId, "S_02_00", 2, "다음 질문"));
+
+        // then
+        assertThat(roundtripCount("interview_question", "completed")).isEqualTo(1);
+        assertThat(roundtripSeconds("interview_question", "completed")).isCloseTo(20.0, within(5.0));
+    }
+
+    @Test
+    @DisplayName("중복 수신한 질문 생성 결과는 지연 타이머에 다시 기록하지 않는다")
+    void handleQuestionGenerated_DoesNotRecordRoundtrip_ForDuplicateQuestion() {
+        // given
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = InterviewSession.builder()
+                .interviewSessionId(sessionId)
+                .applicant(applicant)
+                .quarter("2026Q4")
+                .sessionStatus(InterviewSessionStatus.QUESTION_READY)
+                .transcript(List.of(InterviewTurnDTO.questionOnly("S_01_00", 1, "첫 질문")))
+                .questionRequestedAt(LocalDateTime.now().minusSeconds(20))
+                .build();
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        // when
+        interviewFlowService.handleQuestionGenerated(new InterviewQuestionGeneratedData(
+                1L, sessionId, "S_01_00", 1, "첫 질문"));
+
+        // then
+        assertThat(meterRegistry.find("weiver.ai.roundtrip").timers()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("질문 요청 시각이 없는 세션(컬럼 추가 전 요청)은 질문 생성 결과를 처리해도 지연을 기록하지 않는다")
+    void handleQuestionGenerated_DoesNotRecordRoundtrip_WhenRequestedAtIsNull() {
+        // given
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = session(sessionId, applicant, InterviewSessionStatus.WAITING_FOR_QUESTION,
+                List.of(new InterviewTurnDTO("S_01_00", 1, "첫 질문", "첫 답변")));
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        // when
+        interviewFlowService.handleQuestionGenerated(new InterviewQuestionGeneratedData(
+                1L, sessionId, "S_02_00", 2, "다음 질문"));
+
+        // then
+        assertThat(session.getSessionStatus()).isEqualTo(InterviewSessionStatus.QUESTION_READY);
+        assertThat(meterRegistry.find("weiver.ai.roundtrip").timers()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("스크립트 저장 성공 결과를 처리하면 저장 요청 시각부터의 지연을 interview_transcript_save/completed로 기록한다")
+    void handleTranscriptSaved_RecordsCompletedRoundtrip() {
+        // given
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = InterviewSession.builder()
+                .interviewSessionId(sessionId)
+                .applicant(applicant)
+                .quarter("2026Q4")
+                .sessionStatus(InterviewSessionStatus.TRANSCRIPT_SAVE_REQUESTED)
+                .transcriptSaveRequestedAt(LocalDateTime.now().minusSeconds(40))
+                .build();
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        // when
+        interviewFlowService.handleTranscriptSaved(new InterviewTranscriptSavedData(1L, sessionId, true));
+
+        // then
+        assertThat(roundtripCount("interview_transcript_save", "completed")).isEqualTo(1);
+        assertThat(roundtripSeconds("interview_transcript_save", "completed")).isCloseTo(40.0, within(5.0));
+        assertThat(roundtripCount("interview_transcript_save", "failed")).isZero();
+    }
+
+    @Test
+    @DisplayName("스크립트 저장 실패 결과(saved=false)는 interview_transcript_save/failed로 기록하고 기존처럼 재처리 불가 예외를 던진다")
+    void handleTranscriptSaved_RecordsFailedRoundtrip_WhenNotSaved() {
+        // given
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = InterviewSession.builder()
+                .interviewSessionId(sessionId)
+                .applicant(applicant)
+                .quarter("2026Q4")
+                .sessionStatus(InterviewSessionStatus.TRANSCRIPT_SAVE_REQUESTED)
+                .transcriptSaveRequestedAt(LocalDateTime.now().minusSeconds(40))
+                .build();
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+
+        // when & then
+        assertThatThrownBy(() -> interviewFlowService.handleTranscriptSaved(
+                new InterviewTranscriptSavedData(1L, sessionId, false)))
+                .isInstanceOf(NonRetryableEventException.class)
+                .hasMessage("interview transcript was not saved");
+        assertThat(roundtripCount("interview_transcript_save", "failed")).isEqualTo(1);
+        assertThat(roundtripCount("interview_transcript_save", "completed")).isZero();
+    }
+
+    @Test
+    @DisplayName("리포트 완료 결과를 처리하면 리포트 요청 시각부터의 지연을 interview_report/completed로 기록한다")
+    void handleReportCompleted_RecordsRoundtrip() {
+        // given
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = InterviewSession.builder()
+                .interviewSessionId(sessionId)
+                .applicant(applicant)
+                .quarter("2026Q4")
+                .sessionStatus(InterviewSessionStatus.REPORT_REQUESTED)
+                .reportRequestedAt(LocalDateTime.now().minusSeconds(60))
+                .build();
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+        given(applicantRepository.findById(1L)).willReturn(Optional.of(applicant));
+        given(detailAnalysisReportRepository.findByInterviewSession_InterviewSessionId(sessionId)).willReturn(Optional.empty());
+        given(technicalSkillReportRepository.findByApplicant_ApplicantId(1L)).willReturn(Optional.empty());
+        given(cultureReportRepository.findByApplicant_ApplicantId(1L)).willReturn(Optional.empty());
+
+        // when
+        interviewFlowService.handleReportCompleted(reportCompleted(
+                sessionId, Map.of("overall_score", 0.8), new CultureAxisData(0.1, 0.1)));
+
+        // then
+        assertThat(roundtripCount("interview_report", "completed")).isEqualTo(1);
+        assertThat(roundtripSeconds("interview_report", "completed")).isCloseTo(60.0, within(5.0));
+    }
+
+    @Test
+    @DisplayName("이미 REPORT_COMPLETED인 세션의 리포트 재수신은 지연 타이머에 다시 기록하지 않는다")
+    void handleReportCompleted_DoesNotRecordRoundtrip_WhenAlreadyCompleted() {
+        // given
+        Applicant applicant = applicant();
+        UUID sessionId = UUID.randomUUID();
+        InterviewSession session = InterviewSession.builder()
+                .interviewSessionId(sessionId)
+                .applicant(applicant)
+                .quarter("2026Q4")
+                .sessionStatus(InterviewSessionStatus.REPORT_COMPLETED)
+                .reportRequestedAt(LocalDateTime.now().minusSeconds(60))
+                .build();
+        given(interviewSessionRepository.findByInterviewSessionId(sessionId)).willReturn(Optional.of(session));
+        given(applicantRepository.findById(1L)).willReturn(Optional.of(applicant));
+        given(detailAnalysisReportRepository.findByInterviewSession_InterviewSessionId(sessionId)).willReturn(Optional.empty());
+        given(technicalSkillReportRepository.findByApplicant_ApplicantId(1L)).willReturn(Optional.empty());
+        given(cultureReportRepository.findByApplicant_ApplicantId(1L)).willReturn(Optional.empty());
+
+        // when
+        interviewFlowService.handleReportCompleted(reportCompleted(
+                sessionId, Map.of("overall_score", 0.8), new CultureAxisData(0.1, 0.1)));
+
+        // then
+        assertThat(meterRegistry.find("weiver.ai.roundtrip").timers()).isEmpty();
+    }
+
+    private long roundtripCount(String flow, String outcome) {
+        var timer = meterRegistry.find("weiver.ai.roundtrip").tag("flow", flow).tag("outcome", outcome).timer();
+        return timer == null ? 0 : timer.count();
+    }
+
+    private double roundtripSeconds(String flow, String outcome) {
+        return meterRegistry.get("weiver.ai.roundtrip").tag("flow", flow).tag("outcome", outcome).timer()
+                .totalTime(java.util.concurrent.TimeUnit.SECONDS);
     }
 
     private InterviewReportCompletedData reportCompleted(

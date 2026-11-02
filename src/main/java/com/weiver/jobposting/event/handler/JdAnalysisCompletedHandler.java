@@ -10,9 +10,13 @@ import com.weiver.global.event.dto.EventType;
 import com.weiver.global.event.exception.NonRetryableEventException;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.metrics.AiRoundtripMetrics;
+import com.weiver.global.metrics.type.AiFlow;
+import com.weiver.global.metrics.type.AiOutcome;
 import com.weiver.jobposting.domain.JobPosting;
 import com.weiver.jobposting.event.dto.JdAnalysisCompletedData;
 import com.weiver.jobposting.repository.JobPostingRepository;
+import com.weiver.jobposting.type.JdAnalysisStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +28,7 @@ public class JdAnalysisCompletedHandler implements DomainEventHandler {
     private final ObjectMapper objectMapper;
     private final JobPostingRepository jobPostingRepository;
     private final JdAnalysisResultRepository jdAnalysisResultRepository;
+    private final AiRoundtripMetrics aiRoundtripMetrics;
 
     @Override
     public EventType support() {
@@ -44,6 +49,8 @@ public class JdAnalysisCompletedHandler implements DomainEventHandler {
                 .orElseThrow(() -> new BusinessException(ErrorCode.JOB_POSTING_NOT_FOUND));
 
         Long companyId = jobPosting.getCompany().getCompanyId();
+        // 재수신된 결과는 지연 지표에 다시 넣지 않도록, 요청 중이던 공고만 기록한다.
+        boolean wasRequested = jobPosting.getJdAnalysisStatus() == JdAnalysisStatus.REQUESTED;
 
         jdAnalysisResultRepository.findByJobPosting_JdId(jobPosting.getJdId())
                 .ifPresentOrElse(
@@ -57,6 +64,9 @@ public class JdAnalysisCompletedHandler implements DomainEventHandler {
                 );
 
         jobPosting.markJdAnalysisCompleted(envelope.occurredAt());
+        if (wasRequested) {
+            aiRoundtripMetrics.record(AiFlow.JD_ANALYSIS, AiOutcome.COMPLETED, jobPosting.getJdAnalysisRequestedAt());
+        }
     }
 
     private void validate(JdAnalysisCompletedData data) {

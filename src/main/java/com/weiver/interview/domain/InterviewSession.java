@@ -9,6 +9,7 @@ import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -57,6 +58,15 @@ public class InterviewSession extends BaseTimeEntity {
     @Column(name = "transcript", nullable = false, columnDefinition = "jsonb")
     private List<InterviewTurnDTO> transcript = new ArrayList<>();
 
+    @Column(name = "question_requested_at")
+    private LocalDateTime questionRequestedAt; // 마지막 질문 생성 요청 시각
+
+    @Column(name = "transcript_save_requested_at")
+    private LocalDateTime transcriptSaveRequestedAt; // 스크립트 저장 요청 시각
+
+    @Column(name = "report_requested_at")
+    private LocalDateTime reportRequestedAt; // 리포트 생성 요청 시각
+
     @Column(name = "video_url")
     private String videoUrl;
 
@@ -76,6 +86,24 @@ public class InterviewSession extends BaseTimeEntity {
 
     public void updateStatus(InterviewSessionStatus sessionStatus) {
         this.sessionStatus = sessionStatus;
+    }
+
+    /** 질문 생성 요청을 발행하며 WAITING_FOR_QUESTION으로 바꾼다. */
+    public void markQuestionRequested() {
+        this.sessionStatus = InterviewSessionStatus.WAITING_FOR_QUESTION;
+        this.questionRequestedAt = LocalDateTime.now();
+    }
+
+    /** 스크립트 저장 요청을 발행하며 TRANSCRIPT_SAVE_REQUESTED로 바꾼다. */
+    public void markTranscriptSaveRequested() {
+        this.sessionStatus = InterviewSessionStatus.TRANSCRIPT_SAVE_REQUESTED;
+        this.transcriptSaveRequestedAt = LocalDateTime.now();
+    }
+
+    /** 리포트 생성 요청을 발행하며 REPORT_REQUESTED로 바꾼다. */
+    public void markReportRequested() {
+        this.sessionStatus = InterviewSessionStatus.REPORT_REQUESTED;
+        this.reportRequestedAt = LocalDateTime.now();
     }
 
     public List<InterviewTurnDTO> getTranscript() {

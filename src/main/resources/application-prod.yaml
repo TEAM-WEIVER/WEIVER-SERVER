@@ -114,6 +114,10 @@ aws:
 # RabbitMQ - RabbitMQ 설정
 # ---------------------------------------------------------------------------
 weiver:
+  metrics:
+    ai-pending:
+      # AI 결과 대기 게이지(weiver.ai.pending*)를 다시 집계하는 주기. 지표 수집 요청은 이 캐시만 읽는다.
+      refresh-interval: 30s
   rabbitmq:
     domain-exchange: domain.events
     dead-letter-exchange: domain.events.dlx
