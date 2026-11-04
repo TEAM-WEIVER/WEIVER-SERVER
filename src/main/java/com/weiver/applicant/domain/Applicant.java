@@ -76,6 +76,9 @@ public class Applicant extends BaseTimeEntity {
     @Column(name = "profile_sync_status", nullable = false, length = 50)
     private ProfileSyncStatus profileSyncStatus = ProfileSyncStatus.PENDING;
 
+    @Column(name = "profile_sync_requested_at")
+    private OffsetDateTime profileSyncRequestedAt;
+
     @Column(name = "profile_synced_at")
     private OffsetDateTime profileSyncedAt;
 
@@ -118,6 +121,7 @@ public class Applicant extends BaseTimeEntity {
 
     public void markProfileSyncRequested() {
         this.profileSyncStatus = ProfileSyncStatus.REQUESTED;
+        this.profileSyncRequestedAt = OffsetDateTime.now();
     }
 
     public void markProfileSyncCompleted(OffsetDateTime syncedAt) {

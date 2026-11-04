@@ -5,6 +5,7 @@ import com.weiver.company.domain.Company;
 import com.weiver.company.repository.CompanyRepository;
 import com.weiver.company.type.*;
 import com.weiver.jobposting.domain.JobPosting;
+import com.weiver.jobposting.type.JdAnalysisStatus;
 import com.weiver.jobposting.type.JobPostingStatus;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
@@ -22,7 +23,10 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -134,5 +138,83 @@ class JobPostingRepositoryTest {
         assertThat(updatedBoundary.getStatus()).isEqualTo(JobPostingStatus.ACTIVE);
         assertThat(updatedDraft.getStatus()).isEqualTo(JobPostingStatus.DRAFT);
         assertThat(updatedClosed.getStatus()).isEqualTo(JobPostingStatus.CLOSED);
+    }
+    @Test
+    @DisplayName("JD 분석 대기 집계: REQUESTED 공고만 세고, 최장 대기 시각은 요청 시각이 있는 행 중 가장 이른 값이다")
+    void jdAnalysisPendingAggregation_CountsRequestedAndFindsOldestIgnoringNull() {
+        // given
+        Company company = companyRepository.save(company());
+        OffsetDateTime oldest = OffsetDateTime.of(2026, 11, 1, 9, 0, 0, 0, ZoneOffset.UTC);
+        OffsetDateTime newer = OffsetDateTime.of(2026, 11, 1, 10, 0, 0, 0, ZoneOffset.UTC);
+
+        jobPostingRepository.saveAll(List.of(
+                jobPosting(company, JdAnalysisStatus.REQUESTED, newer),
+                jobPosting(company, JdAnalysisStatus.REQUESTED, oldest),
+                // 배포 전부터 대기 중이라 요청 시각이 없는 행: 건수에만 들어간다.
+                jobPosting(company, JdAnalysisStatus.REQUESTED, null),
+                // 대기 상태가 아닌 행: 요청 시각이 더 이르더라도 집계에서 빠진다.
+                jobPosting(company, JdAnalysisStatus.COMPLETED, oldest.minusDays(1)),
+                jobPosting(company, JdAnalysisStatus.PENDING, null)
+        ));
+
+        // when
+        long count = jobPostingRepository.countByJdAnalysisStatus(JdAnalysisStatus.REQUESTED);
+        Optional<OffsetDateTime> oldestRequestedAt =
+                jobPostingRepository.findOldestJdAnalysisRequestedAt(JdAnalysisStatus.REQUESTED);
+
+        // then
+        assertThat(count).isEqualTo(3);
+        assertThat(oldestRequestedAt).hasValueSatisfying(
+                requestedAt -> assertThat(requestedAt).isAtSameInstantAs(oldest));
+    }
+
+    @Test
+    @DisplayName("JD 분석 대기 집계: 대기 행의 요청 시각이 모두 비어 있으면 최장 대기 시각은 없다")
+    void jdAnalysisPendingAggregation_ReturnsEmptyOldest_WhenAllRequestedAtAreNull() {
+        // given
+        Company company = companyRepository.save(company());
+        jobPostingRepository.save(jobPosting(company, JdAnalysisStatus.REQUESTED, null));
+
+        // when
+        long count = jobPostingRepository.countByJdAnalysisStatus(JdAnalysisStatus.REQUESTED);
+        Optional<OffsetDateTime> oldestRequestedAt =
+                jobPostingRepository.findOldestJdAnalysisRequestedAt(JdAnalysisStatus.REQUESTED);
+
+        // then
+        assertThat(count).isEqualTo(1);
+        assertThat(oldestRequestedAt).isEmpty();
+    }
+
+    private Company company() {
+        return Company.builder()
+                .loginId("pendingCompany")
+                .password("encodedPassword")
+                .companyType(CompanyType.STARTUP)
+                .employeeNum(10)
+                .companyCeoName("홍길동")
+                .companyName("대기집계회사")
+                .foundedYear(LocalDate.of(2020, 1, 1))
+                .avgSale(100)
+                .address("서울시")
+                .cultureDescription("문화")
+                .directionDescription("방향")
+                .workPace(WorkPace.FAST_EXECUTION)
+                .decisionMaking(DecisionMaking.TEAM_CONSENSUS)
+                .roleDefinition(RoleDefinition.CLEAR_RESPONSIBILITY)
+                .operationStyle(OperationStyle.STABILITY_ORIENTED)
+                .build();
+    }
+
+    private JobPosting jobPosting(Company company, JdAnalysisStatus analysisStatus, OffsetDateTime requestedAt) {
+        return JobPosting.builder()
+                .company(company)
+                .title("백엔드 개발자")
+                .jobCategory("IT")
+                .detailedJob("백엔드")
+                .deadline(LocalDate.now().plusDays(7))
+                .status(JobPostingStatus.ACTIVE)
+                .jdAnalysisStatus(analysisStatus)
+                .jdAnalysisRequestedAt(requestedAt)
+                .build();
     }
 }

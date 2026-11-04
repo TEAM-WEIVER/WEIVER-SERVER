@@ -17,6 +17,9 @@ import com.weiver.global.event.publisher.DomainEventPublisher;
 import com.weiver.global.event.util.EventIds;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.metrics.AiRoundtripMetrics;
+import com.weiver.global.metrics.type.AiFlow;
+import com.weiver.global.metrics.type.AiOutcome;
 import com.weiver.interview.domain.InterviewSession;
 import com.weiver.interview.dto.request.InterviewAnswerSubmitRequest;
 import com.weiver.interview.dto.request.InterviewStartRequest;
@@ -66,6 +69,7 @@ public class InterviewFlowService {
     private final DomainEventPublisher domainEventPublisher;
     private final SimpMessagingTemplate messagingTemplate;
     private final InterviewQuestionVoiceService interviewQuestionVoiceService;
+    private final AiRoundtripMetrics aiRoundtripMetrics;
 
     /**
      * 새 면접 세션을 만들고 첫 질문 생성 요청 이벤트를 발행한다.
@@ -86,7 +90,7 @@ public class InterviewFlowService {
                 .build();
 
         interviewSessionRepository.save(session);
-        session.updateStatus(InterviewSessionStatus.WAITING_FOR_QUESTION);
+        session.markQuestionRequested();
         publishQuestionRequested(session, null, 1);
 
         return new InterviewStartResponse(
@@ -122,7 +126,7 @@ public class InterviewFlowService {
             return InterviewWebSocketMessageResponse.answerAccepted(session.getInterviewSessionId());
         }
 
-        session.updateStatus(InterviewSessionStatus.WAITING_FOR_QUESTION);
+        session.markQuestionRequested();
         publishQuestionRequested(session, answeredTurn, answeredTurn.sequence() + 1);
         return InterviewWebSocketMessageResponse.answerAccepted(session.getInterviewSessionId());
     }
@@ -174,6 +178,7 @@ public class InterviewFlowService {
 
         InterviewSession session = getSession(data.interviewSessionId());
         validateEventApplicant(session, data.applicantId());
+        boolean wasWaitingForQuestion = session.getSessionStatus() == InterviewSessionStatus.WAITING_FOR_QUESTION;
 
         boolean appended = session.appendQuestion(
                 data.nextQuestionCode(),
@@ -182,6 +187,9 @@ public class InterviewFlowService {
         );
         if (!appended) {
             return;
+        }
+        if (wasWaitingForQuestion) {
+            aiRoundtripMetrics.record(AiFlow.INTERVIEW_QUESTION, AiOutcome.COMPLETED, session.getQuestionRequestedAt());
         }
 
         if (isEndQuestion(data.nextQuestionCode())) {
@@ -231,7 +239,7 @@ public class InterviewFlowService {
         }
 
         publishTranscriptSaveRequested(session);
-        session.updateStatus(InterviewSessionStatus.TRANSCRIPT_SAVE_REQUESTED);
+        session.markTranscriptSaveRequested();
 
         Applicant applicant = session.getApplicant();
         applicant.markInterviewSubmitted(LocalDateTime.now());
@@ -259,12 +267,16 @@ public class InterviewFlowService {
             throw new NonRetryableEventException("interview transcript saved event is out of order");
         }
         if (!Boolean.TRUE.equals(data.saved())) {
+            aiRoundtripMetrics.record(
+                    AiFlow.INTERVIEW_TRANSCRIPT_SAVE, AiOutcome.FAILED, session.getTranscriptSaveRequestedAt());
             throw new NonRetryableEventException("interview transcript was not saved");
         }
+        aiRoundtripMetrics.record(
+                AiFlow.INTERVIEW_TRANSCRIPT_SAVE, AiOutcome.COMPLETED, session.getTranscriptSaveRequestedAt());
 
         session.updateStatus(InterviewSessionStatus.TRANSCRIPT_SAVED);
         publishReportRequested(session);
-        session.updateStatus(InterviewSessionStatus.REPORT_REQUESTED);
+        session.markReportRequested();
     }
 
     /**
@@ -289,6 +301,9 @@ public class InterviewFlowService {
             throw new NonRetryableEventException("interview report completed event is out of order");
         }
 
+        // 재수신(REPORT_COMPLETED)은 지연 지표에 다시 넣지 않는다.
+        boolean wasReportRequested = session.getSessionStatus() == InterviewSessionStatus.REPORT_REQUESTED;
+
         Applicant applicant = applicantRepository.findById(data.applicantId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
 
@@ -297,6 +312,9 @@ public class InterviewFlowService {
         updateCulturefitStyle(applicant, data);
 
         session.updateStatus(InterviewSessionStatus.REPORT_COMPLETED);
+        if (wasReportRequested) {
+            aiRoundtripMetrics.record(AiFlow.INTERVIEW_REPORT, AiOutcome.COMPLETED, session.getReportRequestedAt());
+        }
     }
 
     /**
