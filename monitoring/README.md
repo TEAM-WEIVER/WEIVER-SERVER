@@ -16,10 +16,14 @@ Spring 서버와 RabbitMQ 지표를 Prometheus로 모으고, Grafana 대시보�
 1. 로컬 인프라를 띄운다: 저장소 루트에서 `docker compose up -d`.
    `rabbitmq:4.2.6-management` 이미지는 `rabbitmq_prometheus` 플러그인이 기본으로 켜져 있어 `:15692`를 따로 열 필요가 없다.
 2. Spring을 관리 포트를 나눠 띄운다. local 프로필은 관리 포트가 없어 앱 포트의 `/actuator/prometheus`가 401이다.
+   관리 포트는 인증 없이 지표와 health 상세를 내주므로 127.0.0.1에만 연다.
 
    ```bash
-   MANAGEMENT_SERVER_PORT=8081 ./gradlew bootRun
+   MANAGEMENT_SERVER_PORT=8081 MANAGEMENT_SERVER_ADDRESS=127.0.0.1 ./gradlew bootRun
    ```
+
+   macOS·Windows의 Docker Desktop은 `host.docker.internal`을 호스트 루프백으로 넘겨 주므로 이대로 수집된다.
+   Linux에서는 `host-gateway`가 루프백이 아니어서 127.0.0.1에 묶으면 수집되지 않는다. 이때는 Docker 브리지 주소에 묶는다(Linux는 확인하지 않았다).
 
 3. 이 디렉터리에서 Prometheus·Grafana를 띄운다. 두 값은 필수다.
 
@@ -30,6 +34,7 @@ Spring 서버와 RabbitMQ 지표를 Prometheus로 모으고, Grafana 대시보�
 
    - Prometheus: http://127.0.0.1:9090 (수집 상태는 Status → Targets)
    - Grafana: http://127.0.0.1:3000 (WEIVER 폴더의 "WEIVER 서버 개요", 알림은 Alerting → Alert rules)
+   - `GRAFANA_ADMIN_PASSWORD`는 `grafana-data` 볼륨을 처음 만들 때만 적용된다. 나중에 바꾸려면 Grafana에서 바꾸거나 볼륨을 지운다.
 4. 내릴 때는 이 디렉터리에서 `docker compose down`. `-v`를 붙여도 이 프로젝트의 볼륨(`prometheus-data`, `grafana-data`)만 지워진다.
 
 ## 지표를 읽을 때 주의할 점
@@ -38,4 +43,7 @@ Spring 서버와 RabbitMQ 지표를 Prometheus로 모으고, Grafana 대시보�
 - HTTP·요청→결과 지연은 히스토그램이 꺼져 있어 평균과 최대값만 있다. 백분위수(p95 등)는 계산할 수 없다.
 - #184가 고쳐지기 전에는 처리 실패 1건이 `spring.domain.events.dlq`와 `ai.domain.events.dlq`에 각각 들어간다. DLQ 합계는 실제 실패 건수의 두 배로 보인다.
 - 면접 스크립트 저장에서 `saved=false`를 받은 세션은 `TRANSCRIPT_SAVE_REQUESTED`에 남는다. `interview_transcript_save`의 최장 대기는 그 세션이 정리될 때까지 계속 늘고, 비동기 flow 알림도 계속 울린다.
-- Spring 서버가 내려가면 AI 대기 지표가 사라져 AI 최장 대기 알림은 울리지 않는다. 이때는 "소비자 없이 큐 적체" 알림(`spring.domain.events.queue`)이 먼저 울린다.
+- "소비자 없이 큐 적체"는 최근 5분 동안 대기 메시지가 늘었을 때만 울린다. 메시지가 더 들어오지 않으면 적체가 남아 있어도 5분 뒤 해소된다.
+  - AI 쪽(`ai.domain.events.queue`)은 해소된 뒤에도 AI 최장 대기 알림이 이어서 잡는다.
+  - Spring 쪽(`spring.domain.events.queue`)은 이어받는 알림이 없다. Spring 서버가 내려가면 AI 대기 지표도 사라지기 때문이다.
+- 모든 규칙은 데이터가 없으면 정상(`noDataState: OK`)으로 본다. 수집 대상이 내려간 것(`up == 0`)을 알리는 규칙은 아직 없다.

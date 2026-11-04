@@ -39,7 +39,8 @@ groups:
           description: 처리 중 예외로 DLQ로 간 메시지가 있다. 메시지의 x-death 헤더와 같은 eventId의 ERROR 로그를 본다.
 
       # 2) 소비자가 0인데 큐의 ready 메시지가 늘고 있다. 값은 최근 5분 동안 늘어난 메시지 수(delta, 외삽된 근삿값)다.
-      #    메시지가 더 들어오지 않으면 5분 뒤 해소된다. 그 뒤에도 남은 대기는 3) AI 최장 대기 알림이 잡는다.
+      #    메시지가 더 들어오지 않으면 적체가 남아 있어도 5분 뒤 해소된다. ai.* 큐의 남은 대기는 3) AI 최장 대기 알림이 잡지만,
+      #    spring.* 큐(Spring 서버 중지)는 이어받는 알림이 없다.
       - uid: weiver-queue-no-consumer
         title: 소비자 없이 큐 적체
         condition: C
