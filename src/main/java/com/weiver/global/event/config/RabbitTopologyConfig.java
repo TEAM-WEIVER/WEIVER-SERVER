@@ -99,12 +99,27 @@ public class RabbitTopologyConfig {
     }
 
     @Bean
-    Binding springDlqBinding(Queue springDlq, TopicExchange deadLetterExchange) {
-        return BindingBuilder.bind(springDlq).to(deadLetterExchange).with("#");
+    Binding springDlqCompletedBinding(Queue springDlq, TopicExchange deadLetterExchange) {
+        return BindingBuilder.bind(springDlq).to(deadLetterExchange).with("#.completed");
     }
 
     @Bean
-    Binding aiDlqBinding(Queue aiDlq, TopicExchange deadLetterExchange) {
-        return BindingBuilder.bind(aiDlq).to(deadLetterExchange).with("#");
+    Binding springDlqGeneratedBinding(Queue springDlq, TopicExchange deadLetterExchange) {
+        return BindingBuilder.bind(springDlq).to(deadLetterExchange).with("#.generated");
+    }
+
+    @Bean
+    Binding springDlqTranscriptSavedBinding(Queue springDlq, TopicExchange deadLetterExchange) {
+        return BindingBuilder.bind(springDlq).to(deadLetterExchange).with("interview.transcript.saved");
+    }
+
+    @Bean
+    Binding aiDlqRequestedBinding(Queue aiDlq, TopicExchange deadLetterExchange) {
+        return BindingBuilder.bind(aiDlq).to(deadLetterExchange).with("#.requested");
+    }
+
+    @Bean
+    Binding aiDlqApplicantProfileChangedBinding(Queue aiDlq, TopicExchange deadLetterExchange) {
+        return BindingBuilder.bind(aiDlq).to(deadLetterExchange).with("applicant.profile.changed");
     }
 }
