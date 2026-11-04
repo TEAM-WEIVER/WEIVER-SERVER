@@ -110,7 +110,8 @@ com.weiver.global.<area>         컨텍스트에 속하지 않는 공통 기반
   (`@DataJpaTest` + `@ServiceConnection`) — 이때 **Docker 데몬이 떠 있어야 한다**.
 - **`WeiverBackendApplicationTests`(`@SpringBootTest` contextLoads)는 주의한다.** `local` 프로필로
   `localhost:5432/weiver_db`에 붙고 `ddl-auto: create-drop`이라, 로컬 DB가 떠 있으면 스키마를 지울 수 있다.
-  로컬 DB를 쓰는 중이면 이 테스트를 빼고 돌리고, 미실행으로 기록한다.
+  로컬 DB를 쓰는 중이면 이 테스트를 빼고 돌리고, 미실행으로 기록한다. 빼는 명령은 CI와 같다:
+  `./gradlew test -I .github/ci/exclude-context-loads.gradle`(Windows는 `.\gradlew.bat test -I .github/ci/exclude-context-loads.gradle`).
 - **문서 검사:** 하네스 문서를 바꿨으면 `bash .github/scripts/check-docs.sh`로 필수 문서와 로컬 링크를
   검사한다. 링크 대상은 Git이 추적하는 파일이어야 한다.
 - **PR CI:** `main` 대상 PR마다 `.github/workflows/pr-check.yml`이 문서 검사와 `./gradlew test`(contextLoads 제외)를 돌린다.
