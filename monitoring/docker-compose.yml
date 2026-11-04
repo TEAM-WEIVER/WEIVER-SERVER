@@ -1,0 +1,55 @@
+# WEIVER 지표 수집·대시보드·알림 (#180)
+# 로컬 인프라(../docker-compose.yml)와 프로젝트를 나눠, 이 파일을 내려도(down -v 포함) 로컬 DB 볼륨에 영향이 없다.
+#
+#   cd monitoring && GRAFANA_ADMIN_PASSWORD=... ALERT_WEBHOOK_URL=... docker compose up -d   (자세한 것은 README.md)
+#
+# - Prometheus는 같은 네트워크(weiver-net)의 weiver-rabbitmq:15692와 호스트의 Spring 관리 포트(8081)를 수집한다.
+#   로컬 Spring은 관리 포트가 없으므로 MANAGEMENT_SERVER_PORT=8081 로 띄운다(local의 /actuator/prometheus는 앱 포트에서 401).
+# - 포트는 127.0.0.1에만 연다. 알림 주소는 ALERT_WEBHOOK_URL 환경 변수로만 받는다.
+#   기본값은 없다. 비어 있으면 Grafana가 알림 연락처를 만들지 못하므로 compose 단계에서 멈춘다.
+name: weiver-monitoring
+
+services:
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - weiver-net
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    depends_on:
+      - prometheus
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD를 설정하세요}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:?ALERT_WEBHOOK_URL을 설정하세요}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    networks:
+      - weiver-net
+
+volumes:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  weiver-net:
+    name: ${WEIVER_NETWORK:-weiver-net}
+    external: true
