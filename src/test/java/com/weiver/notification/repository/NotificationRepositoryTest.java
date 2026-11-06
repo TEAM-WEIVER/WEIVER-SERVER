@@ -14,7 +14,7 @@ import com.weiver.matching.domain.MatchResult;
 import com.weiver.notification.domain.Notification;
 import com.weiver.notification.type.NotificationType;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceUnitUtil;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -103,17 +103,6 @@ class NotificationRepositoryTest {
                 );
         assertThat(firstSlice.hasNext()).isTrue();
 
-        PersistenceUnitUtil persistenceUnitUtil =
-                entityManager.getEntityManagerFactory().getPersistenceUnitUtil();
-        assertThat(firstSlice.getContent())
-                .allSatisfy(notification -> {
-                    assertThat(persistenceUnitUtil.isLoaded(notification, "matchResult")).isTrue();
-                    assertThat(persistenceUnitUtil.isLoaded(
-                            notification.getMatchResult(),
-                            "jobPosting"
-                    )).isTrue();
-                });
-
         Slice<Notification> secondSlice = notificationRepository.findSliceByCompanyPublicId(
                 targetCompany.getPublicId(),
                 PageRequest.of(1, 2)
@@ -137,6 +126,28 @@ class NotificationRepositoryTest {
         assertThat(result.getContent()).isEmpty();
         assertThat(result.hasNext()).isFalse();
         assertThat(result.isLast()).isTrue();
+    }
+
+    @Test
+    @DisplayName("전체 읽음 벌크 갱신은 해당 기업의 미읽음 알림만 변경한다.")
+    void markAllAsReadByCompanyPublicId_UpdatesOnlyUnreadForCompany() {
+        Company targetCompany = persistCompany("read-target", "read-target-login");
+        Company otherCompany = persistCompany("read-other", "read-other-login");
+        MatchResult targetMatch = persistMatchResult(targetCompany, "read-target");
+        MatchResult otherMatch = persistMatchResult(otherCompany, "read-other");
+        Notification unread = persistNotification(targetCompany, targetMatch, "unread");
+        Notification alreadyRead = persistNotification(targetCompany, targetMatch, "already-read");
+        alreadyRead.markAsRead();
+        Notification otherUnread = persistNotification(otherCompany, otherMatch, "other-unread");
+        entityManager.flush();
+        entityManager.clear();
+
+        int updated = notificationRepository.markAllAsReadByCompanyPublicId(targetCompany.getPublicId());
+
+        assertThat(updated).isEqualTo(1);
+        assertThat(notificationRepository.findById(unread.getNotificationId()).orElseThrow().getIsRead()).isTrue();
+        assertThat(notificationRepository.findById(alreadyRead.getNotificationId()).orElseThrow().getIsRead()).isTrue();
+        assertThat(notificationRepository.findById(otherUnread.getNotificationId()).orElseThrow().getIsRead()).isFalse();
     }
 
     private Company persistCompany(String publicId, String loginId) {
@@ -195,7 +206,8 @@ class NotificationRepositoryTest {
     ) {
         Notification notification = Notification.builder()
                 .company(company)
-                .matchResult(matchResult)
+                .matchId(matchResult.getMatchId())
+                .jdId(matchResult.getJobPosting().getJdId())
                 .type(NotificationType.RESUME_MATCH_TALENT)
                 .message(message)
                 .build();

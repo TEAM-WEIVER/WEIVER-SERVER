@@ -12,8 +12,6 @@ import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -46,10 +44,7 @@ public class NotificationService {
 
     @Transactional
     public void markAllAsRead(String companyPublicId) {
-        List<Notification> unreadNotifications = notificationRepository
-                .findAllByCompany_PublicIdAndIsReadFalse(companyPublicId);
-
-        unreadNotifications.forEach(Notification::markAsRead);
+        notificationRepository.markAllAsReadByCompanyPublicId(companyPublicId);
     }
 
     private void validatePageRequest(int page, int size) {

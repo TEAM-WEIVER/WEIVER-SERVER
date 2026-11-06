@@ -213,7 +213,8 @@ class JobPostingSliceIntegrationTest {
     ) {
         Notification notification = Notification.builder()
                 .company(company)
-                .matchResult(matchResult)
+                .matchId(matchResult.getMatchId())
+                .jdId(matchResult.getJobPosting().getJdId())
                 .type(NotificationType.RESUME_MATCH_TALENT)
                 .message(message)
                 .build();
