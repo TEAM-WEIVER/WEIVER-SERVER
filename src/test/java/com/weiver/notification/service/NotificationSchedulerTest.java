@@ -1,9 +1,10 @@
 package com.weiver.notification.service;
 
 import com.weiver.company.domain.Company;
-import com.weiver.jobposting.domain.JobPosting;
-import com.weiver.matching.domain.MatchResult;
+import com.weiver.company.repository.CompanyRepository;
+import com.weiver.matching.repository.projection.MatchingNotificationGroupDTO;
 import com.weiver.matching.repository.MatchResultRepository;
+import com.weiver.matching.repository.MatchingProcessingLockRepository;
 import com.weiver.notification.domain.Notification;
 import com.weiver.notification.repository.NotificationRepository;
 import com.weiver.notification.type.NotificationType;
@@ -14,71 +15,67 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationSchedulerTest {
 
-    @InjectMocks
-    private NotificationScheduler notificationScheduler;
-
-    @Mock
-    private MatchResultRepository matchResultRepository;
-
-    @Mock
-    private NotificationRepository notificationRepository;
+    @InjectMocks private NotificationScheduler notificationScheduler;
+    @Mock private MatchResultRepository matchResultRepository;
+    @Mock private NotificationRepository notificationRepository;
+    @Mock private CompanyRepository companyRepository;
+    @Mock private MatchingProcessingLockRepository processingLockRepository;
 
     @Test
-    @DisplayName("엣지케이스: 알림을 생성할 매칭 결과가 없으면 로직이 바로 종료된다.")
-    void generateGroupedMatchingNotifications_EmptyList_ReturnsEarly() {
+    @DisplayName("다른 처리가 잠금을 보유하면 집계와 갱신을 건너뛴다")
+    void generateGroupedMatchingNotifications_SkipsWhenLocked() {
         // given
-        given(matchResultRepository.findAllByIsNotifiedFalse()).willReturn(Collections.emptyList());
+        given(processingLockRepository.tryLock()).willReturn(false);
+
+        // when
+        notificationScheduler.generateGroupedMatchingNotifications();
+
+        // then
+        verifyNoInteractions(matchResultRepository, notificationRepository, companyRepository);
+    }
+
+    @Test
+    @DisplayName("미알림 그룹이 없으면 알림 저장과 상태 갱신을 실행하지 않는다")
+    void generateGroupedMatchingNotifications_EmptyGroups_ReturnsEarly() {
+        // given
+        given(processingLockRepository.tryLock()).willReturn(true);
+        given(matchResultRepository.findUnnotifiedGroups()).willReturn(List.of());
 
         // when
         notificationScheduler.generateGroupedMatchingNotifications();
 
         // then
         verify(notificationRepository, never()).saveAll(anyList());
+        verify(matchResultRepository, never()).markAllUnnotifiedAsNotified();
+        verifyNoInteractions(companyRepository);
     }
 
     @Test
-    @DisplayName("성공: 다수의 매칭이 공고별로 정확히 그룹핑되며, 최신 매칭이 대표로 지정된다.")
-    void generateGroupedMatchingNotifications_Success_GroupsCorrectly() {
+    @DisplayName("공고별 집계로 알림을 생성하고 저장 후 한 번에 알림 상태를 갱신한다")
+    void generateGroupedMatchingNotifications_SavesGroupsThenBulkUpdates() {
         // given
-        Company company = Company.builder().publicId("comp-1").build();
-
-        // 공고 2개 준비
-        JobPosting backendJd = JobPosting.builder().title("백엔드 개발자").company(company).build();
-        JobPosting frontendJd = JobPosting.builder().title("프론트엔드 개발자").company(company).build();
-        ReflectionTestUtils.setField(backendJd, "jdId", 1L);
-        ReflectionTestUtils.setField(frontendJd, "jdId", 2L);
-
-        // 백엔드 공고에 대한 매칭 3건 (시간을 다르게 세팅)
-        MatchResult backendMatch1 = MatchResult.builder().jobPosting(backendJd).build();
-        MatchResult backendMatch2 = MatchResult.builder().jobPosting(backendJd).build();
-        MatchResult backendMatch3 = MatchResult.builder().jobPosting(backendJd).build();
-
-        ReflectionTestUtils.setField(backendMatch1, "createTime", LocalDateTime.now().minusHours(2));
-        ReflectionTestUtils.setField(backendMatch2, "createTime", LocalDateTime.now().minusHours(1));
-        ReflectionTestUtils.setField(backendMatch3, "createTime", LocalDateTime.now()); // 가장 최신 데이터
-
-        // 프론트엔드 공고에 대한 매칭 1건
-        MatchResult frontendMatch1 = MatchResult.builder().jobPosting(frontendJd).build();
-        ReflectionTestUtils.setField(frontendMatch1, "createTime", LocalDateTime.now());
-
-        // 아직 알림 안 간 매칭 4건 반환
-        given(matchResultRepository.findAllByIsNotifiedFalse())
-                .willReturn(List.of(backendMatch1, backendMatch2, backendMatch3, frontendMatch1));
+        Company company = Company.builder().companyId(10L).build();
+        LocalDateTime latest = LocalDateTime.of(2026, 11, 6, 12, 0);
+        given(processingLockRepository.tryLock()).willReturn(true);
+        given(matchResultRepository.findUnnotifiedGroups()).willReturn(List.of(
+                new MatchingNotificationGroupDTO(1L, "백엔드 개발자", 10L, 3L, latest, 3L),
+                new MatchingNotificationGroupDTO(2L, "프론트엔드 개발자", 10L, 1L, latest, 4L)));
+        given(companyRepository.getReferenceById(10L)).willReturn(company);
 
         // when
         notificationScheduler.generateGroupedMatchingNotifications();
@@ -86,30 +83,20 @@ class NotificationSchedulerTest {
         // then
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<Notification>> captor = ArgumentCaptor.forClass(List.class);
-        verify(notificationRepository).saveAll(captor.capture());
-        List<Notification> savedNotifications = captor.getValue();
-
-        assertThat(savedNotifications).hasSize(2);
-
-        Notification backendNotification = savedNotifications.stream()
-                .filter(n -> n.getMessage().contains("백엔드"))
-                .findFirst().orElseThrow();
-
-        assertThat(backendNotification.getMessage()).isEqualTo("[백엔드 개발자] 공고에 3건의 새로운 매칭이 있습니다.");
-        assertThat(backendNotification.getType()).isEqualTo(NotificationType.RESUME_MATCH_TALENT);
-        assertThat(backendNotification.getMatchResult()).isEqualTo(backendMatch3);
-
-        Notification frontendNotification = savedNotifications.stream()
-                .filter(n -> n.getMessage().contains("프론트엔드"))
-                .findFirst().orElseThrow();
-
-        assertThat(frontendNotification.getMessage()).isEqualTo("[프론트엔드 개발자] 공고에 1건의 새로운 매칭이 있습니다.");
-        assertThat(frontendNotification.getMatchResult()).isEqualTo(frontendMatch1);
-
-        // 상태 변경 검증
-        assertThat(backendMatch1.getIsNotified()).isTrue();
-        assertThat(backendMatch2.getIsNotified()).isTrue();
-        assertThat(backendMatch3.getIsNotified()).isTrue();
-        assertThat(frontendMatch1.getIsNotified()).isTrue();
+        var order = inOrder(processingLockRepository, matchResultRepository, notificationRepository);
+        order.verify(processingLockRepository).tryLock();
+        order.verify(matchResultRepository).findUnnotifiedGroups();
+        order.verify(notificationRepository).saveAll(captor.capture());
+        order.verify(matchResultRepository).markAllUnnotifiedAsNotified();
+        assertThat(captor.getValue()).hasSize(2);
+        assertThat(captor.getValue()).extracting(Notification::getMessage).containsExactly(
+                "[백엔드 개발자] 공고에 3건의 새로운 매칭이 있습니다.",
+                "[프론트엔드 개발자] 공고에 1건의 새로운 매칭이 있습니다.");
+        assertThat(captor.getValue()).extracting(Notification::getMatchId).containsExactly(3L, 4L);
+        assertThat(captor.getValue()).extracting(Notification::getJdId).containsExactly(1L, 2L);
+        assertThat(captor.getValue()).allSatisfy(notification -> {
+            assertThat(notification.getCompany()).isSameAs(company);
+            assertThat(notification.getType()).isEqualTo(NotificationType.RESUME_MATCH_TALENT);
+        });
     }
 }

@@ -286,15 +286,28 @@ public class ApplicantAnalysisCompletedHandler implements DomainEventHandler {
 
 ### 5.6 멱등성 · 재시도 · DLQ
 
-- **멱등성**: 전용 dedup 저장소가 **없다.** 핸들러가 **도메인 상태 기반**으로 멱등을 보장한다
-  (`if (status == COMPLETED) return;`, `findBy...().ifPresentOrElse(update, save)`). 새 핸들러도
-  같은 방식으로 재수신에 안전하게 만든다.
+- **멱등성**: 이벤트별로 다음 범위를 구분한다.
+  - **`MATCHING_COMPLETED`**: 사용자 승인된 [#187](https://github.com/TEAM-WEIVER/WEIVER-SERVER/issues/187)
+    정책에 따라 `matching_processed_events`의 **`event_id` 처리 기록 테이블**로 중복을 차단한다.
+    `INSERT ... ON CONFLICT DO NOTHING`과 유일 제약으로 동시 재수신을 중재하고, 처리 기록과
+    매칭 결과 교체를 같은 서비스 트랜잭션에서 커밋·롤백한다. 다른 이벤트에 적용되는 공통 dedup 저장소가 아니다.
+  - **그 외 이벤트**: 기존처럼 **도메인 상태 기반**으로 멱등을 보장한다
+    (`if (status == COMPLETED) return;`, `findBy...().ifPresentOrElse(update, save)`).
+    새 핸들러도 이 방식을 기본으로 하며, 별도 처리 기록 저장소 도입은 사용자 승인을 먼저 받는다.
 - **재시도**: AMQP 리스너 재시도 비활성, 애플리케이션 재시도 루프 없음.
+- **매칭 처리 잠금**: `MATCHING_COMPLETED` 결과 교체와 알림 집계는 같은 DB 트랜잭션 advisory lock을
+  사용한다. 결과 교체의 대기 제한은 `weiver.matching.lock-timeout-ms`(기본 5000ms)이며, 초과 시
+  처리 기록과 결과 교체를 롤백하고 기존 리스너의 DLQ 경로로 전파한다. 잠금 획득 후에는 기존
+  `lock_timeout`을 복원한다. 배치는 try-lock 실패 시 해당 실행을 건너뛴다.
 - **DLQ**: 실패 시 `basicNack(requeue=false)` → DLX → `*.dlq`. `RetryableEventException`도 현재는
   곧바로 DLQ로 간다. 예외는 `RetryableEventException` / `NonRetryableEventException`
   (하위: `UnsupportedEventTypeException`, `UnsupportedEventVersionException`).
 
-> 멱등성·재시도·DLQ 재처리 정책은 아직 확정되지 않았다. **새 정책을 지어내지 말 것.**
+> `MATCHING_COMPLETED`의 위 중복 차단 범위만 승인되었다. 다른 멱등성 정책과 재시도·DLQ 재처리
+> 정책을 임의로 추가하지 않는다. 처리 기록의 보존·정리 정책도 별도 결정 없이 만들지 않는다.
+
+기존 DB의 FK 제거·공고 ID 채우기는 새 버전 기동 전 필수다. 실행 책임·시점·SQL·보존 정책의
+후속 검토 항목은 [#187 배포·운영 절차](../../../docs/matching-187-deployment.md)를 따른다.
 
 ---
 
@@ -342,7 +355,8 @@ public class ApplicantAnalysisCompletedHandler implements DomainEventHandler {
    확인하고, 필요하면 `RabbitTopologyConfig`에 바인딩을 추가한다.
 3. payload는 `event/dto`의 **record**(snake_case `@JsonProperty`)로 만든다.
 4. 수신이 필요하면 `DomainEventHandler` 구현체를 추가한다(`support()`가 `EventType` 반환).
-5. 발행은 `publishAfterCommit`으로, 수신 핸들러는 **도메인 상태 기반 멱등**으로 만든다.
+5. 발행은 `publishAfterCommit`으로, 수신 핸들러는 **도메인 상태 기반 멱등**을 기본으로 만든다.
+   `MATCHING_COMPLETED`의 승인된 event_id 처리 기록 예외는 §5.6을 따른다.
 
 ---
 
@@ -362,7 +376,8 @@ public class ApplicantAnalysisCompletedHandler implements DomainEventHandler {
 - [ ] `EventType`에 요청/결과 쌍을 추가하고 라우팅 키가 큐 바인딩과 맞는가
 - [ ] payload가 `event/dto`의 record이고 snake_case `@JsonProperty`인가
 - [ ] 발행이 `publishAfterCommit`(커밋 후)인가
-- [ ] 핸들러가 `DomainEventHandler`를 구현하고 도메인 상태 기반으로 멱등한가
+- [ ] 핸들러가 `DomainEventHandler`를 구현하고 §5.6의 이벤트별 멱등성 정책을 따르는가
+      (`MATCHING_COMPLETED`는 event_id 처리 기록, 그 외 이벤트는 도메인 상태 기반)
 - [ ] 멱등성/재시도/DLQ 정책을 새로 지어내지 않았는가
 
 **공통**
