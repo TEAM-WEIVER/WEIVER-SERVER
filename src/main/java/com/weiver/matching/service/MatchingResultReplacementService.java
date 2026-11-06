@@ -49,7 +49,7 @@ public class MatchingResultReplacementService {
                 .map(match -> toMatchResult(jobPosting, match, applicantsById))
                 .toList();
 
-        matchResultRepository.deleteByJobPosting_JdId(jobPosting.getJdId());
+        matchResultRepository.bulkDeleteByJdId(jobPosting.getJdId());
         matchResultRepository.saveAll(matchResults);
     }
 

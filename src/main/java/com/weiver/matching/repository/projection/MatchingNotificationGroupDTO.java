@@ -1,4 +1,4 @@
-package com.weiver.matching.dto.response;
+package com.weiver.matching.repository.projection;
 
 import java.time.LocalDateTime;
 

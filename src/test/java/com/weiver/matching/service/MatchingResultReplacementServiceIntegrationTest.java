@@ -40,9 +40,14 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.sql.SQLException;
+import java.sql.DriverManager;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -274,6 +279,124 @@ class MatchingResultReplacementServiceIntegrationTest {
                 .anyMatch(g -> g.jdId().equals(fixture.jdId()));
         scheduler.generateGroupedMatchingNotifications();
         assertThat(notificationCount(fixture)).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("잠금 대기 제한 초과 시 처리 기록도 롤백되고 같은 이벤트로 다시 처리할 수 있다")
+    void replacement_TimesOutAndRollsBackRegistration() {
+        // given
+        Fixture fixture = fixture();
+        String eventId = UUID.randomUUID().toString();
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+                processingLockRepository.lock();
+                var blocked = executor.submit(() -> replacementService.replace(eventId, data(fixture, 90f)));
+                awaitAdvisoryWaiter();
+
+                // when / then: 설정된 대기 제한으로 실패하며 임의 재시도는 실행하지 않는다.
+                assertThatThrownBy(() -> blocked.get(15, TimeUnit.SECONDS))
+                        .isInstanceOf(ExecutionException.class)
+                        .satisfies(error -> {
+                            Throwable root = error;
+                            while (root.getCause() != null) {
+                                root = root.getCause();
+                            }
+                            assertThat(root).isInstanceOf(SQLException.class);
+                            assertThat(((SQLException) root).getSQLState()).isEqualTo("55P03");
+                        });
+                assertThat(currentMatchId(fixture)).isEqualTo(fixture.matchId());
+            });
+        }
+
+        Long processedCount = new TransactionTemplate(transactionManager).execute(status ->
+                entityManager.createQuery("SELECT COUNT(e) FROM MatchingProcessedEvent e WHERE e.eventId = :id", Long.class)
+                        .setParameter("id", eventId).getSingleResult());
+        assertThat(processedCount).isZero();
+        replacementService.replace(eventId, data(fixture, 90f));
+        assertThat(currentMatchId(fixture)).isNotEqualTo(fixture.matchId());
+    }
+
+    @Test
+    @DisplayName("잠금 획득 후 같은 트랜잭션의 기존 lock_timeout 값을 복원한다")
+    void lock_RestoresPreviousTimeout() {
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            // given
+            entityManager.createNativeQuery("SELECT set_config('lock_timeout', '3s', true)").getSingleResult();
+
+            // when
+            processingLockRepository.lock();
+
+            // then
+            assertThat(entityManager.createNativeQuery("SELECT current_setting('lock_timeout')").getSingleResult())
+                    .isEqualTo("3s");
+        });
+    }
+
+    @Test
+    @DisplayName("기존 FK와 알림이 있는 스키마에 필수 전환 SQL을 재실행해도 데이터와 중복 차단을 보존한다")
+    void deploymentSql_TransitionsLegacySchemaAndIsRepeatable() throws Exception {
+        // given: 애플리케이션 테이블과 격리된 테스트 전용 구버전 스키마.
+        String schema = "legacy187_" + UUID.randomUUID().toString().replace("-", "");
+        String sql = Files.readString(Path.of("docs/sql/matching-187-transition.sql"));
+        try (var connection = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+             var statement = connection.createStatement()) {
+            statement.execute("CREATE SCHEMA " + schema);
+            try {
+                statement.execute("SET search_path TO " + schema);
+                statement.execute("CREATE TABLE match_results (match_id bigint PRIMARY KEY, jd_id bigint NOT NULL)");
+                statement.execute("""
+                        CREATE TABLE notifications (
+                            notification_id bigint PRIMARY KEY,
+                            match_id bigint NOT NULL REFERENCES match_results(match_id),
+                            message text NOT NULL,
+                            is_read boolean NOT NULL
+                        )
+                        """);
+                statement.executeUpdate("INSERT INTO match_results VALUES (10, 100), (20, 200)");
+                statement.executeUpdate("INSERT INTO notifications VALUES (1, 10, 'legacy one', true), (2, 20, 'legacy two', false)");
+
+                // when: 운영용 파일 자체를 두 번 실행한다.
+                statement.execute(sql);
+                statement.execute(sql);
+
+                // then: 기존 값·읽음 상태를 보존하고 jd_id를 채웠다.
+                try (var rows = statement.executeQuery("SELECT match_id, jd_id, message, is_read FROM notifications ORDER BY notification_id")) {
+                    assertThat(rows.next()).isTrue();
+                    assertThat(rows.getLong("match_id")).isEqualTo(10L);
+                    assertThat(rows.getLong("jd_id")).isEqualTo(100L);
+                    assertThat(rows.getString("message")).isEqualTo("legacy one");
+                    assertThat(rows.getBoolean("is_read")).isTrue();
+                    assertThat(rows.next()).isTrue();
+                    assertThat(rows.getLong("jd_id")).isEqualTo(200L);
+                    assertThat(rows.getBoolean("is_read")).isFalse();
+                    assertThat(rows.next()).isFalse();
+                }
+                try (var constraints = statement.executeQuery("""
+                        SELECT COUNT(*) FROM pg_constraint
+                        WHERE conrelid = 'notifications'::regclass
+                          AND confrelid = 'match_results'::regclass AND contype = 'f'
+                        """)) {
+                    assertThat(constraints.next()).isTrue();
+                    assertThat(constraints.getLong(1)).isZero();
+                }
+                try (var columns = statement.executeQuery("""
+                        SELECT attnotnull FROM pg_attribute
+                        WHERE attrelid = 'notifications'::regclass AND attname = 'jd_id'
+                        """)) {
+                    assertThat(columns.next()).isTrue();
+                    assertThat(columns.getBoolean(1)).isTrue();
+                }
+                assertThat(statement.executeUpdate("DELETE FROM match_results WHERE match_id = 10")).isEqualTo(1);
+                statement.executeUpdate("INSERT INTO matching_processed_events (event_id, create_time) VALUES ('legacy-event', CURRENT_TIMESTAMP)");
+                assertThatThrownBy(() -> statement.executeUpdate(
+                        "INSERT INTO matching_processed_events (event_id, create_time) VALUES ('legacy-event', CURRENT_TIMESTAMP)"))
+                        .isInstanceOf(SQLException.class).extracting(error -> ((SQLException) error).getSQLState())
+                        .isEqualTo("23505");
+            } finally {
+                statement.execute("ROLLBACK");
+                statement.execute("DROP SCHEMA " + schema + " CASCADE");
+            }
+        }
     }
 
     private void awaitAdvisoryWaiter() {

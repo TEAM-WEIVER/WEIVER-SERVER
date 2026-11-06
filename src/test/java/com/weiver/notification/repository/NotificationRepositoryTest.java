@@ -14,7 +14,6 @@ import com.weiver.matching.domain.MatchResult;
 import com.weiver.notification.domain.Notification;
 import com.weiver.notification.type.NotificationType;
 import jakarta.persistence.EntityManager;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

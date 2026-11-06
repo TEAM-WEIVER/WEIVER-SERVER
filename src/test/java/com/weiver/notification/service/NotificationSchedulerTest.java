@@ -2,7 +2,7 @@ package com.weiver.notification.service;
 
 import com.weiver.company.domain.Company;
 import com.weiver.company.repository.CompanyRepository;
-import com.weiver.matching.dto.response.MatchingNotificationGroupDTO;
+import com.weiver.matching.repository.projection.MatchingNotificationGroupDTO;
 import com.weiver.matching.repository.MatchResultRepository;
 import com.weiver.matching.repository.MatchingProcessingLockRepository;
 import com.weiver.notification.domain.Notification;
@@ -22,7 +22,10 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class NotificationSchedulerTest {

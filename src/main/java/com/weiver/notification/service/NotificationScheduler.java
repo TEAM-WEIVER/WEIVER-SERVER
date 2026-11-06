@@ -1,7 +1,7 @@
 package com.weiver.notification.service;
 
 import com.weiver.company.repository.CompanyRepository;
-import com.weiver.matching.dto.response.MatchingNotificationGroupDTO;
+import com.weiver.matching.repository.projection.MatchingNotificationGroupDTO;
 import com.weiver.matching.repository.MatchResultRepository;
 import com.weiver.matching.repository.MatchingProcessingLockRepository;
 import com.weiver.notification.domain.Notification;
