@@ -40,7 +40,7 @@ groups:
 
       # 2) 소비자가 0인데 큐의 ready 메시지가 늘고 있다. 값은 최근 5분 동안 늘어난 메시지 수(delta, 외삽된 근삿값)다.
       #    메시지가 더 들어오지 않으면 적체가 남아 있어도 5분 뒤 해소된다. ai.* 큐의 남은 대기는 3) AI 최장 대기 알림이 잡지만,
-      #    spring.* 큐(Spring 서버 중지)는 이어받는 알림이 없다.
+      #    spring.* 큐(Spring 서버 중지)는 4) 수집 대상 다운 알림이 잡는다.
       - uid: weiver-queue-no-consumer
         title: 소비자 없이 큐 적체
         condition: C
@@ -129,3 +129,33 @@ groups:
           severity: warning
         annotations:
           summary: '{{ index .Labels "flow" }} 최장 대기 {{ humanizeDuration .Values.A.Value }} (기준 15분)'
+
+      # 4) 수집 대상이 응답하지 않는다(Spring 서버 다운, RabbitMQ 다운). 지표가 사라져 다른 규칙이 정상으로 보이는 공백을 막는다.
+      #    up 시계열 자체가 없으면 Prometheus 수집 설정이 빠진 것이므로 NoData도 알림으로 본다.
+      - uid: weiver-target-down
+        title: 수집 대상 다운
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: weiver-prometheus
+            model:
+              refId: A
+              instant: true
+              expr: min by (job, instance) (up{job=~"weiver-backend|rabbitmq|rabbitmq-queues"})
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+        for: 1m
+        noDataState: Alerting
+        execErrState: Error
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ index .Labels "job" }} ({{ index .Labels "instance" }}) 수집 실패'
+          description: weiver-backend 이면 Spring 서버와 관리 포트(8081), rabbitmq* 이면 RabbitMQ 컨테이너와 15692 포트를 확인한다.

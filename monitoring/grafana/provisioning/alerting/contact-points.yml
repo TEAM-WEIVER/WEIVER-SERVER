@@ -15,7 +15,7 @@ contactPoints:
 policies:
   - orgId: 1
     receiver: weiver-alerts
-    group_by: [grafana_folder, alertname, queue, flow]
+    group_by: [grafana_folder, alertname, queue, flow, job]
     group_wait: 30s
     group_interval: 5m
     repeat_interval: 4h

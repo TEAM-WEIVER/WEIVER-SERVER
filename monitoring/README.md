@@ -1,6 +1,6 @@
 # monitoring
 
-Spring 서버와 RabbitMQ 지표를 Prometheus로 모으고, Grafana 대시보드 1장과 알림 규칙 3종을 파일로 둔다(#180).
+Spring 서버와 RabbitMQ 지표를 Prometheus로 모으고, Grafana 대시보드 1장과 알림 규칙을 파일로 둔다(#180).
 운영 배포와 실제 알림 채널 연결은 아직 하지 않았다.
 
 | 파일 | 내용 |
@@ -8,7 +8,7 @@ Spring 서버와 RabbitMQ 지표를 Prometheus로 모으고, Grafana 대시보�
 | `docker-compose.yml` | Prometheus·Grafana. 로컬 인프라(`../docker-compose.yml`)와 다른 프로젝트(`weiver-monitoring`)이고, `weiver-net`에 external로 붙는다 |
 | `prometheus/prometheus.yml` | 수집 대상: Spring `/actuator/prometheus`(관리 포트 8081), RabbitMQ `:15692/metrics`, 큐별 `:15692/metrics/detailed` |
 | `grafana/dashboards/weiver-overview.json` | 대시보드 "WEIVER 서버 개요" |
-| `grafana/provisioning/alerting/weiver-alerts.yml` | 알림 규칙: DLQ 메시지 있음, 소비자 없이 큐 적체, AI 최장 대기 초과(면접 질문 2분, 그 밖의 flow 15분) |
+| `grafana/provisioning/alerting/weiver-alerts.yml` | 알림 규칙: DLQ 메시지 있음, 소비자 없이 큐 적체, AI 최장 대기 초과(면접 질문 2분, 그 밖의 flow 15분), 수집 대상 다운(`up` 0이 1분) |
 | `grafana/provisioning/alerting/contact-points.yml` | 알림 받을 곳. 채널을 정하지 않아 webhook 1개만 있고, 주소는 `ALERT_WEBHOOK_URL`로 받는다 |
 
 ## 로컬에서 띄우기
@@ -45,5 +45,6 @@ Spring 서버와 RabbitMQ 지표를 Prometheus로 모으고, Grafana 대시보�
 - 면접 스크립트 저장에서 `saved=false`를 받은 세션은 `TRANSCRIPT_SAVE_REQUESTED`에 남는다. `interview_transcript_save`의 최장 대기는 그 세션이 정리될 때까지 계속 늘고, 비동기 flow 알림도 계속 울린다.
 - "소비자 없이 큐 적체"는 최근 5분 동안 대기 메시지가 늘었을 때만 울린다. 메시지가 더 들어오지 않으면 적체가 남아 있어도 5분 뒤 해소된다.
   - AI 쪽(`ai.domain.events.queue`)은 해소된 뒤에도 AI 최장 대기 알림이 이어서 잡는다.
-  - Spring 쪽(`spring.domain.events.queue`)은 이어받는 알림이 없다. Spring 서버가 내려가면 AI 대기 지표도 사라지기 때문이다.
-- 모든 규칙은 데이터가 없으면 정상(`noDataState: OK`)으로 본다. 수집 대상이 내려간 것(`up == 0`)을 알리는 규칙은 아직 없다.
+  - Spring 쪽(`spring.domain.events.queue`)은 Spring 서버가 내려간 경우라 AI 대기 지표도 사라진다. 이때는 "수집 대상 다운" 알림이 잡는다.
+- 수집 대상 다운 외의 규칙은 데이터가 없으면 정상(`noDataState: OK`)으로 본다. 수집 대상이 내려가 지표가 사라지면 그 규칙들은 울리지 않고, "수집 대상 다운"만 울린다.
+- 로컬에서 Spring을 띄우지 않고 이 스택만 올리면 "수집 대상 다운"(`weiver-backend`)이 1분 뒤 울린다.
