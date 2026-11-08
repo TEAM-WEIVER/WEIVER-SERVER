@@ -1,0 +1,591 @@
+{
+  "uid": "weiver-overview",
+  "title": "WEIVER 서버 개요",
+  "tags": [
+    "weiver"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "HTTP",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "HTTP 평균 지연 (uri별)",
+      "description": "히스토그램이 꺼져 있어 백분위수(p95)는 없다. 평균과 최대값만 본다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "weiver-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "weiver-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (uri) (rate(http_server_requests_seconds_sum{application=\"weiver-backend\",uri!~\"/actuator.*\"}[5m])) / sum by (uri) (rate(http_server_requests_seconds_count{application=\"weiver-backend\",uri!~\"/actuator.*\"}[5m]))",
+          "legendFormat": "{{uri}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "HTTP 최대 지연 (uri별, 인스턴스 중 최대)",
+      "description": "Micrometer max는 최근 구간(기본 2분)의 최대값이다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "weiver-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "weiver-prometheus"
+          },
+          "refId": "A",
+          "expr": "max by (uri) (http_server_requests_seconds_max{application=\"weiver-backend\",uri!~\"/actuator.*\"})",
+          "legendFormat": "{{uri}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "HTTP 오류율",
+      "description": "전체 요청 중 오류 응답 비율(5분 rate). /actuator 경로는 뺀다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "weiver-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "weiver-prometheus"
+          },
+          "refId": "A",
+          "expr": "(sum(rate(http_server_requests_seconds_count{application=\"weiver-backend\",uri!~\"/actuator.*\",status=~\"5..\"}[5m])) or vector(0)) / sum(rate(http_server_requests_seconds_count{application=\"weiver-backend\",uri!~\"/actuator.*\"}[5m]))",
+          "legendFormat": "5xx"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "weiver-prometheus"
+          },
+          "refId": "B",
+          "expr": "(sum(rate(http_server_requests_seconds_count{application=\"weiver-backend\",uri!~\"/actuator.*\",status=~\"4..\"}[5m])) or vector(0)) / sum(rate(http_server_requests_seconds_count{application=\"weiver-backend\",uri!~\"/actuator.*\"}[5m]))",
+          "legendFormat": "4xx"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "row",
+      "title": "RabbitMQ",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 17,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "큐 깊이 (ready / unacked)",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "weiver-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "weiver-prometheus"
+          },
+          "refId": "A",
+          "expr": "max by (queue) (rabbitmq_detailed_queue_messages_ready{queue=~\".*\\\\.queue\"})",
+          "legendFormat": "{{queue}} ready"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "weiver-prometheus"
+          },
+          "refId": "B",
+          "expr": "max by (queue) (rabbitmq_detailed_queue_messages_unacked{queue=~\".*\\\\.queue\"})",
+          "legendFormat": "{{queue}} unacked"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "소비자 수",
+      "description": "spring.* 큐는 Spring 서버, ai.* 큐는 AI 서버가 소비자다. 0이면 소비가 멈춘 상태다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "weiver-prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 18,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "weiver-prometheus"
+          },
+          "refId": "A",
+          "expr": "max by (queue) (rabbitmq_detailed_queue_consumers{queue=~\".*\\\\.queue\"})",
+          "legendFormat": "{{queue}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "timeseries",
+      "title": "DLQ 깊이",
+      "description": "#184가 고쳐지기 전에는 실패 메시지 1건이 spring·ai DLQ에 각각 들어가 합계가 두 배로 보인다. 큐별로 본다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "weiver-prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 18,
+        "w": 8,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "weiver-prometheus"
+          },
+          "refId": "A",
+          "expr": "max by (queue) (rabbitmq_detailed_queue_messages{queue=~\".*\\\\.dlq\"})",
+          "legendFormat": "{{queue}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "AI 대기",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 10,
+      "type": "timeseries",
+      "title": "AI 대기 건수 (flow별)",
+      "description": "각 서버가 같은 전체 값을 내므로 sum이 아니라 max로 묶는다. 30초마다 집계된 값이다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "weiver-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "weiver-prometheus"
+          },
+          "refId": "A",
+          "expr": "max by (flow) (weiver_ai_pending{application=\"weiver-backend\"})",
+          "legendFormat": "{{flow}}"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "AI 최장 대기 (flow별)",
+      "description": "가장 오래 기다린 대기 건의 경과 시간. saved=false 스크립트 저장 세션은 TRANSCRIPT_SAVE_REQUESTED에 남아 interview_transcript_save 값이 계속 는다.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "weiver-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 27,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "weiver-prometheus"
+          },
+          "refId": "A",
+          "expr": "max by (flow) (weiver_ai_pending_oldest_seconds{application=\"weiver-backend\"})",
+          "legendFormat": "{{flow}}"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "요청→결과 평균 지연 (flow·outcome별)",
+      "description": "결과 이벤트를 처리한 서버에서만 기록되므로 서버별 값을 더한다(sum).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "weiver-prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "weiver-prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (flow, outcome) (rate(weiver_ai_roundtrip_seconds_sum{application=\"weiver-backend\"}[15m])) / sum by (flow, outcome) (rate(weiver_ai_roundtrip_seconds_count{application=\"weiver-backend\"}[15m]))",
+          "legendFormat": "{{flow}} {{outcome}}"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "timeseries",
+      "title": "요청→결과 최대 지연 (flow별)",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "weiver-prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 35,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 0
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "weiver-prometheus"
+          },
+          "refId": "A",
+          "expr": "max by (flow) (weiver_ai_roundtrip_seconds_max{application=\"weiver-backend\"})",
+          "legendFormat": "{{flow}}"
+        }
+      ]
+    }
+  ]
+}

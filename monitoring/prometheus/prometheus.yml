@@ -1,0 +1,26 @@
+# WEIVER 지표 수집 설정, 로컬용 (#180). 운영용은 prometheus.prod.yml 이다.
+# 로컬은 Spring이 호스트에서 돌아 host.docker.internal 로 수집한다.
+# - weiver-backend: Spring 관리 포트의 /actuator/prometheus (#178). 관리 포트(8081)가 앱 포트와 분리돼 있을 때만 인증 없이 열린다.
+# - rabbitmq: rabbitmq_prometheus 플러그인(:15692). 큐별 값은 /metrics/detailed 에서 필요한 family만 받는다.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: weiver-backend
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8081"]
+
+  # 노드 전체 집계값(연결 수, 메모리 등). 대시보드·알림은 큐별 값을 쓰는 rabbitmq-queues 를 본다.
+  - job_name: rabbitmq
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["weiver-rabbitmq:15692"]
+
+  - job_name: rabbitmq-queues
+    metrics_path: /metrics/detailed
+    params:
+      family: ["queue_coarse_metrics", "queue_consumer_count"]
+    static_configs:
+      - targets: ["weiver-rabbitmq:15692"]

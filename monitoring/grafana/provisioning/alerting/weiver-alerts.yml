@@ -1,0 +1,161 @@
+# WEIVER 알림 규칙 (#180)
+# provisioning 파일은 $NAME 을 환경 변수로 치환하므로 문구 템플릿에 $labels 대신 .Labels 를 쓴다.
+# 임계값은 기준선(#176)에 정상 처리 시간이 없어 잠정값이다. 운영 데이터(weiver_ai_roundtrip_seconds_max)를 보고 다시 정한다.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: weiver
+    folder: WEIVER
+    interval: 30s
+    rules:
+      # 1) DLQ에 메시지가 있다. #184가 고쳐지기 전에는 실패 1건이 spring·ai DLQ 두 곳에서 각각 울린다.
+      - uid: weiver-dlq-not-empty
+        title: DLQ 메시지 있음
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: weiver-prometheus
+            model:
+              refId: A
+              instant: true
+              expr: max by (queue) (rabbitmq_detailed_queue_messages{queue=~".*\\.dlq"})
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ index .Labels "queue" }} 에 처리 실패 메시지 {{ printf "%.0f" .Values.A.Value }}건'
+          description: 처리 중 예외로 DLQ로 간 메시지가 있다. 메시지의 x-death 헤더와 같은 eventId의 ERROR 로그를 본다.
+
+      # 2) 소비자가 0인데 큐의 ready 메시지가 늘고 있다. 값은 최근 5분 동안 늘어난 메시지 수(delta, 외삽된 근삿값)다.
+      #    메시지가 더 들어오지 않으면 적체가 남아 있어도 5분 뒤 해소된다. ai.* 큐의 남은 대기는 3) AI 최장 대기 알림이 잡지만,
+      #    spring.* 큐(Spring 서버 중지)는 4) 수집 대상 다운 알림이 잡는다.
+      - uid: weiver-queue-no-consumer
+        title: 소비자 없이 큐 적체
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: weiver-prometheus
+            model:
+              refId: A
+              instant: true
+              expr: >-
+                (max by (queue) (delta(rabbitmq_detailed_queue_messages_ready{queue=~".*\\.queue"}[5m])) > 0)
+                and on (queue)
+                (max by (queue) (rabbitmq_detailed_queue_consumers{queue=~".*\\.queue"}) == 0)
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [0] }
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ index .Labels "queue" }} 소비자 0, 최근 5분 동안 대기 메시지 증가(약 {{ printf "%.0f" .Values.A.Value }}건)'
+          description: spring.* 큐는 Spring 서버, ai.* 큐는 AI 서버가 소비자다. 해당 프로세스와 RabbitMQ 연결을 확인한다.
+
+      # 3) AI 결과 최장 대기 > N분 (flow별). 서버마다 같은 전체 값을 내므로 max로 묶는다.
+      #    면접 질문은 사용자가 화면에서 기다리므로 따로 짧게 둔다.
+      - uid: weiver-ai-wait-interview-question
+        title: AI 최장 대기 초과 (면접 질문)
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: weiver-prometheus
+            model:
+              refId: A
+              instant: true
+              expr: max by (flow) (weiver_ai_pending_oldest_seconds{application="weiver-backend",flow="interview_question"})
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [120] }
+        for: 1m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ index .Labels "flow" }} 최장 대기 {{ humanizeDuration .Values.A.Value }} (기준 2분)'
+
+      # interview_transcript_save는 saved=false 세션이 TRANSCRIPT_SAVE_REQUESTED에 남아 해소될 때까지 계속 울린다.
+      # 이 flow를 빼려면 아래 flow 조건을 flow!~"interview_question|interview_transcript_save" 로 바꾼다.
+      - uid: weiver-ai-wait-async
+        title: AI 최장 대기 초과 (비동기 flow)
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: weiver-prometheus
+            model:
+              refId: A
+              instant: true
+              expr: max by (flow) (weiver_ai_pending_oldest_seconds{application="weiver-backend",flow!="interview_question"})
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: gt, params: [900] }
+        for: 5m
+        noDataState: OK
+        execErrState: Error
+        labels:
+          severity: warning
+        annotations:
+          summary: '{{ index .Labels "flow" }} 최장 대기 {{ humanizeDuration .Values.A.Value }} (기준 15분)'
+
+      # 4) 수집 대상이 응답하지 않는다(Spring 서버 다운, RabbitMQ 다운). 지표가 사라져 다른 규칙이 정상으로 보이는 공백을 막는다.
+      #    up 시계열 자체가 없으면 Prometheus 수집 설정이 빠진 것이므로 NoData도 알림으로 본다.
+      - uid: weiver-target-down
+        title: 수집 대상 다운
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 300, to: 0 }
+            datasourceUid: weiver-prometheus
+            model:
+              refId: A
+              instant: true
+              expr: min by (job, instance) (up{job=~"weiver-backend|rabbitmq|rabbitmq-queues"})
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator: { type: lt, params: [1] }
+        for: 1m
+        noDataState: Alerting
+        execErrState: Error
+        labels:
+          severity: critical
+        annotations:
+          summary: '{{ index .Labels "job" }} ({{ index .Labels "instance" }}) 수집 실패'
+          description: weiver-backend 이면 Spring 서버와 관리 포트(8081), rabbitmq* 이면 RabbitMQ 컨테이너와 15692 포트를 확인한다.
