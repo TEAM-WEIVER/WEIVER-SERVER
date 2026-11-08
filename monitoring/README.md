@@ -6,7 +6,8 @@ Spring 서버와 RabbitMQ 지표를 Prometheus로 모으고, Grafana 대시보�
 | 파일 | 내용 |
 | --- | --- |
 | `docker-compose.yml` | Prometheus·Grafana. 로컬 인프라(`../docker-compose.yml`)와 다른 프로젝트(`weiver-monitoring`)이고, `weiver-net`에 external로 붙는다 |
-| `prometheus/prometheus.yml` | 수집 대상: Spring `/actuator/prometheus`(관리 포트 8081), RabbitMQ `:15692/metrics`, 큐별 `:15692/metrics/detailed` |
+| `prometheus/prometheus.yml` | 로컬용 수집 설정. Spring `host.docker.internal:8081/actuator/prometheus`, RabbitMQ `:15692/metrics`, 큐별 `:15692/metrics/detailed` |
+| `prometheus/prometheus.prod.yml` | 운영 EC2용 수집 설정. Spring 대상만 `my-server:8081`이고 나머지는 같다 |
 | `grafana/dashboards/weiver-overview.json` | 대시보드 "WEIVER 서버 개요" |
 | `grafana/provisioning/alerting/weiver-alerts.yml` | 알림 규칙: DLQ 메시지 있음, 소비자 없이 큐 적체, AI 최장 대기 초과(면접 질문 2분, 그 밖의 flow 15분), 수집 대상 다운(`up` 0이 1분) |
 | `grafana/provisioning/alerting/contact-points.yml` | 알림 받을 곳. 채널을 정하지 않아 webhook 1개만 있고, 주소는 `ALERT_WEBHOOK_URL`로 받는다 |
@@ -36,6 +37,18 @@ Spring 서버와 RabbitMQ 지표를 Prometheus로 모으고, Grafana 대시보�
    - Grafana: http://127.0.0.1:3000 (WEIVER 폴더의 "WEIVER 서버 개요", 알림은 Alerting → Alert rules)
    - `GRAFANA_ADMIN_PASSWORD`는 `grafana-data` 볼륨을 처음 만들 때만 적용된다. 나중에 바꾸려면 Grafana에서 바꾸거나 볼륨을 지운다.
 4. 내릴 때는 이 디렉터리에서 `docker compose down`. `-v`를 붙여도 이 프로젝트의 볼륨(`prometheus-data`, `grafana-data`)만 지워진다.
+
+## 운영 EC2에 올릴 때
+
+운영 compose(`/home/ubuntu/weiver`)는 이 저장소 밖에 있다. 운영에서는 Spring이 `weiver-net`의 `my-server` 컨테이너로 돌고, 관리 포트 8081은 호스트에 publish하지 않는다. 같은 네트워크의 Prometheus는 `my-server:8081`로 수집한다.
+
+```bash
+cd monitoring
+PROMETHEUS_CONFIG=prometheus.prod.yml GRAFANA_ADMIN_PASSWORD=<비밀번호> ALERT_WEBHOOK_URL=<알림 받을 주소> docker compose up -d
+```
+
+- 9090·3000은 이 compose에서 127.0.0.1에만 열린다. 보안 그룹에 9090·3000·8081·15692를 추가하지 않는다. 접속은 SSH 터널로 한다(예: `ssh -L 3000:127.0.0.1:3000 ubuntu@<EC2>`).
+- 2026-11-08 운영에서 확인한 값: `weiver-net` 안에서 `my-server:8081/actuator/prometheus`와 `weiver-rabbitmq:15692/metrics`가 모두 200.
 
 ## 지표를 읽을 때 주의할 점
 

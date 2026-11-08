@@ -18,7 +18,8 @@ services:
     ports:
       - "127.0.0.1:9090:9090"
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      # 운영 EC2는 PROMETHEUS_CONFIG=prometheus.prod.yml 로 띄운다(Spring 대상이 my-server:8081).
+      - ./prometheus/${PROMETHEUS_CONFIG:-prometheus.yml}:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     extra_hosts:
       - "host.docker.internal:host-gateway"
