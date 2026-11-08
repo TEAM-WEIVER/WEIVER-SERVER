@@ -1,16 +1,17 @@
-# 알림 받을 곳 (#180). 채널(Slack·Discord 등)은 아직 정하지 않았다.
-# 채널을 정하면 type 과 settings 를 그 채널에 맞게 바꾸고, 주소는 ALERT_WEBHOOK_URL 환경 변수로만 넣는다.
+# 알림 받을 곳 (#180): Discord 채널 웹훅.
+# 웹훅 주소는 비밀값이라 파일에 넣지 않고 ALERT_WEBHOOK_URL 환경 변수로만 받는다.
 apiVersion: 1
 
 contactPoints:
   - orgId: 1
     name: weiver-alerts
     receivers:
-      - uid: weiver-alerts-webhook
-        type: webhook
+      - uid: weiver-alerts-discord
+        type: discord
         disableResolveMessage: false
         settings:
           url: ${ALERT_WEBHOOK_URL}
+          use_discord_username: false
 
 policies:
   - orgId: 1
