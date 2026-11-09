@@ -208,6 +208,29 @@ public class JwtTokenProviderTest {
         assertThat(remaining).isPositive().isLessThanOrEqualTo(ACCESS_TOKEN_EXPIRATION);
     }
 
+    @Test
+    @DisplayName("getRemainingExpiration: 초의 끝(밀리초 900 이상)에 발급되고 조회가 늦어도 리프레시 토큰 남은 시간 단언이 견딘다")
+    public void getRemainingExpiration_refreshTokenIssuedLateInSecond() throws InterruptedException {
+        // given: 발급 시각의 밀리초가 900 이상이 될 때까지 기다린다 (최대 약 1초)
+        // 999 근처에서 다음 초로 넘어가 버리지 않도록 900~949 구간에서 발급한다
+        while (System.currentTimeMillis() % 1000 < 900 || System.currentTimeMillis() % 1000 >= 950) {
+            Thread.onSpinWait();
+        }
+        String token = jwtTokenProvider.createRefreshToken("uuid-company-7", UserRole.COMPANY, 0L);
+
+        // 느린 CI 러너처럼 발급과 조회 사이에 100ms 이상 지연을 둔다
+        Thread.sleep(100);
+
+        // when
+        long remaining = jwtTokenProvider.getRemainingExpiration(token);
+
+        // then
+        // exp는 초 단위로 저장돼 잘린 밀리초(>= 900) + 지연(>= 100)만큼 남은 시간이 줄어 손실이 1000ms 이상이 된다
+        assertThat(remaining)
+                .isLessThanOrEqualTo(REFRESH_TOKEN_EXPIRATION)
+                .isGreaterThan(REFRESH_TOKEN_EXPIRATION - 1000);
+    }
+
     // ===================== getRefreshTokenExpirationMillis =====================
 
     @Test
