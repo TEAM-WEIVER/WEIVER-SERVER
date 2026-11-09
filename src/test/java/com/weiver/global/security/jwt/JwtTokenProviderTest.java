@@ -45,6 +45,7 @@ public class JwtTokenProviderTest {
         long tokenVersion = 3L;
 
         // when
+        long before = System.currentTimeMillis();
         String token = jwtTokenProvider.createAccessToken(publicId, role, tokenVersion);
 
         // then
@@ -52,11 +53,11 @@ public class JwtTokenProviderTest {
         assertThat(jwtTokenProvider.getRole(token)).isEqualTo(role);
         assertThat(jwtTokenProvider.getTokenVersion(token)).isEqualTo(tokenVersion);
 
-        // JJWT는 exp claim을 초 단위로 저장하므로 최대 1초 정도의 손실이 발생할 수 있음
         long remaining = jwtTokenProvider.getRemainingExpiration(token);
+        long after = System.currentTimeMillis();
         assertThat(remaining)
                 .isLessThanOrEqualTo(ACCESS_TOKEN_EXPIRATION)
-                .isGreaterThan(ACCESS_TOKEN_EXPIRATION - 5000);
+                .isGreaterThanOrEqualTo(minRemaining(before, ACCESS_TOKEN_EXPIRATION, after));
     }
 
     @Test
@@ -68,15 +69,18 @@ public class JwtTokenProviderTest {
         long tokenVersion = 0L;
 
         // when
+        long before = System.currentTimeMillis();
         String token = jwtTokenProvider.createRefreshToken(publicId, role, tokenVersion);
 
         // then
         assertThat(jwtTokenProvider.getPublicId(token)).isEqualTo(publicId);
         assertThat(jwtTokenProvider.getRole(token)).isEqualTo(role);
         assertThat(jwtTokenProvider.getTokenVersion(token)).isEqualTo(tokenVersion);
-        assertThat(jwtTokenProvider.getRemainingExpiration(token))
+        long remaining = jwtTokenProvider.getRemainingExpiration(token);
+        long after = System.currentTimeMillis();
+        assertThat(remaining)
                 .isLessThanOrEqualTo(REFRESH_TOKEN_EXPIRATION)
-                .isGreaterThan(REFRESH_TOKEN_EXPIRATION - 1000);
+                .isGreaterThanOrEqualTo(minRemaining(before, REFRESH_TOKEN_EXPIRATION, after));
     }
 
     @Test
@@ -331,6 +335,12 @@ public class JwtTokenProviderTest {
     }
 
     // ===================== helpers =====================
+
+    // exp는 초 단위로 저장돼 만료 시각(발급 시각 + 만료 기간)의 밀리초(최대 999ms)가 잘리고, 발급부터 조회까지 걸린 시간만큼 더 줄어든다.
+    // 발급 시각 >= issuedAtOrAfter, 조회 시각 <= checkedAt 이므로 남은 시간의 하한은 아래 값이다.
+    private static long minRemaining(long issuedAtOrAfter, long expirationMillis, long checkedAt) {
+        return (issuedAtOrAfter + expirationMillis) / 1000 * 1000 - checkedAt;
+    }
 
     private Claims parseClaims(String token) {
         return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
