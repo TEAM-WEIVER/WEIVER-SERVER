@@ -213,7 +213,7 @@ public class JwtTokenProviderTest {
     }
 
     @Test
-    @DisplayName("getRemainingExpiration: 초의 끝(밀리초 900 이상)에 발급되고 조회가 늦어도 남은 시간은 발급 전·조회 후 시각으로 계산한 하한 이상이다")
+    @DisplayName("getRemainingExpiration: 초 끝에 발급되고 조회가 늦어도 남은 시간이 측정 하한 이상")
     public void getRemainingExpiration_refreshTokenIssuedLateInSecond() throws InterruptedException {
         // given: 발급 시각의 밀리초가 900 이상이 될 때까지 기다린다 (최대 약 1초)
         // 999 근처에서 다음 초로 넘어가 버리지 않도록 900~949 구간에서 발급한다
@@ -361,7 +361,7 @@ public class JwtTokenProviderTest {
 
     // ===================== helpers =====================
 
-    // exp는 초 단위로 저장돼 발급 시각의 밀리초(최대 999ms)가 잘리고, 발급부터 조회까지 걸린 시간만큼 더 줄어든다.
+    // exp는 초 단위로 저장돼 만료 시각(발급 시각 + 만료 기간)의 밀리초(최대 999ms)가 잘리고, 발급부터 조회까지 걸린 시간만큼 더 줄어든다.
     // 발급 시각 >= issuedAtOrAfter, 조회 시각 <= checkedAt 이므로 남은 시간의 하한은 아래 값이다.
     private static long minRemaining(long issuedAtOrAfter, long expirationMillis, long checkedAt) {
         return (issuedAtOrAfter + expirationMillis) / 1000 * 1000 - checkedAt;
