@@ -45,6 +45,7 @@ public class JwtTokenProviderTest {
         long tokenVersion = 3L;
 
         // when
+        long before = System.currentTimeMillis();
         String token = jwtTokenProvider.createAccessToken(publicId, role, tokenVersion);
 
         // then
@@ -52,11 +53,11 @@ public class JwtTokenProviderTest {
         assertThat(jwtTokenProvider.getRole(token)).isEqualTo(role);
         assertThat(jwtTokenProvider.getTokenVersion(token)).isEqualTo(tokenVersion);
 
-        // JJWT는 exp claim을 초 단위로 저장하므로 최대 1초 정도의 손실이 발생할 수 있음
         long remaining = jwtTokenProvider.getRemainingExpiration(token);
+        long after = System.currentTimeMillis();
         assertThat(remaining)
                 .isLessThanOrEqualTo(ACCESS_TOKEN_EXPIRATION)
-                .isGreaterThan(ACCESS_TOKEN_EXPIRATION - 5000);
+                .isGreaterThanOrEqualTo(minRemaining(before, ACCESS_TOKEN_EXPIRATION, after));
     }
 
     @Test
@@ -68,15 +69,18 @@ public class JwtTokenProviderTest {
         long tokenVersion = 0L;
 
         // when
+        long before = System.currentTimeMillis();
         String token = jwtTokenProvider.createRefreshToken(publicId, role, tokenVersion);
 
         // then
         assertThat(jwtTokenProvider.getPublicId(token)).isEqualTo(publicId);
         assertThat(jwtTokenProvider.getRole(token)).isEqualTo(role);
         assertThat(jwtTokenProvider.getTokenVersion(token)).isEqualTo(tokenVersion);
-        assertThat(jwtTokenProvider.getRemainingExpiration(token))
+        long remaining = jwtTokenProvider.getRemainingExpiration(token);
+        long after = System.currentTimeMillis();
+        assertThat(remaining)
                 .isLessThanOrEqualTo(REFRESH_TOKEN_EXPIRATION)
-                .isGreaterThan(REFRESH_TOKEN_EXPIRATION - 1000);
+                .isGreaterThanOrEqualTo(minRemaining(before, REFRESH_TOKEN_EXPIRATION, after));
     }
 
     @Test
@@ -209,13 +213,14 @@ public class JwtTokenProviderTest {
     }
 
     @Test
-    @DisplayName("getRemainingExpiration: 초의 끝(밀리초 900 이상)에 발급되고 조회가 늦어도 리프레시 토큰 남은 시간 단언이 견딘다")
+    @DisplayName("getRemainingExpiration: 초의 끝(밀리초 900 이상)에 발급되고 조회가 늦어도 남은 시간은 발급 전·조회 후 시각으로 계산한 하한 이상이다")
     public void getRemainingExpiration_refreshTokenIssuedLateInSecond() throws InterruptedException {
         // given: 발급 시각의 밀리초가 900 이상이 될 때까지 기다린다 (최대 약 1초)
         // 999 근처에서 다음 초로 넘어가 버리지 않도록 900~949 구간에서 발급한다
         while (System.currentTimeMillis() % 1000 < 900 || System.currentTimeMillis() % 1000 >= 950) {
             Thread.onSpinWait();
         }
+        long before = System.currentTimeMillis();
         String token = jwtTokenProvider.createRefreshToken("uuid-company-7", UserRole.COMPANY, 0L);
 
         // 느린 CI 러너처럼 발급과 조회 사이에 100ms 이상 지연을 둔다
@@ -223,12 +228,13 @@ public class JwtTokenProviderTest {
 
         // when
         long remaining = jwtTokenProvider.getRemainingExpiration(token);
+        long after = System.currentTimeMillis();
 
         // then
-        // exp는 초 단위로 저장돼 잘린 밀리초(>= 900) + 지연(>= 100)만큼 남은 시간이 줄어 손실이 1000ms 이상이 된다
+        // 손실이 1000ms를 넘어도 고정 오차가 아니라 실제 발급·조회 시각으로 하한을 잡으므로 견딘다
         assertThat(remaining)
                 .isLessThanOrEqualTo(REFRESH_TOKEN_EXPIRATION)
-                .isGreaterThan(REFRESH_TOKEN_EXPIRATION - 1000);
+                .isGreaterThanOrEqualTo(minRemaining(before, REFRESH_TOKEN_EXPIRATION, after));
     }
 
     // ===================== getRefreshTokenExpirationMillis =====================
@@ -354,6 +360,12 @@ public class JwtTokenProviderTest {
     }
 
     // ===================== helpers =====================
+
+    // exp는 초 단위로 저장돼 발급 시각의 밀리초(최대 999ms)가 잘리고, 발급부터 조회까지 걸린 시간만큼 더 줄어든다.
+    // 발급 시각 >= issuedAtOrAfter, 조회 시각 <= checkedAt 이므로 남은 시간의 하한은 아래 값이다.
+    private static long minRemaining(long issuedAtOrAfter, long expirationMillis, long checkedAt) {
+        return (issuedAtOrAfter + expirationMillis) / 1000 * 1000 - checkedAt;
+    }
 
     private Claims parseClaims(String token) {
         return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload();
