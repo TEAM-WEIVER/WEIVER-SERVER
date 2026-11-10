@@ -15,11 +15,15 @@ import com.weiver.global.event.publisher.DomainEventPublisher;
 import com.weiver.global.event.util.EventIds;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.s3.service.S3Service;
+import com.weiver.portfolio.domain.Portfolio;
+import com.weiver.portfolio.repository.PortfolioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.util.StringUtils;
 
 import java.time.YearMonth;
 
@@ -28,11 +32,15 @@ import java.time.YearMonth;
 @RequiredArgsConstructor
 public class ApplicantProfileEventService {
 
+    private static final String PDF_EXTENSION = "pdf";
+
     private final ApplicantRepository applicantRepository;
     private final EducationRepository educationRepository;
     private final WorkExperienceRepository workExperienceRepository;
     private final CertificateRepository certificateRepository;
     private final EssayAnswerRepository essayAnswerRepository;
+    private final PortfolioRepository portfolioRepository;
+    private final S3Service s3Service;
     private final DomainEventPublisher domainEventPublisher;
 
     /**
@@ -56,7 +64,7 @@ public class ApplicantProfileEventService {
     }
 
     /**
-     * 지원자 기본 정보, 학력, 경력, 자격증, 자기소개서를 이벤트 payload로 조합한다.
+     * 지원자 기본 정보, 학력, 경력, 자격증, 자기소개서, 포트폴리오 PDF 위치를 이벤트 payload로 조합한다.
      */
     private ApplicantProfileChangedData toProfileChangedData(Applicant applicant) {
         return new ApplicantProfileChangedData(
@@ -77,8 +85,44 @@ public class ApplicantProfileEventService {
                                 answer.getEssayQuestion().getQuestion(),
                                 answer.getAnswer()
                         ))
-                        .toList()
+                        .toList(),
+                portfolioRepository.findByApplicant(applicant)
+                        .map(this::toPortfolioData)
+                        .orElse(null)
         );
+    }
+
+    /**
+     * 포트폴리오 PDF는 AI 서버가 S3에서 직접 내려받도록 버킷·키만 담는다(Presigned URL은 만료되므로 쓰지 않는다).
+     * 파일이 없거나 PDF가 아니거나 URL을 해석할 수 없으면 file은 null이다.
+     */
+    private ApplicantProfileChangedData.PortfolioData toPortfolioData(Portfolio portfolio) {
+        return new ApplicantProfileChangedData.PortfolioData(
+                portfolio.getPortfolioId(),
+                toPortfolioFileData(portfolio)
+        );
+    }
+
+    private ApplicantProfileChangedData.PortfolioFileData toPortfolioFileData(Portfolio portfolio) {
+        if (!StringUtils.hasText(portfolio.getFileKey()) || !isPdf(portfolio)) {
+            return null;
+        }
+        return s3Service.resolveObjectLocation(portfolio.getFileKey())
+                .map(location -> new ApplicantProfileChangedData.PortfolioFileData(
+                        location.bucket(),
+                        location.key(),
+                        portfolio.getFileName(),
+                        portfolio.getFileSize()
+                ))
+                .orElse(null);
+    }
+
+    /** 저장된 파일 유형으로 판별하고, 유형이 비어 있으면 원본 파일명의 확장자로 판별한다. */
+    private boolean isPdf(Portfolio portfolio) {
+        String extension = StringUtils.hasText(portfolio.getFileType())
+                ? portfolio.getFileType()
+                : StringUtils.getFilenameExtension(portfolio.getFileName());
+        return PDF_EXTENSION.equalsIgnoreCase(extension);
     }
 
     private ApplicantProfileChangedData.EducationData toEducationData(Education education) {

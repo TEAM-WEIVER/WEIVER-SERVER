@@ -14,7 +14,8 @@ public record ApplicantProfileChangedData(
         List<EducationData> educations,
         List<ExperienceData> experiences,
         List<String> certifications,
-        List<EssayData> essay
+        List<EssayData> essay,
+        PortfolioData portfolio
 ) {
     public record EducationData(
             Long id,
@@ -44,6 +45,25 @@ public record ApplicantProfileChangedData(
             Long id,
             String question,
             String answer
+    ) {
+    }
+
+    /**
+     * 포트폴리오. 지원자가 포트폴리오를 등록하지 않았으면 상위 {@code portfolio} 자체가 null이다.
+     * {@code file}은 PDF 파일이 없거나 PDF가 아니면 null이다(링크는 담지 않는다).
+     */
+    public record PortfolioData(
+            @JsonProperty("portfolio_id") Long portfolioId,
+            PortfolioFileData file
+    ) {
+    }
+
+    /** AI 서버가 S3에서 직접 내려받을 PDF 위치와 원본 파일 정보. */
+    public record PortfolioFileData(
+            String bucket,
+            String key,
+            @JsonProperty("file_name") String fileName,
+            @JsonProperty("file_size") Long fileSize
     ) {
     }
 }
