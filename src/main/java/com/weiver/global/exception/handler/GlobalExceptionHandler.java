@@ -29,6 +29,7 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 @Slf4j
 @RestControllerAdvice
@@ -36,6 +37,8 @@ import java.util.List;
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final String AUDIO_ANSWER_PATH_SUFFIX = "/answers/audio";
+    // 포트폴리오 등록(POST /api/portfolios)·교체(PATCH /api/portfolios/{portfolioId}) 경로만 해당한다.
+    private static final Pattern PORTFOLIO_UPLOAD_PATH = Pattern.compile("^/api/portfolios(/[^/]+)?$");
 
     private final CookieProvider cookieProvider;
 
@@ -194,9 +197,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         String path = getPath(request);
         log.warn("[MaxUploadSizeExceeded] maxUploadSize={}, path={}", ex.getMaxUploadSize(), path);
 
-        // 답변 녹음 업로드만 전용 에러 코드를 내려주고, 다른 업로드는 기존처럼 413 상태코드로만 응답한다.
+        // 답변 녹음·포트폴리오 업로드만 전용 에러 코드를 내려주고, 다른 업로드는 기존처럼 413 상태코드로만 응답한다.
         if (path.endsWith(AUDIO_ANSWER_PATH_SUFFIX)) {
             return toResponseObject(ErrorCode.INTERVIEW_ANSWER_AUDIO_TOO_LARGE, path, List.of());
+        }
+        if (PORTFOLIO_UPLOAD_PATH.matcher(path).matches()) {
+            return toResponseObject(ErrorCode.PORTFOLIO_FILE_TOO_LARGE, path, List.of());
         }
         return toResponseObject(status, path, List.of());
     }

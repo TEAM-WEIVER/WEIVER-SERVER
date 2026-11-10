@@ -60,6 +60,9 @@ public enum ErrorCode {
     EXPERIENCE_NOT_FOUND("EXPERIENCE_NOT_FOUND", HttpStatus.NOT_FOUND, "경력 정보를 찾을 수 없습니다."),
     PORTFOLIO_NOT_FOUND("PORTFOLIO_NOT_FOUND", HttpStatus.NOT_FOUND, "포트폴리오를 찾을 수 없습니다."),
     PORTFOLIO_ALREADY_EXISTS("PORTFOLIO_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 포트폴리오가 존재합니다."),
+    PORTFOLIO_INVALID_FILE_TYPE("PORTFOLIO_INVALID_FILE_TYPE", HttpStatus.BAD_REQUEST, "포트폴리오 파일은 PDF만 업로드할 수 있습니다."),
+    PORTFOLIO_FILE_TOO_LARGE("PORTFOLIO_FILE_TOO_LARGE", HttpStatus.PAYLOAD_TOO_LARGE, "포트폴리오 파일이 허용된 크기(10MB)를 초과했습니다."),
+    PORTFOLIO_FILE_LOCKED("PORTFOLIO_FILE_LOCKED", HttpStatus.CONFLICT, "프로필 분석이 진행 중이라 포트폴리오 파일을 교체할 수 없습니다."),
 
     // ===================== REPORT =====================
     REPORT_NOT_FOUND("REPORT_NOT_FOUND", HttpStatus.NOT_FOUND, "보고서를 찾을 수 없습니다."),

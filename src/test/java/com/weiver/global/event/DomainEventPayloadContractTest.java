@@ -77,8 +77,41 @@ class DomainEventPayloadContractTest {
                         "INTERN", "인턴", "백엔드 개발", true
                 )),
                 List.of("정보처리기사"),
-                List.of(new ApplicantProfileChangedData.EssayData(1L, "질문", "답변"))
+                List.of(new ApplicantProfileChangedData.EssayData(1L, "질문", "답변")),
+                new ApplicantProfileChangedData.PortfolioData(
+                        12L,
+                        new ApplicantProfileChangedData.PortfolioFileData(
+                                "private-bucket", "portfolios/3f2a-e1.pdf", "포트폴리오.pdf", 2481934L
+                        )
+                )
         ));
+        JsonNode portfolio = profile.get("portfolio");
+        assertThat(portfolio.get("portfolio_id").asLong()).isEqualTo(12L);
+        assertThat(portfolio.has("portfolioId")).isFalse();
+        JsonNode portfolioFile = portfolio.get("file");
+        assertThat(portfolioFile.get("bucket").asText()).isEqualTo("private-bucket");
+        assertThat(portfolioFile.get("key").asText()).isEqualTo("portfolios/3f2a-e1.pdf");
+        assertThat(portfolioFile.get("file_name").asText()).isEqualTo("포트폴리오.pdf");
+        assertThat(portfolioFile.get("file_size").asLong()).isEqualTo(2481934L);
+        assertThat(portfolioFile.has("fileName")).isFalse();
+        assertThat(portfolioFile.has("fileSize")).isFalse();
+        assertThat(portfolioFile.size()).isEqualTo(4);
+        assertThat(portfolio.size()).isEqualTo(2);
+
+        JsonNode profileWithoutPdf = objectMapper.valueToTree(new ApplicantProfileChangedData(
+                1L, "홍길동", List.of(), List.of(), List.of(), List.of(),
+                new ApplicantProfileChangedData.PortfolioData(12L, null)
+        ));
+        assertThat(profileWithoutPdf.get("portfolio").get("portfolio_id").asLong()).isEqualTo(12L);
+        assertThat(profileWithoutPdf.get("portfolio").has("file")).isTrue();
+        assertThat(profileWithoutPdf.get("portfolio").get("file").isNull()).isTrue();
+
+        JsonNode profileWithoutPortfolio = objectMapper.valueToTree(new ApplicantProfileChangedData(
+                1L, "홍길동", List.of(), List.of(), List.of(), List.of(), null
+        ));
+        assertThat(profileWithoutPortfolio.has("portfolio")).isTrue();
+        assertThat(profileWithoutPortfolio.get("portfolio").isNull()).isTrue();
+
         JsonNode education = profile.get("educations").get(0);
         JsonNode experience = profile.get("experiences").get(0);
         assertThat(education.get("education_level").asText()).isEqualTo("BACHELOR");
