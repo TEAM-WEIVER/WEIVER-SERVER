@@ -12,11 +12,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -50,6 +52,21 @@ class GlobalExceptionHandlerUploadTest {
         void otherUpload() {
             throw new MaxUploadSizeExceededException(10L * 1024 * 1024);
         }
+
+        @PostMapping("/api/portfolios")
+        void portfolioSave() {
+            throw new MaxUploadSizeExceededException(10L * 1024 * 1024);
+        }
+
+        @PatchMapping("/api/portfolios/{portfolioId}")
+        void portfolioUpdate() {
+            throw new MaxUploadSizeExceededException(10L * 1024 * 1024);
+        }
+
+        @PostMapping("/api/portfolios/{portfolioId}/attachments")
+        void portfolioSubResource() {
+            throw new MaxUploadSizeExceededException(10L * 1024 * 1024);
+        }
     }
 
     @Test
@@ -66,5 +83,32 @@ class GlobalExceptionHandlerUploadTest {
         mockMvc.perform(post("/api/applicants/photo"))
                 .andExpect(status().isPayloadTooLarge())
                 .andExpect(jsonPath("$.errorCode").value(not(ErrorCode.INTERVIEW_ANSWER_AUDIO_TOO_LARGE.name())));
+    }
+
+    @Test
+    @DisplayName("포트폴리오 등록 업로드 한도를 초과하면 413과 PORTFOLIO_FILE_TOO_LARGE를 반환한다")
+    void portfolioSaveTooLarge() throws Exception {
+        mockMvc.perform(post("/api/portfolios"))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.errorCode").value(ErrorCode.PORTFOLIO_FILE_TOO_LARGE.name()));
+    }
+
+    @Test
+    @DisplayName("포트폴리오 교체 업로드 한도를 초과하면 413과 PORTFOLIO_FILE_TOO_LARGE를 반환한다")
+    void portfolioUpdateTooLarge() throws Exception {
+        mockMvc.perform(patch("/api/portfolios/10"))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.errorCode").value(ErrorCode.PORTFOLIO_FILE_TOO_LARGE.name()));
+    }
+
+    @Test
+    @DisplayName("포트폴리오 경로가 아닌 업로드나 포트폴리오 하위 경로는 포트폴리오 전용 코드를 내려주지 않는다")
+    void nonPortfolioPathTooLarge_doesNotUsePortfolioCode() throws Exception {
+        mockMvc.perform(post("/api/applicants/photo"))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.errorCode").value(not(ErrorCode.PORTFOLIO_FILE_TOO_LARGE.name())));
+        mockMvc.perform(post("/api/portfolios/10/attachments"))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(jsonPath("$.errorCode").value(not(ErrorCode.PORTFOLIO_FILE_TOO_LARGE.name())));
     }
 }
