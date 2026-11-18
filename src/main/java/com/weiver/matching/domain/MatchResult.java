@@ -55,7 +55,4 @@ public class MatchResult extends BaseTimeEntity {
     @JoinColumn(name = "applicant_id", nullable = false)
     private Applicant applicant;
 
-    public void markAsNotified() {
-        this.isNotified = true;
-    }
 }

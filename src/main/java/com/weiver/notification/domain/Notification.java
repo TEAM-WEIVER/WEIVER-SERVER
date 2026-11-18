@@ -2,7 +2,6 @@ package com.weiver.notification.domain;
 
 import com.weiver.company.domain.Company;
 import com.weiver.global.common.BaseTimeEntity;
-import com.weiver.matching.domain.MatchResult;
 import com.weiver.notification.type.NotificationType;
 import jakarta.persistence.*;
 import lombok.*;
@@ -41,9 +40,12 @@ public class Notification extends BaseTimeEntity {
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "match_id", nullable = false)
-    private MatchResult matchResult;
+    // 알림 생성 당시의 식별자 스냅샷. 매칭 결과 교체 후에도 알림을 보존한다.
+    @Column(name = "match_id", nullable = false)
+    private Long matchId;
+
+    @Column(name = "jd_id", nullable = false)
+    private Long jdId;
 
     public void markAsRead() {
         this.isRead = true;

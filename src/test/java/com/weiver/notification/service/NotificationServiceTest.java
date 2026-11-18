@@ -62,7 +62,8 @@ class NotificationServiceTest {
 
         Notification notification = Notification.builder()
                 .company(company)
-                .matchResult(matchResult)
+                .matchId(matchResult.getMatchId())
+                .jdId(matchResult.getJobPosting().getJdId())
                 .type(NotificationType.RESUME_MATCH_TALENT)
                 .message("테스트 알림입니다.")
                 .build();
@@ -220,18 +221,12 @@ class NotificationServiceTest {
     void markAllAsRead_Success() {
         // given
         String companyPublicId = "comp-123";
-        Notification unread1 = createMockNotification(1L, companyPublicId, 100L, false);
-        Notification unread2 = createMockNotification(2L, companyPublicId, 200L, false);
-
-        given(notificationRepository.findAllByCompany_PublicIdAndIsReadFalse(companyPublicId))
-                .willReturn(List.of(unread1, unread2));
 
         // when
         notificationService.markAllAsRead(companyPublicId);
 
         // then
-        assertThat(unread1.getIsRead()).isTrue();
-        assertThat(unread2.getIsRead()).isTrue();
+        verify(notificationRepository).markAllAsReadByCompanyPublicId(companyPublicId);
     }
 
     @Test
@@ -239,13 +234,10 @@ class NotificationServiceTest {
     void markAllAsRead_Success_WhenNoUnread() {
         // given
         String companyPublicId = "comp-123";
-        given(notificationRepository.findAllByCompany_PublicIdAndIsReadFalse(companyPublicId))
-                .willReturn(Collections.emptyList());
-
         // when
         notificationService.markAllAsRead(companyPublicId);
 
         // then
-        verify(notificationRepository).findAllByCompany_PublicIdAndIsReadFalse(companyPublicId);
+        verify(notificationRepository).markAllAsReadByCompanyPublicId(companyPublicId);
     }
 }

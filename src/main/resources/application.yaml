@@ -21,6 +21,11 @@ spring:
 server:
   port: 8080
 
+weiver:
+  matching:
+    # 매칭 교체의 advisory lock 대기만 제한한다. 초과 시 롤백하고 기존 리스너 정책으로 DLQ에 보낸다.
+    lock-timeout-ms: ${MATCHING_LOCK_TIMEOUT_MS:5000}
+
 springdoc:
   default-consumes-media-type: application/json
   default-produces-media-type: application/json

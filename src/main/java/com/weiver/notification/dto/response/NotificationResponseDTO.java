@@ -18,7 +18,7 @@ public record NotificationResponseDTO(
                 notification.getType().getDescription(),
                 notification.getMessage(),
                 notification.getIsRead(),
-                notification.getMatchResult().getJobPosting().getJdId(),
+                notification.getJdId(),
                 notification.getCreateTime()
         );
     }
