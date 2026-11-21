@@ -21,6 +21,11 @@ spring:
 server:
   port: 8080
 
+weiver:
+  applicant-analysis:
+    # 지원자 분석 요청의 마감 시간. 제출 건의 deadline_at = requested_at + 이 값이다(시간 초과 처리는 #207).
+    deadline: 30m
+
 springdoc:
   default-consumes-media-type: application/json
   default-produces-media-type: application/json

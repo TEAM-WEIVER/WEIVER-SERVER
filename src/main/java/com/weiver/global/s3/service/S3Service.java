@@ -2,6 +2,7 @@ package com.weiver.global.s3.service;
 
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.s3.dto.S3ObjectLocation;
 import io.awspring.cloud.s3.ObjectMetadata;
 import io.awspring.cloud.s3.S3Template;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -117,6 +119,31 @@ public class S3Service {
         } catch (Exception e) {
             log.error("S3 파일 삭제 실패 (URL: {}): {}", fileUrl, e.getMessage(), e);
             throw new BusinessException(ErrorCode.FAIL_DELETE_FILE);
+        }
+    }
+
+    /**
+     * 저장된 S3 객체 URL을 버킷과 디코딩된 객체 키로 분해한다.
+     * 버킷 판별과 키 추출은 {@link #getPresignedUrl(String)}·{@link #deleteFile(String)}과 같은 방식이다.
+     *
+     * <p>비어 있는 URL은 기존 메서드처럼 "값 없음"으로 본다. 해석할 수 없는 URL도 예외 대신 빈 값을 돌려준다.
+     * 이벤트 payload 조합처럼 위치를 못 구하면 파일 정보만 빼고 진행해야 하는 호출자가 try/catch 없이 쓰게 하기 위함이다.
+     */
+    public Optional<S3ObjectLocation> resolveObjectLocation(String fileUrl) {
+        if (!StringUtils.hasText(fileUrl)) {
+            return Optional.empty();
+        }
+
+        try {
+            String targetBucket = fileUrl.contains(privateBucket) ? privateBucket : publicBucket;
+            String objectKey = extractObjectKey(fileUrl);
+            if (!StringUtils.hasText(objectKey)) {
+                return Optional.empty();
+            }
+            return Optional.of(new S3ObjectLocation(targetBucket, objectKey));
+        } catch (Exception e) {
+            log.warn("S3 객체 URL 해석 실패. errorType={}", e.getClass().getSimpleName());
+            return Optional.empty();
         }
     }
 

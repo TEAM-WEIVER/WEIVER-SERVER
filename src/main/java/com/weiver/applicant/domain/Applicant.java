@@ -71,16 +71,26 @@ public class Applicant extends BaseTimeEntity {
     @Column(name = "address", nullable = true)
     private String address;  // 주소
 
+    /** 더 이상 읽거나 쓰지 않는다(상태 정본은 applicant_analysis_submissions). 운영 NOT NULL 컬럼이라 기본값만 남긴다. */
+    @Deprecated
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "profile_sync_status", nullable = false, length = 50)
     private ProfileSyncStatus profileSyncStatus = ProfileSyncStatus.PENDING;
 
+    /** 더 이상 읽거나 쓰지 않는다(요청 시각은 applicant_analysis_submissions.requested_at). */
+    @Deprecated
     @Column(name = "profile_sync_requested_at")
     private OffsetDateTime profileSyncRequestedAt;
 
+    /** 더 이상 읽거나 쓰지 않는다. */
+    @Deprecated
     @Column(name = "profile_synced_at")
     private OffsetDateTime profileSyncedAt;
+
+    /** 현재 분석 제출 건의 submission_version. null이면 제출한 적이 없다. */
+    @Column(name = "current_submission_version")
+    private Integer currentSubmissionVersion;
 
     @Builder.Default
     @Column(nullable = false)
@@ -119,22 +129,14 @@ public class Applicant extends BaseTimeEntity {
         this.password = encodedPassword;
     }
 
-    public void markProfileSyncRequested() {
-        this.profileSyncStatus = ProfileSyncStatus.REQUESTED;
-        this.profileSyncRequestedAt = OffsetDateTime.now();
+    /** 다음에 발급할 제출 버전. 제출한 적이 없으면 1이다. */
+    public int nextSubmissionVersion() {
+        return this.currentSubmissionVersion == null ? 1 : this.currentSubmissionVersion + 1;
     }
 
-    public void markProfileSyncCompleted(OffsetDateTime syncedAt) {
-        this.profileSyncStatus = ProfileSyncStatus.COMPLETED;
-        this.profileSyncedAt = Objects.requireNonNull(syncedAt, "syncedAt must not be null");
-    }
-
-    public void markProfileSyncFailed() {
-        this.profileSyncStatus = ProfileSyncStatus.FAILED;
-    }
-
-    public boolean isProfileSubmitted() {
-        return this.profileSyncStatus != ProfileSyncStatus.PENDING;
+    /** 현재 제출 건을 새 제출 버전으로 바꾼다. 호출자가 지원자 행을 잠근 상태여야 한다. */
+    public void pointToSubmission(int submissionVersion) {
+        this.currentSubmissionVersion = submissionVersion;
     }
 
     /**

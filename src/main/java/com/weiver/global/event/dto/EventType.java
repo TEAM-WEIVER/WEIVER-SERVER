@@ -1,8 +1,7 @@
 package com.weiver.global.event.dto;
 
 public enum EventType {
-    // 구직자 프로필 동기화
-    APPLICANT_PROFILE_CHANGED,
+    // 구직자 프로필 동기화(과거 이벤트 수신 무시용으로만 남긴다. 발행하지 않는다)
     APPLICANT_PROFILE_SYNC_COMPLETED,
 
     // JD 분석

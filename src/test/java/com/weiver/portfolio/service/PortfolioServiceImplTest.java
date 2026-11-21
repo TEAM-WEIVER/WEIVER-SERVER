@@ -2,7 +2,7 @@ package com.weiver.portfolio.service;
 
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.repository.ApplicantRepository;
-import com.weiver.applicant.type.ProfileSyncStatus;
+import com.weiver.applicant.service.ApplicantAnalysisSubmissionService;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.s3.service.S3Service;
@@ -14,8 +14,6 @@ import com.weiver.portfolio.repository.PortfolioRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -50,6 +48,9 @@ class PortfolioServiceImplTest {
 
     @Mock
     private S3Service s3Service;
+
+    @Mock
+    private ApplicantAnalysisSubmissionService applicantAnalysisSubmissionService;
 
     @InjectMocks
     private PortfolioService portfolioService;
@@ -300,7 +301,7 @@ class PortfolioServiceImplTest {
     @DisplayName("교체: PDF가 아닌 파일은 S3 업로드·삭제 없이 PORTFOLIO_INVALID_FILE_TYPE 예외가 발생한다")
     void updatePortfolio_NonPdf_Rejected() {
         // given
-        Portfolio portfolio = givenPortfolio(ProfileSyncStatus.PENDING);
+        Portfolio portfolio = givenPortfolio(false);
         MultipartFile file = new MockMultipartFile("portfolio", "portfolio.hwp", "application/pdf", PDF_BYTES);
 
         // when & then
@@ -316,7 +317,7 @@ class PortfolioServiceImplTest {
     @DisplayName("교체: 10MB를 넘으면 S3 업로드·삭제 없이 PORTFOLIO_FILE_TOO_LARGE 예외가 발생한다")
     void updatePortfolio_TooLarge_Rejected() {
         // given
-        givenPortfolio(ProfileSyncStatus.PENDING);
+        givenPortfolio(false);
         MultipartFile file = pdfFile("portfolio.pdf", pdfOfSize(MAX_SIZE + 1));
 
         // when & then
@@ -329,10 +330,10 @@ class PortfolioServiceImplTest {
     // ===================== R5: 분석 중(REQUESTED) 파일 교체 차단 =====================
 
     @Test
-    @DisplayName("교체: 지원자 상태가 REQUESTED면 S3 업로드·삭제 없이 PORTFOLIO_FILE_LOCKED 예외가 발생한다")
+    @DisplayName("교체: 현재 제출 건이 REQUESTED면 S3 업로드·삭제 없이 PORTFOLIO_FILE_LOCKED 예외가 발생한다")
     void updatePortfolio_RequestedWithFile_Locked() {
         // given
-        Portfolio portfolio = givenPortfolio(ProfileSyncStatus.REQUESTED);
+        Portfolio portfolio = givenPortfolio(true);
         MultipartFile file = pdfFile("new.pdf", PDF_BYTES);
 
         // when & then
@@ -349,20 +350,20 @@ class PortfolioServiceImplTest {
     @DisplayName("교체: 소유자가 아니면 REQUESTED 여부와 관계없이 PORTFOLIO_NOT_FOUND가 먼저 발생한다")
     void updatePortfolio_RequestedButNotOwner_NotFound() {
         // given
-        givenPortfolio(ProfileSyncStatus.REQUESTED);
+        givenPortfolioWithoutStatus();
         MultipartFile file = pdfFile("new.pdf", PDF_BYTES);
 
         // when & then
         assertErrorCode(() -> portfolioService.updatePortfolio(updateRequest(), file, "other-user", 10L),
                 ErrorCode.PORTFOLIO_NOT_FOUND);
-        verifyNoInteractions(s3Service);
+        verifyNoInteractions(s3Service, applicantAnalysisSubmissionService);
     }
 
     @Test
     @DisplayName("교체: REQUESTED 상태여도 파일 없이 링크만 수정하면 허용된다")
     void updatePortfolio_RequestedLinksOnly_Allowed() {
         // given
-        Portfolio portfolio = givenPortfolio(ProfileSyncStatus.REQUESTED);
+        Portfolio portfolio = givenPortfolioWithoutStatus();
 
         // when
         portfolioService.updatePortfolio(updateRequest(), null, PUBLIC_ID, 10L);
@@ -371,15 +372,14 @@ class PortfolioServiceImplTest {
         verify(portfolioRepository).save(portfolio);
         assertThat(portfolio.getUrlGithub()).isEqualTo("https://github.com/weiver-updated");
         assertThat(portfolio.getFileKey()).isEqualTo(OLD_FILE_URL);
-        verifyNoInteractions(s3Service);
+        verifyNoInteractions(s3Service, applicantAnalysisSubmissionService);
     }
 
-    @ParameterizedTest(name = "{0}")
-    @EnumSource(value = ProfileSyncStatus.class, names = {"PENDING", "FAILED", "COMPLETED"})
-    @DisplayName("교체: REQUESTED가 아닌 상태에서는 새 PDF를 업로드하고 DB 반영 뒤 기존 파일을 삭제한다")
-    void updatePortfolio_NotRequested_ReplacesFile(ProfileSyncStatus status) {
+    @Test
+    @DisplayName("교체: 현재 제출 건이 REQUESTED가 아니면(미제출·FAILED·COMPLETED) 새 PDF를 업로드하고 DB 반영 뒤 기존 파일을 삭제한다")
+    void updatePortfolio_NotRequested_ReplacesFile() {
         // given
-        Portfolio portfolio = givenPortfolio(status);
+        Portfolio portfolio = givenPortfolio(false);
         MultipartFile file = pdfFile("new.pdf", PDF_BYTES);
         given(s3Service.privateUpload(file, "portfolios")).willReturn("https://weiver-private-bucket/portfolios/new.pdf");
 
@@ -399,11 +399,18 @@ class PortfolioServiceImplTest {
         given(applicantRepository.findByPublicId(PUBLIC_ID)).willReturn(Optional.of(applicant));
     }
 
-    private Portfolio givenPortfolio(ProfileSyncStatus status) {
+    /** 파일 교체 검사까지 가는 테스트용: 현재 제출 건이 분석 중(REQUESTED)인지 정해 둔다. */
+    private Portfolio givenPortfolio(boolean analysisRequested) {
+        Portfolio portfolio = givenPortfolioWithoutStatus();
+        given(applicantAnalysisSubmissionService.isCurrentRequested(portfolio.getApplicant()))
+                .willReturn(analysisRequested);
+        return portfolio;
+    }
+
+    private Portfolio givenPortfolioWithoutStatus() {
         Applicant applicant = Applicant.builder()
                 .applicantId(1L)
                 .publicId(PUBLIC_ID)
-                .profileSyncStatus(status)
                 .build();
         Portfolio portfolio = Portfolio.builder()
                 .portfolioId(10L)

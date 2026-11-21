@@ -5,7 +5,6 @@ import com.weiver.analysis.repository.TechnicalSkillReportRepository;
 import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.dto.response.*;
-import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.*;
 import com.weiver.applicant.type.ProfileSyncStatus;
 import com.weiver.essay.repository.EssayAnswerRepository;
@@ -21,6 +20,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Optional;
 
 
 @Service
@@ -37,7 +37,7 @@ public class ApplicantService {
     private final PortfolioRepository portfolioRepository;
     private final TechnicalSkillReportRepository technicalSkillReportRepository;
     private final WorkExperienceService workExperienceService;
-    private final ApplicantProfileEventService applicantProfileEventService;
+    private final ApplicantAnalysisSubmissionService applicantAnalysisSubmissionService;
     private final S3Service s3Service;
 
     // 진입 메서드는 트랜잭션을 열지 않는다(NOT_SUPPORTED). S3 업로드/삭제는 트랜잭션 경계 밖에서 수행하고,
@@ -113,11 +113,12 @@ public class ApplicantService {
         Applicant applicant = getApplicant(publicId);
 
         ApplicantDocumentStatusResponseDTO documentStatus = buildDocumentStatus(applicant);
+        Optional<ApplicantAnalysisSubmission> currentSubmission = applicantAnalysisSubmissionService.findCurrent(applicant);
 
         return new ApplicantSubmissionStatusResponseDTO(
-                isSubmitted(applicant),
-                applicant.getProfileSyncStatus(),
-                isSubmittable(applicant, documentStatus),
+                currentSubmission.isPresent(),
+                toSyncStatus(currentSubmission),
+                isResubmittable(currentSubmission) && isAllDocumentsCompleted(documentStatus),
                 documentStatus.resumeCompleted(),
                 documentStatus.essayCompleted(),
                 documentStatus.portfolioCompleted(),
@@ -135,39 +136,48 @@ public class ApplicantService {
     }
 
     /**
-     * 구직자가 화면에서 "프로필 제출"을 눌렀을 때 AI 서버 프로필 동기화를 시작한다.
+     * 구직자가 화면에서 "프로필 제출"을 눌렀을 때 제출 건을 만들고 AI 서버에 분석을 요청한다.
      *
-     * <p>동기화 완료 이벤트를 받은 핸들러가 이어서 지원자 분석을 요청하므로, 이 한 번의 제출로
-     * 동기화와 분석이 모두 수행된다.
+     * <p>지원자 행을 비관적 잠금으로 조회한 뒤 상태 확인, 버전 발급, 제출 건 저장, 현재 제출 갱신을 한 트랜잭션에서 하고,
+     * 분석 요청 이벤트는 커밋 뒤에 발행한다. 동시 제출은 잠금에서 줄을 서므로 두 번째 요청은 상태 확인에서 거절된다.
      *
-     * <p>재제출은 막는다. 제출 직후(REQUESTED)와 동기화 완료(COMPLETED) 상태에서는
-     * {@link ErrorCode#PROFILE_ALREADY_SUBMITTED}로 거절하고, 동기화가 실패한(FAILED) 경우에만
-     * 다시 제출할 수 있다.
+     * <p>재제출은 막는다. 현재 제출 건이 분석 중(REQUESTED)이거나 완료(COMPLETED)면
+     * {@link ErrorCode#PROFILE_ALREADY_SUBMITTED}로 거절하고, 제출한 적이 없거나 실패(FAILED)한 경우에만 제출할 수 있다.
      */
     @Transactional
     public void submitProfile(String publicId) {
-        Applicant applicant = getApplicant(publicId);
+        Applicant applicant = applicantRepository.findWithLockByPublicId(publicId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
 
-        if (!isResubmittable(applicant)) {
+        if (!isResubmittable(applicantAnalysisSubmissionService.findCurrent(applicant))) {
             throw new BusinessException(ErrorCode.PROFILE_ALREADY_SUBMITTED);
         }
         if (!isAllDocumentsCompleted(buildDocumentStatus(applicant))) {
             throw new BusinessException(ErrorCode.PROFILE_DOCUMENT_INCOMPLETE);
         }
 
-        applicantProfileEventService.publishProfileChanged(applicant.getApplicantId());
+        applicantAnalysisSubmissionService.submit(applicant);
+    }
+
+    /** 제출 가능 상태: 제출한 적이 없거나 현재 제출 건이 실패(FAILED)했다. */
+    private boolean isResubmittable(Optional<ApplicantAnalysisSubmission> currentSubmission) {
+        return currentSubmission
+                .map(ApplicantAnalysisSubmission::allowsResubmission)
+                .orElse(true);
     }
 
     /**
-     * 제출 버튼 활성화 판단용: 아직 제출하지 않았거나 동기화가 실패했고, 필수 서류가 모두 작성된 상태.
+     * 응답의 syncStatus 값은 기존 계약(PENDING·REQUESTED·COMPLETED·FAILED)을 유지하고, 현재 제출 건 상태에서 만든다.
+     * 제출한 적이 없으면 PENDING이다. 의미 설명(Swagger) 변경은 2단계에서 한다.
      */
-    private boolean isSubmittable(Applicant applicant, ApplicantDocumentStatusResponseDTO documentStatus) {
-        return isResubmittable(applicant) && isAllDocumentsCompleted(documentStatus);
-    }
-
-    private boolean isResubmittable(Applicant applicant) {
-        ProfileSyncStatus syncStatus = applicant.getProfileSyncStatus();
-        return syncStatus == ProfileSyncStatus.PENDING || syncStatus == ProfileSyncStatus.FAILED;
+    private ProfileSyncStatus toSyncStatus(Optional<ApplicantAnalysisSubmission> currentSubmission) {
+        return currentSubmission
+                .map(submission -> switch (submission.getStatus()) {
+                    case REQUESTED -> ProfileSyncStatus.REQUESTED;
+                    case COMPLETED -> ProfileSyncStatus.COMPLETED;
+                    case FAILED -> ProfileSyncStatus.FAILED;
+                })
+                .orElse(ProfileSyncStatus.PENDING);
     }
 
     private boolean isAllDocumentsCompleted(ApplicantDocumentStatusResponseDTO documentStatus) {
@@ -215,11 +225,5 @@ public class ApplicantService {
                 || awardRepository.existsByApplicant(applicant);
 
         return basicInfoCompleted && resumeDetailCompleted;
-    }
-
-    // 사용자의 '제출 행위' 기준: 제출 요청(REQUESTED) 이후는 모두 제출됨으로 본다.
-    // 동기화 실패(FAILED)도 사용자 입장에서는 제출된 상태이며, 실패 메시지는 추후 폴링으로 재처리한다.
-    private boolean isSubmitted(Applicant applicant) {
-        return applicant.isProfileSubmitted();
     }
 }

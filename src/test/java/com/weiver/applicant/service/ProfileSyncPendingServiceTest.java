@@ -1,7 +1,7 @@
 package com.weiver.applicant.service;
 
-import com.weiver.applicant.repository.ApplicantRepository;
-import com.weiver.applicant.type.ProfileSyncStatus;
+import com.weiver.applicant.repository.ApplicantAnalysisSubmissionRepository;
+import com.weiver.applicant.type.AnalysisSubmissionStatus;
 import com.weiver.global.metrics.dto.AiPendingStat;
 import com.weiver.global.metrics.type.AiFlow;
 import org.junit.jupiter.api.DisplayName;
@@ -25,18 +25,18 @@ class ProfileSyncPendingServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-11-02T10:00:00Z");
 
-    @Mock private ApplicantRepository applicantRepository;
+    @Mock private ApplicantAnalysisSubmissionRepository submissionRepository;
 
     @InjectMocks
     private ProfileSyncPendingService profileSyncPendingService;
 
     @Test
-    @DisplayName("REQUESTED 지원자 수와 가장 이른 요청 시각으로 profile_sync 대기 집계를 만든다")
+    @DisplayName("REQUESTED 제출 건 수와 가장 이른 요청 시각으로 profile_sync 대기 집계를 만든다")
     void collect_CountsRequestedAndComputesOldest() {
         // given
-        // 대기 3건 중 요청 시각이 있는 행의 최솟값은 5분 전이다(null 행은 MIN에서 빠진다).
-        given(applicantRepository.countByProfileSyncStatus(ProfileSyncStatus.REQUESTED)).willReturn(3L);
-        given(applicantRepository.findOldestProfileSyncRequestedAt(ProfileSyncStatus.REQUESTED))
+        // 대기 3건 중 가장 이른 요청 시각은 5분 전이다.
+        given(submissionRepository.countByStatus(AnalysisSubmissionStatus.REQUESTED)).willReturn(3L);
+        given(submissionRepository.findOldestRequestedAt(AnalysisSubmissionStatus.REQUESTED))
                 .willReturn(Optional.of(OffsetDateTime.ofInstant(NOW.minusSeconds(300), ZoneOffset.UTC)));
 
         // when
@@ -48,7 +48,7 @@ class ProfileSyncPendingServiceTest {
     }
 
     @Test
-    @DisplayName("대기 지원자가 없으면 건수와 최장 대기 시간이 0이다")
+    @DisplayName("대기 제출 건이 없으면 건수와 최장 대기 시간이 0이다")
     void collect_ReturnsZero_WhenNothingPending() {
         // given
         // 스텁 없음: count는 0, MIN은 빈 값

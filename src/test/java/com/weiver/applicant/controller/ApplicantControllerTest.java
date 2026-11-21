@@ -234,6 +234,38 @@ class ApplicantControllerTest {
     }
 
     @Test
+    @DisplayName("현재 제출 건이 분석 중이거나 완료돼 다시 제출할 수 없으면 409와 PROFILE_ALREADY_SUBMITTED를 반환한다")
+    void submitProfile_AlreadySubmitted_ReturnsConflict() throws Exception {
+        // given
+        String publicId = "2222";
+        doThrow(new BusinessException(ErrorCode.PROFILE_ALREADY_SUBMITTED))
+                .when(applicantService).submitProfile(publicId);
+
+        // when, then
+        mockMvc.perform(post("/api/applicants/profile/submit")
+                        .with(customAuth(publicId))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.errorCode").value("PROFILE_ALREADY_SUBMITTED"));
+    }
+
+    @Test
+    @DisplayName("필수 서류가 모두 작성되지 않았으면 400과 PROFILE_DOCUMENT_INCOMPLETE를 반환한다")
+    void submitProfile_DocumentIncomplete_ReturnsBadRequest() throws Exception {
+        // given
+        String publicId = "2222";
+        doThrow(new BusinessException(ErrorCode.PROFILE_DOCUMENT_INCOMPLETE))
+                .when(applicantService).submitProfile(publicId);
+
+        // when, then
+        mockMvc.perform(post("/api/applicants/profile/submit")
+                        .with(customAuth(publicId))
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errorCode").value("PROFILE_DOCUMENT_INCOMPLETE"));
+    }
+
+    @Test
     @DisplayName("엣지 케이스 : 프로필 제출 시 Principal이 없으면 UNAUTHORIZED 에러 발생")
     void submitProfile_WithoutPrincipal_ThrowsUnauthorized() throws Exception {
         mockMvc.perform(post("/api/applicants/profile/submit")
