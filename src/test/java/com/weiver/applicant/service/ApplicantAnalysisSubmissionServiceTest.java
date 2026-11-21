@@ -7,6 +7,7 @@ import com.weiver.analysis.event.dto.ApplicantAnalysisRequestedData;
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.domain.ApplicantAnalysisSubmission;
 import com.weiver.applicant.repository.ApplicantAnalysisSubmissionRepository;
+import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.applicant.type.AnalysisSubmissionStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -38,6 +39,7 @@ class ApplicantAnalysisSubmissionServiceTest {
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     @Mock private ApplicantAnalysisSubmissionRepository submissionRepository;
+    @Mock private ApplicantRepository applicantRepository;
     @Mock private ApplicantAnalysisSnapshotService snapshotService;
     @Mock private ApplicantAnalysisEventService applicantAnalysisEventService;
 
@@ -46,7 +48,7 @@ class ApplicantAnalysisSubmissionServiceTest {
     @BeforeEach
     void setUp() {
         submissionService = new ApplicantAnalysisSubmissionService(
-                submissionRepository, snapshotService, applicantAnalysisEventService, objectMapper, DEADLINE);
+                submissionRepository, applicantRepository, snapshotService, applicantAnalysisEventService, objectMapper, DEADLINE);
     }
 
     @Test
@@ -59,6 +61,7 @@ class ApplicantAnalysisSubmissionServiceTest {
         given(snapshotService.contentHash(anyMap())).willReturn("a".repeat(64));
         given(submissionRepository.save(any(ApplicantAnalysisSubmission.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
+        given(applicantRepository.updateCurrentSubmissionVersion(1L, 1)).willReturn(1);
         OffsetDateTime before = OffsetDateTime.now();
 
         // when
@@ -82,6 +85,8 @@ class ApplicantAnalysisSubmissionServiceTest {
         assertThat(submission.getSnapshot()).containsEntry("submission_version", 1);
         assertThat(submission.getSnapshot()).containsEntry("applicant_id", 1L);
 
+        // 포인터는 UPDATE 쿼리로 바꾸고 관리 엔티티 필드도 맞춘다.
+        verify(applicantRepository).updateCurrentSubmissionVersion(1L, 1);
         assertThat(applicant.getCurrentSubmissionVersion()).isEqualTo(1);
         verify(applicantAnalysisEventService).publishApplicantAnalysisRequested(submission.getEventId(), data);
     }
@@ -95,12 +100,14 @@ class ApplicantAnalysisSubmissionServiceTest {
         given(snapshotService.contentHash(anyMap())).willReturn("b".repeat(64));
         given(submissionRepository.save(any(ApplicantAnalysisSubmission.class)))
                 .willAnswer(invocation -> invocation.getArgument(0));
+        given(applicantRepository.updateCurrentSubmissionVersion(1L, 3)).willReturn(1);
 
         // when
         ApplicantAnalysisSubmission submission = submissionService.submit(applicant);
 
         // then
         assertThat(submission.getSubmissionVersion()).isEqualTo(3);
+        verify(applicantRepository).updateCurrentSubmissionVersion(1L, 3);
         assertThat(applicant.getCurrentSubmissionVersion()).isEqualTo(3);
     }
 

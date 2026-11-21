@@ -175,6 +175,67 @@ class ApplicantSubmitConcurrencyTest {
         assertThat(captor.getValue().eventId()).isEqualTo(submissions.getFirst().getEventId());
     }
 
+    @Test
+    @DisplayName("제출 전에 읽은 지원자(detached)를 제출 뒤 save(merge)해도 현재 제출 버전이 되돌아가지 않고, 다음 제출은 v2를 발급한다")
+    void mergeOfStaleApplicant_DoesNotRevertSubmissionPointer() throws Exception {
+        // given: 트랜잭션 밖에서 지원자를 읽어 둔다(updateApplicantInfo와 같은 방식). 이때 포인터는 null이다.
+        String publicId = givenSubmittableApplicant();
+        Applicant detached = applicantRepository.findByPublicId(publicId).orElseThrow();
+        assertThat(detached.getCurrentSubmissionVersion()).isNull();
+
+        // 다른 트랜잭션에서 제출이 커밋된다(v1, 포인터=1).
+        CompletableFuture.runAsync(() -> applicantService.submitProfile(publicId), executor).get(10, TimeUnit.SECONDS);
+
+        // when: 오래된 detached 엔티티를 merge한다.
+        applicantRepository.save(detached);
+
+        // then: 포인터는 1로 남는다.
+        assertThat(applicantRepository.findByPublicId(publicId).orElseThrow().getCurrentSubmissionVersion())
+                .isEqualTo(1);
+
+        // v1이 실패하면 다음 제출은 v2를 발급한다(같은 버전 재발급으로 유니크 위반이 나지 않는다).
+        failCurrentSubmission(publicId, 1);
+        applicantService.submitProfile(publicId);
+        assertThat(applicantRepository.findByPublicId(publicId).orElseThrow().getCurrentSubmissionVersion())
+                .isEqualTo(2);
+        assertThat(submissionRepository.findAll())
+                .extracting(ApplicantAnalysisSubmission::getSubmissionVersion)
+                .containsExactlyInAnyOrder(1, 2);
+    }
+
+    @Test
+    @DisplayName("제출 전에 지원자를 읽은 트랜잭션이 제출 커밋 뒤 다른 필드를 바꿔도(dirty checking) 현재 제출 버전이 되돌아가지 않는다")
+    void dirtyCheckingOfStaleApplicant_DoesNotRevertSubmissionPointer() throws Exception {
+        // given
+        String publicId = givenSubmittableApplicant();
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
+
+        // when: 비밀번호 변경처럼 잠그지 않고 읽은 트랜잭션 안에서, 다른 트랜잭션의 제출이 먼저 커밋된다.
+        transactionTemplate.executeWithoutResult(status -> {
+            Applicant applicant = applicantRepository.findByPublicId(publicId).orElseThrow();
+            try {
+                CompletableFuture.runAsync(() -> applicantService.submitProfile(publicId), executor)
+                        .get(10, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+            applicant.updatePassword("newEncodedPassword");
+        });
+
+        // then
+        Applicant reloaded = applicantRepository.findByPublicId(publicId).orElseThrow();
+        assertThat(reloaded.getPassword()).isEqualTo("newEncodedPassword");
+        assertThat(reloaded.getCurrentSubmissionVersion()).isEqualTo(1);
+    }
+
+    private void failCurrentSubmission(String publicId, int version) {
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            Applicant applicant = applicantRepository.findByPublicId(publicId).orElseThrow();
+            submissionRepository.findByApplicantAndSubmissionVersion(applicant, version).orElseThrow()
+                    .markAnalysisFailed("ANALYSIS", "INTERNAL", java.time.OffsetDateTime.now());
+        });
+    }
+
     private String givenSubmittableApplicant() {
         Applicant applicant = applicantRepository.save(Applicant.builder()
                 .email("concurrent@weiver.com")

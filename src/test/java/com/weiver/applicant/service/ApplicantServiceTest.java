@@ -1,6 +1,5 @@
 package com.weiver.applicant.service;
 
-import com.weiver.analysis.repository.TechnicalSkillReportRepository;
 import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.request.post.AwardDetailDTO;
 import com.weiver.applicant.dto.request.post.AwardRequestDTO;
@@ -54,7 +53,6 @@ class ApplicantServiceTest {
     @Mock private PortfolioRepository portfolioRepository;
     @Mock private S3Service s3Service;
     @Mock private ApplicantAnalysisSubmissionService applicantAnalysisSubmissionService;
-    @Mock private TechnicalSkillReportRepository technicalSkillReportRepository;
 
     @InjectMocks
     private ApplicantService applicantService;
@@ -458,8 +456,8 @@ class ApplicantServiceTest {
     }
 
     @Test
-    @DisplayName("프로필 제출 여부 조회 시 현재 제출 건이 REQUESTED면 리포트가 남아 있어도 analysisCompleted는 false다.")
-    void getSubmissionStatus_Requested_ReturnsAnalysisFalseRegardlessOfReport() {
+    @DisplayName("프로필 제출 여부 조회 시 현재 제출 건이 REQUESTED면 analysisCompleted는 false다.")
+    void getSubmissionStatus_Requested_ReturnsAnalysisFalse() {
         // Given
         String publicId = "2222";
         Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.REQUESTED);
@@ -475,8 +473,6 @@ class ApplicantServiceTest {
         // Then
         assertThat(responseDTO.syncStatus()).isEqualTo(ProfileSyncStatus.REQUESTED);
         assertThat(responseDTO.analysisCompleted()).isFalse();
-        // 리포트 존재 여부는 더 이상 판단에 쓰지 않는다(이전 제출의 리포트가 남아 있을 수 있다).
-        verifyNoInteractions(technicalSkillReportRepository);
     }
 
     @Test

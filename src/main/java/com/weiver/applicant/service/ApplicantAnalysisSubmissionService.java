@@ -7,6 +7,7 @@ import com.weiver.analysis.event.dto.ApplicantAnalysisRequestedData;
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.domain.ApplicantAnalysisSubmission;
 import com.weiver.applicant.repository.ApplicantAnalysisSubmissionRepository;
+import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.global.event.util.EventIds;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +30,7 @@ public class ApplicantAnalysisSubmissionService {
     private static final TypeReference<Map<String, Object>> SNAPSHOT_TYPE = new TypeReference<>() {};
 
     private final ApplicantAnalysisSubmissionRepository submissionRepository;
+    private final ApplicantRepository applicantRepository;
     private final ApplicantAnalysisSnapshotService snapshotService;
     private final ApplicantAnalysisEventService applicantAnalysisEventService;
     private final ObjectMapper objectMapper;
@@ -85,6 +87,11 @@ public class ApplicantAnalysisSubmissionService {
                 OffsetDateTime.now(),
                 analysisDeadline
         ));
+        // 포인터 컬럼은 updatable=false라 dirty checking으로 쓰이지 않는다. 잠금을 쥔 이 트랜잭션에서 UPDATE로만 바꾸고,
+        // 같은 트랜잭션의 이후 읽기가 어긋나지 않게 관리 엔티티 필드도 맞춘다.
+        if (applicantRepository.updateCurrentSubmissionVersion(applicant.getApplicantId(), submissionVersion) != 1) {
+            throw new IllegalStateException("applicant row not found while updating submission pointer");
+        }
         applicant.pointToSubmission(submissionVersion);
 
         applicantAnalysisEventService.publishApplicantAnalysisRequested(eventId, data);

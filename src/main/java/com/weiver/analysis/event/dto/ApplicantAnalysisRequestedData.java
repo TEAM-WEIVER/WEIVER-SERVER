@@ -1,5 +1,6 @@
 package com.weiver.analysis.event.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.LocalDate;
@@ -82,7 +83,7 @@ public record ApplicantAnalysisRequestedData(
             String key,
             @JsonProperty("file_name") String fileName,
             @JsonProperty("file_size") Long fileSize,
-            @JsonProperty("version_id") String versionId
+            @JsonProperty("version_id") @JsonInclude(JsonInclude.Include.ALWAYS) String versionId
     ) {
         public static PortfolioFileData of(String bucket, String key, String fileName, Long fileSize) {
             return new PortfolioFileData(bucket, key, fileName, fileSize, null);

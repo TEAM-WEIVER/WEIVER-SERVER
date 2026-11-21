@@ -144,6 +144,33 @@ class ApplicantAnalysisCompletedHandlerTest {
     }
 
     @Test
+    @DisplayName("성공 결과의 culturefit_style이 허용 값(enum 이름·한글 설명)이 아니면 잠금·리포트 저장 전에 non-retryable 예외가 발생한다")
+    void handle_SuccessWithUnknownCulturefitStyle_ThrowsNonRetryable() {
+        ObjectNode data = successPayload();
+        data.put("culturefit_style", "UNKNOWN_STYLE");
+
+        assertNonRetryable(data, "Unsupported culturefit_style: UNKNOWN_STYLE");
+    }
+
+    @Test
+    @DisplayName("성공 결과의 culturefit_style이 enum 이름이나 한글 설명이면 통과한다")
+    void handle_SuccessWithKnownCulturefitStyle_Delegates() {
+        // given
+        ObjectNode byName = successPayload();
+        byName.put("culturefit_style", "INCLUSIVE_INNOVATOR");
+        ObjectNode byDescription = successPayload();
+        byDescription.put("culturefit_style", "포용적 혁신가");
+
+        // when
+        handler.handle(envelope(byName));
+        handler.handle(envelope(byDescription));
+
+        // then
+        verify(applicantAnalysisResultService, org.mockito.Mockito.times(2))
+                .applyCompletion(eq(CORRELATION_ID), org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     @DisplayName("핸들러는 트랜잭션을 열지 않는다(트랜잭션은 완료 처리 서비스에 있다)")
     void handle_IsNotTransactional() {
         assertThat(Arrays.stream(ApplicantAnalysisCompletedHandler.class.getDeclaredMethods())

@@ -165,6 +165,42 @@ class ApplicantAnalysisResultServiceTest {
     }
 
     @Test
+    @DisplayName("버전은 현재 버전과 같은데 그 버전의 제출 건 행이 없으면 아무것도 바꾸지 않는다")
+    void applyCompletion_SubmissionRowMissing_Ignored() {
+        // given
+        Applicant applicant = applicant(2);
+        given(applicantRepository.findWithLockByApplicantId(1L)).willReturn(Optional.of(applicant));
+        given(submissionRepository.findByApplicantAndSubmissionVersion(applicant, 2)).willReturn(Optional.empty());
+
+        // when
+        resultService.applyCompletion(REQUEST_EVENT_ID, success(2, "pdf", null));
+
+        // then
+        assertThat(applicant.getCurrentSubmissionVersion()).isEqualTo(2);
+        verifyNoInteractions(technicalSkillReportRepository, cultureReportRepository);
+    }
+
+    @Test
+    @DisplayName("실패 결과에 error가 없으면 지금처럼 stage·code를 null로 두고 FAILED로 바꾼다")
+    void applyCompletion_FailureWithoutError_MarksFailedWithNullError() {
+        // given
+        Applicant applicant = applicant(2);
+        ApplicantAnalysisSubmission submission = requested(applicant, 2);
+        givenLockedApplicantWith(applicant, submission);
+
+        // when
+        resultService.applyCompletion(REQUEST_EVENT_ID, new ApplicantAnalysisCompletedData(
+                1L, 2, ApplicantAnalysisCompletedData.OUTCOME_FAILED, null, null, null, null, null, null, null, null));
+
+        // then
+        assertThat(submission.getStatus()).isEqualTo(AnalysisSubmissionStatus.FAILED);
+        assertThat(submission.getFailureReason()).isEqualTo(AnalysisFailureReason.ANALYSIS_FAILED);
+        assertThat(submission.getErrorStage()).isNull();
+        assertThat(submission.getErrorCode()).isNull();
+        verifyNoInteractions(technicalSkillReportRepository, cultureReportRepository);
+    }
+
+    @Test
     @DisplayName("correlation_id가 저장한 요청 event_id와 다르면 아무것도 바꾸지 않는다")
     void applyCompletion_DifferentCorrelationId_Ignored() {
         // given

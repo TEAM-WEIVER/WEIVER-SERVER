@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 public enum AiFlow {
 
     JD_ANALYSIS("jd_analysis"),                             // JobPosting.jdAnalysisStatus = REQUESTED
-    PROFILE_SYNC("profile_sync"),                           // Applicant.profileSyncStatus = REQUESTED
+    PROFILE_SYNC("profile_sync"),                           // 지원자 분석 제출 건 status = REQUESTED
     INTERVIEW_QUESTION("interview_question"),               // InterviewSession = WAITING_FOR_QUESTION
     INTERVIEW_TRANSCRIPT_SAVE("interview_transcript_save"), // InterviewSession = TRANSCRIPT_SAVE_REQUESTED
     INTERVIEW_REPORT("interview_report");                   // InterviewSession = REPORT_REQUESTED

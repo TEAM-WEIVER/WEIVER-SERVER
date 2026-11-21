@@ -20,7 +20,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.OffsetDateTime;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -60,6 +59,11 @@ public class ApplicantAnalysisResultService {
 
         if (data.isFailed()) {
             ApplicantAnalysisCompletedData.ErrorData error = data.error();
+            if (error == null) {
+                // 정책은 바꾸지 않는다(stage·code를 null로 저장). 계약 위반을 추적할 수 있게 로그만 남긴다.
+                log.warn("지원자 분석 실패 결과에 error가 없다. applicantId={}, submissionVersion={}",
+                        applicant.getApplicantId(), data.submissionVersion());
+            }
             submission.markAnalysisFailed(
                     error != null ? error.stage() : null,
                     error != null ? error.code() : null,
@@ -149,9 +153,8 @@ public class ApplicantAnalysisResultService {
             return null;
         }
 
-        return Arrays.stream(CulturefitStyle.values())
-                .filter(style -> style.name().equals(value) || style.getDescription().equals(value))
-                .findFirst()
+        // 핸들러가 먼저 검증하므로 여기서는 방어용이다.
+        return CulturefitStyle.fromNameOrDescription(value)
                 .orElseThrow(() -> new NonRetryableEventException("Unsupported culturefit_style: " + value));
     }
 

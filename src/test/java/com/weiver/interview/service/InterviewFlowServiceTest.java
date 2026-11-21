@@ -188,6 +188,9 @@ class InterviewFlowServiceTest {
     void startInterview_RejectsWhenCurrentSubmissionIsNotCompleted() {
         Applicant applicant = applicant();
         given(applicantRepository.findByPublicId(APPLICANT_PUBLIC_ID)).willReturn(Optional.of(applicant));
+        // 이전 제출의 분석 리포트(job·role 있음)가 남아 있는 상황. 시작 검증이 상태에서 막으므로 읽히지 않을 수 있다.
+        org.mockito.Mockito.lenient().when(technicalSkillReportRepository.findByApplicant(applicant))
+                .thenReturn(Optional.of(completedAnalysis()));
         given(applicantAnalysisSubmissionService.isCurrentCompleted(applicant)).willReturn(false);
 
         assertThatThrownBy(() -> interviewFlowService.startInterview(
@@ -199,7 +202,7 @@ class InterviewFlowServiceTest {
                 .isEqualTo(ErrorCode.APPLICANT_ANALYSIS_NOT_COMPLETED);
 
         verify(interviewSessionRepository, never()).save(any());
-        verifyNoInteractions(domainEventPublisher, technicalSkillReportRepository);
+        verifyNoInteractions(domainEventPublisher);
     }
 
     @Test

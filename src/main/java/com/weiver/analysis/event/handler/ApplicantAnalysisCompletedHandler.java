@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.weiver.analysis.event.dto.ApplicantAnalysisCompletedData;
 import com.weiver.analysis.service.ApplicantAnalysisResultService;
+import com.weiver.analysis.type.CulturefitStyle;
 import com.weiver.global.event.consumer.DomainEventHandler;
 import com.weiver.global.event.dto.EventEnvelope;
 import com.weiver.global.event.dto.EventType;
@@ -58,6 +59,11 @@ public class ApplicantAnalysisCompletedHandler implements DomainEventHandler {
         }
         if (!StringUtils.hasText(data.role())) {
             throw new NonRetryableEventException("role is required");
+        }
+        // 잠금·리포트 upsert 전에 끝내도록 컬처핏 스타일 값도 미리 확인한다(비어 있으면 컬처 리포트를 만들지 않으므로 통과).
+        if (StringUtils.hasText(data.culturefitStyle())
+                && CulturefitStyle.fromNameOrDescription(data.culturefitStyle()).isEmpty()) {
+            throw new NonRetryableEventException("Unsupported culturefit_style: " + data.culturefitStyle());
         }
     }
 }
