@@ -79,8 +79,7 @@ class RabbitTopologyConfigTest {
             "jd.analysis.completed, spring",
             "interview.question.generated, spring",
             "interview.transcript.saved, spring",
-            "jd.analysis.requested, ai",
-            "applicant.profile.changed, ai"
+            "jd.analysis.requested, ai"
     })
     void rejectedMessageGoesOnlyToItsOwnDlq(String routingKey, String side) throws Exception {
         // given

@@ -1,29 +1,34 @@
 package com.weiver.applicant.domain;
 
-import com.weiver.applicant.type.ProfileSyncStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
-import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ApplicantTest {
 
     @Test
-    @DisplayName("프로필 동기화를 요청하면 REQUESTED 상태가 되고 요청 시각이 기록된다")
-    void markProfileSyncRequested_RecordsRequestedAt() {
+    @DisplayName("제출한 적이 없으면 다음 제출 버전은 1이다")
+    void nextSubmissionVersion_NeverSubmitted_IsOne() {
         // given
         Applicant applicant = Applicant.builder().applicantId(1L).build();
-        OffsetDateTime before = OffsetDateTime.now();
+
+        // when & then
+        assertThat(applicant.getCurrentSubmissionVersion()).isNull();
+        assertThat(applicant.nextSubmissionVersion()).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("현재 제출 버전을 가리키면 다음 제출 버전은 그 값에 1을 더한 값이다")
+    void pointToSubmission_UpdatesCurrentVersion() {
+        // given
+        Applicant applicant = Applicant.builder().applicantId(1L).currentSubmissionVersion(1).build();
 
         // when
-        applicant.markProfileSyncRequested();
+        applicant.pointToSubmission(applicant.nextSubmissionVersion());
 
         // then
-        OffsetDateTime after = OffsetDateTime.now();
-        assertThat(applicant.getProfileSyncStatus()).isEqualTo(ProfileSyncStatus.REQUESTED);
-        assertThat(applicant.getProfileSyncRequestedAt()).isNotNull();
-        assertThat(applicant.getProfileSyncRequestedAt()).isBetween(before, after);
+        assertThat(applicant.getCurrentSubmissionVersion()).isEqualTo(2);
+        assertThat(applicant.nextSubmissionVersion()).isEqualTo(3);
     }
 }

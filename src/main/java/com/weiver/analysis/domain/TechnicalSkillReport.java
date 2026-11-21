@@ -41,6 +41,10 @@ public class TechnicalSkillReport extends BaseTimeEntity {
     @Column(name = "application_provider_tags", columnDefinition = "jsonb")
     private List<String> applicationProviderTags; // 유저 제공 스킬 태그
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "interview_skill_tags", columnDefinition = "jsonb")
+    private List<String> interviewSkillTags; // 면접에서 나온 스킬 태그(쓰는 동작은 #210)
+
     @Column(name = "job") // 대분류(ex. DEVELOPER)
     private String job;
 

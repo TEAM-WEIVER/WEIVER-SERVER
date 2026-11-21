@@ -9,6 +9,7 @@ import com.weiver.analysis.repository.TechnicalSkillReportRepository;
 import com.weiver.analysis.service.CulturefitAxisService;
 import com.weiver.analysis.type.CulturefitStyle;
 import com.weiver.applicant.domain.Applicant;
+import com.weiver.applicant.service.ApplicantAnalysisSubmissionService;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.global.event.dto.EventEnvelope;
 import com.weiver.global.event.dto.EventType;
@@ -94,6 +95,7 @@ class InterviewFlowServiceTest {
     @Mock private DomainEventPublisher domainEventPublisher;
     @Mock private SimpMessagingTemplate messagingTemplate;
     @Mock private InterviewQuestionVoiceService interviewQuestionVoiceService;
+    @Mock private ApplicantAnalysisSubmissionService applicantAnalysisSubmissionService;
     // 실제 타이머를 SimpleMeterRegistry에 기록해 flow·outcome 태그까지 검증한다.
     private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
     @Spy private AiRoundtripMetrics aiRoundtripMetrics = new AiRoundtripMetrics(meterRegistry);
@@ -108,6 +110,7 @@ class InterviewFlowServiceTest {
                 .build();
 
         given(applicantRepository.findByPublicId(APPLICANT_PUBLIC_ID)).willReturn(Optional.of(applicant));
+        given(applicantAnalysisSubmissionService.isCurrentCompleted(applicant)).willReturn(true);
         given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.of(technicalSkillReport));
 
         InterviewStartResponse response = interviewFlowService.startInterview(
@@ -147,6 +150,7 @@ class InterviewFlowServiceTest {
     void startInterview_AllowsMultipleSessionsForSameApplicant() {
         Applicant applicant = applicant();
         given(applicantRepository.findByPublicId(APPLICANT_PUBLIC_ID)).willReturn(Optional.of(applicant));
+        given(applicantAnalysisSubmissionService.isCurrentCompleted(applicant)).willReturn(true);
         given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.of(completedAnalysis()));
 
         interviewFlowService.startInterview(APPLICANT_PUBLIC_ID, new InterviewStartRequest("TECHNICAL"));
@@ -161,10 +165,11 @@ class InterviewFlowServiceTest {
     }
 
     @Test
-    @DisplayName("지원자 분석이 완료되지 않으면 면접을 시작할 수 없다")
+    @DisplayName("현재 제출 건이 COMPLETED여도 기술 리포트가 없으면 면접을 시작할 수 없다")
     void startInterview_RejectsWhenApplicantAnalysisIsNotCompleted() {
         Applicant applicant = applicant();
         given(applicantRepository.findByPublicId(APPLICANT_PUBLIC_ID)).willReturn(Optional.of(applicant));
+        given(applicantAnalysisSubmissionService.isCurrentCompleted(applicant)).willReturn(true);
         given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.empty());
 
         assertThatThrownBy(() -> interviewFlowService.startInterview(
@@ -175,6 +180,28 @@ class InterviewFlowServiceTest {
                 .extracting("code")
                 .isEqualTo(ErrorCode.APPLICANT_ANALYSIS_NOT_COMPLETED);
 
+        verifyNoInteractions(domainEventPublisher);
+    }
+
+    @Test
+    @DisplayName("리포트가 남아 있어도 현재 제출 건이 COMPLETED가 아니면(REQUESTED 등) 면접을 시작할 수 없다")
+    void startInterview_RejectsWhenCurrentSubmissionIsNotCompleted() {
+        Applicant applicant = applicant();
+        given(applicantRepository.findByPublicId(APPLICANT_PUBLIC_ID)).willReturn(Optional.of(applicant));
+        // 이전 제출의 분석 리포트(job·role 있음)가 남아 있는 상황. 시작 검증이 상태에서 막으므로 읽히지 않을 수 있다.
+        org.mockito.Mockito.lenient().when(technicalSkillReportRepository.findByApplicant(applicant))
+                .thenReturn(Optional.of(completedAnalysis()));
+        given(applicantAnalysisSubmissionService.isCurrentCompleted(applicant)).willReturn(false);
+
+        assertThatThrownBy(() -> interviewFlowService.startInterview(
+                APPLICANT_PUBLIC_ID,
+                new InterviewStartRequest("TECHNICAL")
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(ErrorCode.APPLICANT_ANALYSIS_NOT_COMPLETED);
+
+        verify(interviewSessionRepository, never()).save(any());
         verifyNoInteractions(domainEventPublisher);
     }
 
@@ -205,6 +232,7 @@ class InterviewFlowServiceTest {
         applicant.markInterviewSubmitted(LocalDateTime.now().minusMonths(1).minusDays(1));
 
         given(applicantRepository.findByPublicId(APPLICANT_PUBLIC_ID)).willReturn(Optional.of(applicant));
+        given(applicantAnalysisSubmissionService.isCurrentCompleted(applicant)).willReturn(true);
         given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.of(completedAnalysis()));
 
         InterviewStartResponse response = interviewFlowService.startInterview(

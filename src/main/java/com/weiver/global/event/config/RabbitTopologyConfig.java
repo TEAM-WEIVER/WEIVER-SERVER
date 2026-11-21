@@ -56,7 +56,6 @@ public class RabbitTopologyConfig {
         interview.question.requested
         interview.transcript.save.requested
         interview.report.requested
-        applicant.profile.changed
      */
     @Bean
     Queue aiQueue(RabbitMqProperties properties) {
@@ -94,11 +93,6 @@ public class RabbitTopologyConfig {
     }
 
     @Bean
-    Binding aiApplicantProfileChangedBinding(Queue aiQueue, TopicExchange domainExchange) {
-        return BindingBuilder.bind(aiQueue).to(domainExchange).with("applicant.profile.changed");
-    }
-
-    @Bean
     Binding springDlqCompletedBinding(Queue springDlq, TopicExchange deadLetterExchange) {
         return BindingBuilder.bind(springDlq).to(deadLetterExchange).with("#.completed");
     }
@@ -116,10 +110,5 @@ public class RabbitTopologyConfig {
     @Bean
     Binding aiDlqRequestedBinding(Queue aiDlq, TopicExchange deadLetterExchange) {
         return BindingBuilder.bind(aiDlq).to(deadLetterExchange).with("#.requested");
-    }
-
-    @Bean
-    Binding aiDlqApplicantProfileChangedBinding(Queue aiDlq, TopicExchange deadLetterExchange) {
-        return BindingBuilder.bind(aiDlq).to(deadLetterExchange).with("applicant.profile.changed");
     }
 }

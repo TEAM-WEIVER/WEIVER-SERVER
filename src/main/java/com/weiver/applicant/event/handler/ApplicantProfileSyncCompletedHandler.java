@@ -1,33 +1,21 @@
 package com.weiver.applicant.event.handler;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.weiver.analysis.event.ApplicantAnalysisEventService;
-import com.weiver.applicant.domain.Applicant;
-import com.weiver.applicant.event.dto.ApplicantProfileSyncCompletedData;
-import com.weiver.applicant.repository.ApplicantRepository;
-import com.weiver.applicant.type.ProfileSyncStatus;
 import com.weiver.global.event.consumer.DomainEventHandler;
 import com.weiver.global.event.dto.EventEnvelope;
 import com.weiver.global.event.dto.EventType;
-import com.weiver.global.event.exception.NonRetryableEventException;
-import com.weiver.global.exception.BusinessException;
-import com.weiver.global.exception.ErrorCode;
-import com.weiver.global.metrics.AiRoundtripMetrics;
-import com.weiver.global.metrics.type.AiFlow;
-import com.weiver.global.metrics.type.AiOutcome;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 과거 프로필 동기화 완료(applicant.profile.sync.completed) 이벤트를 받아 버린다.
+ *
+ * <p>AI 서버가 동기화와 분석을 분석 요청 하나로 합쳐 더는 이 이벤트를 보내지 않는다. 큐에 남은 과거 이벤트가
+ * 알 수 없는 이벤트 타입 오류로 DLQ에 가지 않도록 핸들러만 남기고, 지원자·제출 건 상태, 잠금, 지연 지표는 건드리지 않는다.
+ */
+@Slf4j
 @Component
-@RequiredArgsConstructor
 public class ApplicantProfileSyncCompletedHandler implements DomainEventHandler {
-
-    private final ObjectMapper objectMapper;
-    private final ApplicantRepository applicantRepository;
-    private final ApplicantAnalysisEventService applicantAnalysisEventService;
-    private final AiRoundtripMetrics aiRoundtripMetrics;
 
     @Override
     public EventType support() {
@@ -35,46 +23,10 @@ public class ApplicantProfileSyncCompletedHandler implements DomainEventHandler 
     }
 
     @Override
-    @Transactional
     public void handle(EventEnvelope<JsonNode> envelope) {
-        // AI 서버의 프로필 upsert 결과를 반영하고, 성공 시 다음 분석 요청을 이어서 발행한다.
-        ApplicantProfileSyncCompletedData data = objectMapper.convertValue(
-                envelope.data(),
-                ApplicantProfileSyncCompletedData.class
-        );
-        validate(data);
-
-        Applicant applicant = applicantRepository.findById(data.applicantId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
-
-        if (applicant.getProfileSyncStatus() == ProfileSyncStatus.COMPLETED) {
-            return;
-        }
-        // 재수신된 결과는 지연 지표에 다시 넣지 않도록, 요청 중이던 지원자만 기록한다.
-        boolean wasRequested = applicant.getProfileSyncStatus() == ProfileSyncStatus.REQUESTED;
-        if (Boolean.FALSE.equals(data.synced())) {
-            applicant.markProfileSyncFailed();
-            recordRoundtrip(wasRequested, AiOutcome.FAILED, applicant);
-            return;
-        }
-
-        applicant.markProfileSyncCompleted(envelope.occurredAt());
-        recordRoundtrip(wasRequested, AiOutcome.COMPLETED, applicant);
-        applicantAnalysisEventService.publishApplicantAnalysisRequested(applicant.getApplicantId());
-    }
-
-    private void recordRoundtrip(boolean wasRequested, AiOutcome outcome, Applicant applicant) {
-        if (wasRequested) {
-            aiRoundtripMetrics.record(AiFlow.PROFILE_SYNC, outcome, applicant.getProfileSyncRequestedAt());
-        }
-    }
-
-    private void validate(ApplicantProfileSyncCompletedData data) {
-        if (data.applicantId() == null) {
-            throw new NonRetryableEventException("applicant_id is required");
-        }
-        if (data.synced() == null) {
-            throw new NonRetryableEventException("synced is required");
-        }
+        JsonNode data = envelope.data();
+        log.info("과거 프로필 동기화 완료 이벤트를 무시한다. eventId={}, applicantId={}",
+                envelope.eventId(),
+                data != null ? data.path("applicant_id").asText(null) : null);
     }
 }

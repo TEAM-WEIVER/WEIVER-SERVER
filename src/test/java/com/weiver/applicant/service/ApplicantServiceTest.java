@@ -1,7 +1,5 @@
 package com.weiver.applicant.service;
 
-import com.weiver.analysis.domain.TechnicalSkillReport;
-import com.weiver.analysis.repository.TechnicalSkillReportRepository;
 import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.request.post.AwardDetailDTO;
 import com.weiver.applicant.dto.request.post.AwardRequestDTO;
@@ -10,11 +8,11 @@ import com.weiver.applicant.dto.request.post.EducationRequestDTO;
 import com.weiver.applicant.dto.request.put.ApplicantInfoRequestDTO;
 import com.weiver.applicant.dto.response.ApplicantInfoResponseDTO;
 import com.weiver.applicant.dto.response.ApplicantSubmissionStatusResponseDTO;
-import com.weiver.applicant.event.ApplicantProfileEventService;
 import com.weiver.applicant.repository.*;
 import com.weiver.essay.repository.EssayAnswerRepository;
 import com.weiver.applicant.type.Degree;
 import com.weiver.applicant.type.EmploymentType;
+import com.weiver.applicant.type.AnalysisSubmissionStatus;
 import com.weiver.applicant.type.ProfileSyncStatus;
 import com.weiver.applicant.type.Status;
 import com.weiver.global.exception.BusinessException;
@@ -54,8 +52,7 @@ class ApplicantServiceTest {
     @Mock private EssayAnswerRepository essayAnswerRepository;
     @Mock private PortfolioRepository portfolioRepository;
     @Mock private S3Service s3Service;
-    @Mock private ApplicantProfileEventService applicantProfileEventService;
-    @Mock private TechnicalSkillReportRepository technicalSkillReportRepository;
+    @Mock private ApplicantAnalysisSubmissionService applicantAnalysisSubmissionService;
 
     @InjectMocks
     private ApplicantService applicantService;
@@ -459,43 +456,36 @@ class ApplicantServiceTest {
     }
 
     @Test
-    @DisplayName("프로필 제출 여부 조회 시 기술 리포트가 없으면 동기화가 COMPLETED여도 analysisCompleted는 false를 반환한다.")
-    void getSubmissionStatus_NoTechnicalSkillReport_ReturnsAnalysisFalse() {
+    @DisplayName("프로필 제출 여부 조회 시 현재 제출 건이 REQUESTED면 analysisCompleted는 false다.")
+    void getSubmissionStatus_Requested_ReturnsAnalysisFalse() {
         // Given
         String publicId = "2222";
-        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.COMPLETED);
+        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.REQUESTED);
 
         given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
         given(educationRepository.existsByApplicant(applicant)).willReturn(true);
         given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
         given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
-        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.empty());
 
         // When
         ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
 
         // Then
-        assertThat(responseDTO.syncStatus()).isEqualTo(ProfileSyncStatus.COMPLETED);
+        assertThat(responseDTO.syncStatus()).isEqualTo(ProfileSyncStatus.REQUESTED);
         assertThat(responseDTO.analysisCompleted()).isFalse();
     }
 
     @Test
-    @DisplayName("프로필 제출 여부 조회 시 기술 리포트의 job 또는 role이 비어 있으면 analysisCompleted는 false를 반환한다.")
-    void getSubmissionStatus_BlankJobOrRole_ReturnsAnalysisFalse() {
+    @DisplayName("프로필 제출 여부 조회 시 현재 제출 건이 FAILED면 analysisCompleted는 false다.")
+    void getSubmissionStatus_Failed_ReturnsAnalysisFalse() {
         // Given
         String publicId = "2222";
-        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.COMPLETED);
-        TechnicalSkillReport report = TechnicalSkillReport.builder()
-                .applicant(applicant)
-                .job("DEVELOPER")
-                .role(" ")
-                .build();
+        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.FAILED);
 
         given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
         given(educationRepository.existsByApplicant(applicant)).willReturn(true);
         given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
         given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
-        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.of(report));
 
         // When
         ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
@@ -505,22 +495,16 @@ class ApplicantServiceTest {
     }
 
     @Test
-    @DisplayName("프로필 제출 여부 조회 시 기술 리포트에 job과 role이 모두 있으면 analysisCompleted는 true를 반환한다.")
-    void getSubmissionStatus_JobAndRole_ReturnsAnalysisTrue() {
+    @DisplayName("프로필 제출 여부 조회 시 현재 제출 건이 COMPLETED면 analysisCompleted는 true다.")
+    void getSubmissionStatus_Completed_ReturnsAnalysisTrue() {
         // Given
         String publicId = "2222";
         Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.COMPLETED);
-        TechnicalSkillReport report = TechnicalSkillReport.builder()
-                .applicant(applicant)
-                .job("DEVELOPER")
-                .role("BACKEND")
-                .build();
 
         given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
         given(educationRepository.existsByApplicant(applicant)).willReturn(true);
         given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
         given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
-        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.of(report));
 
         // When
         ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
@@ -572,13 +556,13 @@ class ApplicantServiceTest {
     }
 
     @Test
-    @DisplayName("프로필 제출 시 지원자 프로필 동기화 이벤트 발행을 위임한다.")
-    void submitProfile_PublishesProfileChanged() {
+    @DisplayName("프로필 제출 시 지원자 행을 잠가 조회한 뒤 분석 제출을 위임한다.")
+    void submitProfile_LocksApplicantAndSubmitsAnalysis() {
         // Given
         String publicId = "2222";
         Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.PENDING);
 
-        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(applicantRepository.findWithLockByPublicId(publicId)).willReturn(Optional.of(applicant));
         given(educationRepository.existsByApplicant(applicant)).willReturn(true);
         given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
         given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
@@ -587,17 +571,17 @@ class ApplicantServiceTest {
         applicantService.submitProfile(publicId);
 
         // Then
-        verify(applicantProfileEventService).publishProfileChanged(applicant.getApplicantId());
+        verify(applicantAnalysisSubmissionService).submit(applicant);
     }
 
     @Test
-    @DisplayName("동기화가 실패한 경우에는 프로필을 다시 제출할 수 있다.")
+    @DisplayName("현재 제출 건이 실패(FAILED)한 경우에는 프로필을 다시 제출할 수 있다.")
     void submitProfile_AllowsResubmitWhenSyncFailed() {
         // Given
         String publicId = "2222";
         Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.FAILED);
 
-        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(applicantRepository.findWithLockByPublicId(publicId)).willReturn(Optional.of(applicant));
         given(educationRepository.existsByApplicant(applicant)).willReturn(true);
         given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
         given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
@@ -606,7 +590,7 @@ class ApplicantServiceTest {
         applicantService.submitProfile(publicId);
 
         // Then
-        verify(applicantProfileEventService).publishProfileChanged(applicant.getApplicantId());
+        verify(applicantAnalysisSubmissionService).submit(applicant);
     }
 
     @Test
@@ -616,7 +600,7 @@ class ApplicantServiceTest {
         String publicId = "2222";
         Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.REQUESTED);
 
-        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(applicantRepository.findWithLockByPublicId(publicId)).willReturn(Optional.of(applicant));
 
         // When & Then
         assertThatThrownBy(() -> applicantService.submitProfile(publicId))
@@ -624,17 +608,17 @@ class ApplicantServiceTest {
                 .extracting("code")
                 .isEqualTo(ErrorCode.PROFILE_ALREADY_SUBMITTED);
 
-        verifyNoInteractions(applicantProfileEventService);
+        verify(applicantAnalysisSubmissionService, never()).submit(any());
     }
 
     @Test
-    @DisplayName("동기화가 완료(COMPLETED)된 프로필도 다시 제출할 수 없다.")
+    @DisplayName("현재 제출 건이 완료(COMPLETED)된 프로필도 다시 제출할 수 없다.")
     void submitProfile_AlreadyCompleted_ThrowsException() {
         // Given
         String publicId = "2222";
         Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.COMPLETED);
 
-        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(applicantRepository.findWithLockByPublicId(publicId)).willReturn(Optional.of(applicant));
 
         // When & Then
         assertThatThrownBy(() -> applicantService.submitProfile(publicId))
@@ -642,7 +626,7 @@ class ApplicantServiceTest {
                 .extracting("code")
                 .isEqualTo(ErrorCode.PROFILE_ALREADY_SUBMITTED);
 
-        verifyNoInteractions(applicantProfileEventService);
+        verify(applicantAnalysisSubmissionService, never()).submit(any());
     }
 
     @Test
@@ -652,7 +636,7 @@ class ApplicantServiceTest {
         String publicId = "2222";
         Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.PENDING);
 
-        given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
+        given(applicantRepository.findWithLockByPublicId(publicId)).willReturn(Optional.of(applicant));
         given(educationRepository.existsByApplicant(applicant)).willReturn(true);
         given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
         given(portfolioRepository.existsByApplicant(applicant)).willReturn(false);
@@ -663,7 +647,22 @@ class ApplicantServiceTest {
                 .extracting("code")
                 .isEqualTo(ErrorCode.PROFILE_DOCUMENT_INCOMPLETE);
 
-        verifyNoInteractions(applicantProfileEventService);
+        verify(applicantAnalysisSubmissionService, never()).submit(any());
+    }
+
+    @Test
+    @DisplayName("제출할 지원자가 없으면 APPLICANT_NOT_FOUND 예외가 발생하고 제출 건을 만들지 않는다.")
+    void submitProfile_ApplicantNotFound_ThrowsException() {
+        // Given
+        given(applicantRepository.findWithLockByPublicId("not-found")).willReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> applicantService.submitProfile("not-found"))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(ErrorCode.APPLICANT_NOT_FOUND);
+
+        verifyNoInteractions(applicantAnalysisSubmissionService);
     }
 
     private Applicant completedBasicInfoApplicant(String publicId) {
@@ -676,15 +675,40 @@ class ApplicantServiceTest {
                 .build();
     }
 
+    /**
+     * 기본 정보가 모두 채워진 지원자를 만들고, 현재 제출 건 조회가 상태에 맞는 행을 돌려주게 한다.
+     * PENDING은 제출한 적 없음(현재 제출 건 없음)이다.
+     */
     private Applicant completedApplicantWithSyncStatus(String publicId, ProfileSyncStatus profileSyncStatus) {
-        return Applicant.builder()
+        Applicant applicant = Applicant.builder()
                 .applicantId(1L)
                 .publicId(publicId)
                 .name("이현우")
                 .email("test@example.com")
                 .phoneNumber("010-1234-5678")
                 .birthday(LocalDate.of(2000, 1, 1))
-                .profileSyncStatus(profileSyncStatus)
+                .currentSubmissionVersion(profileSyncStatus == ProfileSyncStatus.PENDING ? null : 1)
+                .build();
+        Optional<ApplicantAnalysisSubmission> current = switch (profileSyncStatus) {
+            case PENDING -> Optional.empty();
+            case REQUESTED -> Optional.of(submission(applicant, AnalysisSubmissionStatus.REQUESTED));
+            case COMPLETED -> Optional.of(submission(applicant, AnalysisSubmissionStatus.COMPLETED));
+            case FAILED -> Optional.of(submission(applicant, AnalysisSubmissionStatus.FAILED));
+        };
+        given(applicantAnalysisSubmissionService.findCurrent(applicant)).willReturn(current);
+        return applicant;
+    }
+
+    private ApplicantAnalysisSubmission submission(Applicant applicant, AnalysisSubmissionStatus status) {
+        return ApplicantAnalysisSubmission.builder()
+                .applicant(applicant)
+                .submissionVersion(1)
+                .eventId("event-1")
+                .snapshot(java.util.Map.of())
+                .contentHash("a".repeat(64))
+                .status(status)
+                .requestedAt(java.time.OffsetDateTime.now())
+                .deadlineAt(java.time.OffsetDateTime.now().plusMinutes(30))
                 .build();
     }
 }

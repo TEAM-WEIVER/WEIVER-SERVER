@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.weiver.analysis.event.dto.ApplicantAnalysisCompletedData;
 import com.weiver.analysis.event.dto.ApplicantAnalysisRequestedData;
-import com.weiver.applicant.event.dto.ApplicantProfileChangedData;
 import com.weiver.applicant.event.dto.ApplicantProfileSyncCompletedData;
 import com.weiver.company.type.DecisionMaking;
 import com.weiver.company.type.OperationStyle;
@@ -26,7 +25,6 @@ import com.weiver.matching.event.dto.MatchingRequestedData;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -49,7 +47,7 @@ class DomainEventPayloadContractTest {
                 null,
                 OffsetDateTime.parse("2026-07-14T22:00:00+09:00"),
                 "1.0",
-                new ApplicantAnalysisRequestedData(1L)
+                analysisRequested(null)
         );
 
         JsonNode json = objectMapper.valueToTree(envelope);
@@ -63,34 +61,51 @@ class DomainEventPayloadContractTest {
     }
 
     @Test
-    @DisplayName("Spring에서 AI로 보내는 7개 이벤트 payload를 계약 필드명으로 직렬화한다")
+    @DisplayName("Spring에서 AI로 보내는 6개 이벤트 payload를 계약 필드명으로 직렬화한다")
     void serializesSpringToAiPayloads() {
-        JsonNode profile = objectMapper.valueToTree(new ApplicantProfileChangedData(
-                1L,
-                "홍길동",
-                List.of(new ApplicantProfileChangedData.EducationData(
-                        10L, "BACHELOR", "한양대학교", "컴퓨터공학",
-                        BigDecimal.valueOf(4.0), "2021-03", "2027-03", "ACTIVE"
-                )),
-                List.of(new ApplicantProfileChangedData.ExperienceData(
-                        20L, "Weiver", LocalDate.parse("2026-01-01"), null,
-                        "INTERN", "인턴", "백엔드 개발", true
-                )),
-                List.of("정보처리기사"),
-                List.of(new ApplicantProfileChangedData.EssayData(1L, "질문", "답변"))
+        JsonNode profile = objectMapper.valueToTree(analysisRequested(
+                new ApplicantAnalysisRequestedData.PortfolioData(
+                        12L,
+                        ApplicantAnalysisRequestedData.PortfolioFileData.of(
+                                "private-bucket", "portfolios/3f2a-e1.pdf", "포트폴리오.pdf", 2481934L)
+                )
         ));
+        assertThat(profile.get("applicant_id").asLong()).isEqualTo(1L);
+        assertThat(profile.get("submission_version").asInt()).isEqualTo(2);
+        assertThat(profile.get("applicant_name").asText()).isEqualTo("홍길동");
         JsonNode education = profile.get("educations").get(0);
         JsonNode experience = profile.get("experiences").get(0);
         assertThat(education.get("education_level").asText()).isEqualTo("BACHELOR");
         assertThat(education.get("graduation_status").asText()).isEqualTo("ACTIVE");
-        assertThat(education.has("degree")).isFalse();
-        assertThat(education.has("status")).isFalse();
+        assertThat(education.has("id")).isFalse();
+        assertThat(education.has("gpa")).isFalse();
+        assertThat(education.has("start_date")).isFalse();
+        assertThat(education.has("end_date")).isFalse();
         assertThat(experience.get("experience_name").asText()).isEqualTo("Weiver");
         assertThat(experience.get("position_title").asText()).isEqualTo("인턴");
-        assertThat(experience.get("responsibilities").asText()).isEqualTo("백엔드 개발");
-        assertThat(experience.has("company_name")).isFalse();
-        assertThat(experience.has("position")).isFalse();
-        assertThat(experience.has("duties")).isFalse();
+        assertThat(experience.get("employment_type").asText()).isEqualTo("INTERN");
+        assertThat(experience.get("start_date").asText()).isEqualTo("2026-01-01");
+        assertThat(experience.get("end_date").isNull()).isTrue();
+        assertThat(experience.get("responsibilities").isNull()).isTrue();
+        assertThat(experience.has("id")).isFalse();
+        assertThat(experience.has("is_recognized")).isFalse();
+        assertThat(profile.get("certifications").get(0).asText()).isEqualTo("정보처리기사");
+        assertThat(profile.get("essay").get(0).get("question").asText()).isEqualTo("질문");
+        JsonNode award = profile.get("awards").get(0);
+        assertThat(award.get("award_name").asText()).isEqualTo("해커톤 대상");
+        assertThat(award.get("issuer").isNull()).isTrue();
+        assertThat(award.get("award_date").asText()).isEqualTo("2026-05-01");
+        JsonNode portfolioFile = profile.get("portfolio").get("file");
+        assertThat(profile.get("portfolio").get("portfolio_id").asLong()).isEqualTo(12L);
+        assertThat(portfolioFile.get("key").asText()).isEqualTo("portfolios/3f2a-e1.pdf");
+        assertThat(portfolioFile.get("file_size").asLong()).isEqualTo(2481934L);
+        assertThat(portfolioFile.has("version_id")).isTrue();
+        assertThat(portfolioFile.get("version_id").isNull()).isTrue();
+        assertThat(portfolioFile.size()).isEqualTo(5);
+
+        JsonNode withoutPortfolio = objectMapper.valueToTree(analysisRequested(null));
+        assertThat(withoutPortfolio.has("portfolio")).isTrue();
+        assertThat(withoutPortfolio.get("portfolio").isNull()).isTrue();
 
         JsonNode jd = objectMapper.valueToTree(new JdAnalysisRequestedData(
                 1L, 2L, "백엔드 채용", "개발", "백엔드", "주요 업무", "필수 요건",
@@ -106,9 +121,6 @@ class DomainEventPayloadContractTest {
         assertThat(jd.get("job_category").asText()).isEqualTo("개발");
         assertThat(jd.get("required_skills").get(0).asText()).isEqualTo("Java");
         assertThat(jd.get("work_style").get("progress_speed").asText()).isEqualTo("FAST_EXECUTION");
-
-        JsonNode applicantAnalysis = objectMapper.valueToTree(new ApplicantAnalysisRequestedData(1L));
-        assertThat(applicantAnalysis.get("applicant_id").asLong()).isEqualTo(1L);
 
         JsonNode matching = objectMapper.valueToTree(new MatchingRequestedData(
                 2L,
@@ -232,5 +244,68 @@ class DomainEventPayloadContractTest {
                 .containsEntry("보편주의", 0.69);
         assertThat(report.cultureAxis().xAxis()).isEqualTo(0.1234);
         assertThat(report.cultureAxis().yAxis()).isEqualTo(-0.0567);
+    }
+
+    @Test
+    @DisplayName("AI 지원자 분석 완료 예시 payload 3종(성공 pdf, 성공 unavailable+encrypted, 실패)을 역직렬화한다")
+    void deserializesApplicantAnalysisCompletedExamples() throws Exception {
+        ApplicantAnalysisCompletedData pdf = objectMapper.readValue(
+                """
+                {"applicant_id":1,"submission_version":2,"outcome":"SUCCEEDED",
+                 "skill_tags":["Java","Spring"],"job":"DEVELOPER","role":"BACKEND",
+                 "portfolio_status":"pdf","portfolio_issue":null,"error":null}
+                """,
+                ApplicantAnalysisCompletedData.class
+        );
+        assertThat(pdf.applicantId()).isEqualTo(1L);
+        assertThat(pdf.submissionVersion()).isEqualTo(2);
+        assertThat(pdf.outcome()).isEqualTo("SUCCEEDED");
+        assertThat(pdf.isFailed()).isFalse();
+        assertThat(pdf.skillTags()).containsExactly("Java", "Spring");
+        assertThat(pdf.portfolioStatus()).isEqualTo("pdf");
+        assertThat(pdf.portfolioIssue()).isNull();
+        assertThat(pdf.error()).isNull();
+
+        ApplicantAnalysisCompletedData unavailable = objectMapper.readValue(
+                """
+                {"applicant_id":1,"submission_version":3,"outcome":"SUCCEEDED",
+                 "skill_tags":["Java"],"job":"DEVELOPER","role":"BACKEND",
+                 "portfolio_status":"unavailable","portfolio_issue":"encrypted","error":null}
+                """,
+                ApplicantAnalysisCompletedData.class
+        );
+        assertThat(unavailable.isFailed()).isFalse();
+        assertThat(unavailable.portfolioStatus()).isEqualTo("unavailable");
+        assertThat(unavailable.portfolioIssue()).isEqualTo("encrypted");
+
+        ApplicantAnalysisCompletedData failed = objectMapper.readValue(
+                """
+                {"applicant_id":1,"submission_version":4,"outcome":"FAILED",
+                 "skill_tags":null,"job":null,"role":null,
+                 "portfolio_status":null,"portfolio_issue":null,
+                 "error":{"stage":"PORTFOLIO_DOWNLOAD","code":"S3_DOWNLOAD_FAILED"}}
+                """,
+                ApplicantAnalysisCompletedData.class
+        );
+        assertThat(failed.isFailed()).isTrue();
+        assertThat(failed.job()).isNull();
+        assertThat(failed.role()).isNull();
+        assertThat(failed.error().stage()).isEqualTo("PORTFOLIO_DOWNLOAD");
+        assertThat(failed.error().code()).isEqualTo("S3_DOWNLOAD_FAILED");
+    }
+
+    private ApplicantAnalysisRequestedData analysisRequested(ApplicantAnalysisRequestedData.PortfolioData portfolio) {
+        return new ApplicantAnalysisRequestedData(
+                1L,
+                2,
+                "홍길동",
+                List.of(new ApplicantAnalysisRequestedData.EducationData("BACHELOR", "한양대학교", "컴퓨터공학", "ACTIVE")),
+                List.of(new ApplicantAnalysisRequestedData.ExperienceData(
+                        "Weiver", "인턴", "INTERN", LocalDate.parse("2026-01-01"), null, null)),
+                List.of("정보처리기사"),
+                List.of(new ApplicantAnalysisRequestedData.EssayData(1L, "질문", "답변")),
+                List.of(new ApplicantAnalysisRequestedData.AwardData(40L, "해커톤 대상", null, LocalDate.parse("2026-05-01"))),
+                portfolio
+        );
     }
 }

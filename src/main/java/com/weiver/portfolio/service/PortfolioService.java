@@ -2,7 +2,7 @@ package com.weiver.portfolio.service;
 
 import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.repository.ApplicantRepository;
-import com.weiver.applicant.type.ProfileSyncStatus;
+import com.weiver.applicant.service.ApplicantAnalysisSubmissionService;
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
 import com.weiver.global.s3.service.S3Service;
@@ -39,6 +39,7 @@ public class PortfolioService {
     private final PortfolioRepository portfolioRepository;
     private final ApplicantRepository applicantRepository;
     private final S3Service s3Service;
+    private final ApplicantAnalysisSubmissionService applicantAnalysisSubmissionService;
 
     // 진입 메서드는 트랜잭션을 열지 않는다(NOT_SUPPORTED). S3 업로드/삭제는 트랜잭션 경계 밖에서 수행하고,
     // 각 DB 접근은 리포지토리 단위의 짧은 트랜잭션으로 처리한다.
@@ -84,9 +85,9 @@ public class PortfolioService {
         boolean fileReplaced = file != null && !file.isEmpty();
 
         if (fileReplaced) {
-            // 분석 요청 중(REQUESTED)에는 AI 서버가 기존 파일을 내려받기 전에 삭제될 수 있으므로 교체를 막는다.
+            // 현재 제출 건이 분석 요청 중(REQUESTED)이면 AI 서버가 기존 파일을 내려받기 전에 삭제될 수 있으므로 교체를 막는다.
             // 링크만 수정하는 요청은 파일을 건드리지 않으므로 허용한다.
-            if (portfolio.getApplicant().getProfileSyncStatus() == ProfileSyncStatus.REQUESTED) {
+            if (applicantAnalysisSubmissionService.isCurrentRequested(portfolio.getApplicant())) {
                 throw new BusinessException(ErrorCode.PORTFOLIO_FILE_LOCKED);
             }
             validatePortfolioFile(file);

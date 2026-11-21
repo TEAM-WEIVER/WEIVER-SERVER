@@ -2,6 +2,7 @@ package com.weiver.global.s3.service;
 
 import com.weiver.global.exception.BusinessException;
 import com.weiver.global.exception.ErrorCode;
+import com.weiver.global.s3.dto.S3ObjectLocation;
 import io.awspring.cloud.s3.ObjectMetadata;
 import io.awspring.cloud.s3.S3Resource;
 import io.awspring.cloud.s3.S3Template;
@@ -157,5 +158,53 @@ class S3ServiceTest {
         MockMultipartFile file = new MockMultipartFile("file", "malware.exe", "application/octet-stream", WAV);
 
         assertBadRequest(() -> s3Service.privateUpload(file, "interview-tts"));
+    }
+
+    @Test
+    @DisplayName("private 버킷 객체 URL을 private 버킷과 객체 키로 분해한다")
+    void resolveObjectLocation_privateBucket() {
+        // when
+        var location = s3Service.resolveObjectLocation(
+                "https://" + PRIVATE_BUCKET + ".s3.ap-northeast-2.amazonaws.com/portfolios/3f2a-e1.pdf");
+
+        // then
+        assertThat(location).contains(new S3ObjectLocation(PRIVATE_BUCKET, "portfolios/3f2a-e1.pdf"));
+        then(s3Template).shouldHaveNoInteractions();
+    }
+
+    @Test
+    @DisplayName("private 버킷 이름이 없는 URL은 기존 메서드처럼 public 버킷으로 판별한다")
+    void resolveObjectLocation_publicBucket() {
+        // when
+        var location = s3Service.resolveObjectLocation(
+                "https://" + PUBLIC_BUCKET + ".s3.ap-northeast-2.amazonaws.com/profile/photo.png");
+
+        // then
+        assertThat(location).contains(new S3ObjectLocation(PUBLIC_BUCKET, "profile/photo.png"));
+    }
+
+    @Test
+    @DisplayName("URL 인코딩된 한글 객체 키는 디코딩한 키로 돌려준다")
+    void resolveObjectLocation_decodesEncodedKoreanKey() {
+        // given: "portfolios/포트폴리오 최종.pdf"
+        String url = "https://" + PRIVATE_BUCKET + ".s3.ap-northeast-2.amazonaws.com/"
+                + "portfolios/%ED%8F%AC%ED%8A%B8%ED%8F%B4%EB%A6%AC%EC%98%A4%20%EC%B5%9C%EC%A2%85.pdf";
+
+        // when
+        var location = s3Service.resolveObjectLocation(url);
+
+        // then
+        assertThat(location).contains(new S3ObjectLocation(PRIVATE_BUCKET, "portfolios/포트폴리오 최종.pdf"));
+    }
+
+    @Test
+    @DisplayName("비어 있거나 해석할 수 없는 URL, 객체 키가 없는 URL이면 빈 값을 돌려주고 S3를 호출하지 않는다")
+    void resolveObjectLocation_invalidUrl_returnsEmpty() {
+        assertThat(s3Service.resolveObjectLocation(null)).isEmpty();
+        assertThat(s3Service.resolveObjectLocation(" ")).isEmpty();
+        assertThat(s3Service.resolveObjectLocation("portfolios/relative-key.pdf")).isEmpty();
+        assertThat(s3Service.resolveObjectLocation("https://exa mple.com/a b.pdf")).isEmpty();
+        assertThat(s3Service.resolveObjectLocation("https://" + PRIVATE_BUCKET + ".s3.ap-northeast-2.amazonaws.com/")).isEmpty();
+        then(s3Template).shouldHaveNoInteractions();
     }
 }

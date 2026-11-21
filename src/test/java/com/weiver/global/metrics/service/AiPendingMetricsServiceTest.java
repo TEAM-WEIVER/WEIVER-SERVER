@@ -1,6 +1,6 @@
 package com.weiver.global.metrics.service;
 
-import com.weiver.applicant.repository.ApplicantRepository;
+import com.weiver.applicant.repository.ApplicantAnalysisSubmissionRepository;
 import com.weiver.applicant.service.ProfileSyncPendingService;
 import com.weiver.global.metrics.AiPendingSource;
 import com.weiver.global.metrics.dto.AiPendingStat;
@@ -56,7 +56,7 @@ class AiPendingMetricsServiceTest {
         // given
         AiPendingMetricsService service = new AiPendingMetricsService(List.of(
                 new JdAnalysisPendingService(mock(JobPostingRepository.class)),
-                new ProfileSyncPendingService(mock(ApplicantRepository.class)),
+                new ProfileSyncPendingService(mock(ApplicantAnalysisSubmissionRepository.class)),
                 new InterviewPendingService(mock(InterviewSessionRepository.class))
         ));
 

@@ -2,202 +2,72 @@ package com.weiver.applicant.event.handler;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.weiver.analysis.event.ApplicantAnalysisEventService;
-import com.weiver.applicant.domain.Applicant;
 import com.weiver.applicant.event.dto.ApplicantProfileSyncCompletedData;
-import com.weiver.applicant.repository.ApplicantRepository;
-import com.weiver.applicant.type.ProfileSyncStatus;
 import com.weiver.global.event.dto.EventEnvelope;
 import com.weiver.global.event.dto.EventType;
-import com.weiver.global.event.exception.NonRetryableEventException;
-import com.weiver.global.metrics.AiRoundtripMetrics;
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
+import java.lang.reflect.Modifier;
 import java.time.OffsetDateTime;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.assertj.core.api.Assertions.within;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
-@ExtendWith(MockitoExtension.class)
 class ApplicantProfileSyncCompletedHandlerTest {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
-
-    @Mock private ApplicantRepository applicantRepository;
-    @Mock private ApplicantAnalysisEventService applicantAnalysisEventService;
-
-    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
-    private final AiRoundtripMetrics aiRoundtripMetrics = new AiRoundtripMetrics(meterRegistry);
+    private final ApplicantProfileSyncCompletedHandler handler = new ApplicantProfileSyncCompletedHandler();
 
     @Test
-    @DisplayName("프로필 동기화 완료 payload에 synced가 없으면 non-retryable 예외가 발생한다")
-    void handle_ThrowsNonRetryable_WhenSyncedIsMissing() {
-        ApplicantProfileSyncCompletedHandler handler = new ApplicantProfileSyncCompletedHandler(
-                objectMapper,
-                applicantRepository,
-                applicantAnalysisEventService,
-                aiRoundtripMetrics
-        );
-        ApplicantProfileSyncCompletedData data = new ApplicantProfileSyncCompletedData(1L, null);
-
-        assertThatThrownBy(() -> handler.handle(envelope(data)))
-                .isInstanceOf(NonRetryableEventException.class)
-                .hasMessage("synced is required");
+    @DisplayName("과거 동기화 완료 이벤트 타입을 계속 등록해 알 수 없는 이벤트 타입 오류가 나지 않는다")
+    void support_KeepsLegacyEventType() {
+        assertThat(handler.support()).isEqualTo(EventType.APPLICANT_PROFILE_SYNC_COMPLETED);
     }
 
-    @Test
-    @DisplayName("이미 동기화 완료된 지원자는 지연된 실패 이벤트로 FAILED 상태가 되지 않는다")
-    void handle_DoesNotDowngradeCompletedApplicant() {
-        ApplicantProfileSyncCompletedHandler handler = new ApplicantProfileSyncCompletedHandler(
-                objectMapper,
-                applicantRepository,
-                applicantAnalysisEventService,
-                aiRoundtripMetrics
-        );
-        Applicant applicant = Applicant.builder().applicantId(1L).build();
-        applicant.markProfileSyncCompleted(OffsetDateTime.now());
-
-        given(applicantRepository.findById(1L)).willReturn(Optional.of(applicant));
-
-        handler.handle(envelope(new ApplicantProfileSyncCompletedData(1L, false)));
-
-        assertThat(applicant.getProfileSyncStatus()).isEqualTo(ProfileSyncStatus.COMPLETED);
-        verify(applicantAnalysisEventService, never()).publishApplicantAnalysisRequested(1L);
-    }
-
-    @Test
-    @DisplayName("동기화 성공 결과를 처리하면 요청 시각부터의 지연을 profile_sync/completed로 기록한다")
-    void handle_RecordsCompletedRoundtrip_WhenSynced() {
+    @ParameterizedTest(name = "synced={0}")
+    @ValueSource(strings = {"true", "false"})
+    @DisplayName("큐에 남은 과거 동기화 완료 이벤트는 예외 없이 무시한다")
+    void handle_IgnoresLegacyEvent(String synced) {
         // given
-        ApplicantProfileSyncCompletedHandler handler = handler();
-        Applicant applicant = requestedApplicant(OffsetDateTime.now().minusSeconds(30));
-        given(applicantRepository.findById(1L)).willReturn(Optional.of(applicant));
+        EventEnvelope<JsonNode> envelope = envelope(objectMapper.valueToTree(
+                new ApplicantProfileSyncCompletedData(1L, Boolean.valueOf(synced))));
 
-        // when
-        handler.handle(envelope(new ApplicantProfileSyncCompletedData(1L, true)));
-
-        // then
-        Timer timer = roundtrip("completed");
-        assertThat(timer).isNotNull();
-        assertThat(timer.count()).isEqualTo(1);
-        assertThat(timer.totalTime(TimeUnit.SECONDS)).isCloseTo(30.0, within(5.0));
-        assertThat(roundtrip("failed")).isNull();
+        // when & then
+        assertThatCode(() -> handler.handle(envelope)).doesNotThrowAnyException();
     }
 
     @Test
-    @DisplayName("동기화 실패 결과(synced=false)를 처리하면 profile_sync/failed로 기록한다")
-    void handle_RecordsFailedRoundtrip_WhenNotSynced() {
+    @DisplayName("필수값이 빠진 과거 이벤트도 DLQ로 보내지 않고 무시한다")
+    void handle_IgnoresMalformedLegacyEvent() {
         // given
-        ApplicantProfileSyncCompletedHandler handler = handler();
-        Applicant applicant = requestedApplicant(OffsetDateTime.now().minusSeconds(30));
-        given(applicantRepository.findById(1L)).willReturn(Optional.of(applicant));
+        EventEnvelope<JsonNode> envelope = envelope(objectMapper.createObjectNode());
 
-        // when
-        handler.handle(envelope(new ApplicantProfileSyncCompletedData(1L, false)));
-
-        // then
-        assertThat(applicant.getProfileSyncStatus()).isEqualTo(ProfileSyncStatus.FAILED);
-        assertThat(roundtrip("failed")).isNotNull();
-        assertThat(roundtrip("failed").count()).isEqualTo(1);
-        assertThat(roundtrip("completed")).isNull();
+        // when & then
+        assertThatCode(() -> handler.handle(envelope)).doesNotThrowAnyException();
+        assertThatCode(() -> handler.handle(envelope(null))).doesNotThrowAnyException();
     }
 
     @Test
-    @DisplayName("요청 시각이 없는 지원자(컬럼 추가 전 요청)는 결과를 처리해도 지연을 기록하지 않는다")
-    void handle_DoesNotRecordRoundtrip_WhenRequestedAtIsNull() {
-        // given
-        ApplicantProfileSyncCompletedHandler handler = handler();
-        Applicant applicant = requestedApplicant(null);
-        given(applicantRepository.findById(1L)).willReturn(Optional.of(applicant));
-
-        // when
-        handler.handle(envelope(new ApplicantProfileSyncCompletedData(1L, true)));
-
-        // then
-        assertThat(applicant.getProfileSyncStatus()).isEqualTo(ProfileSyncStatus.COMPLETED);
-        assertThat(meterRegistry.find("weiver.ai.roundtrip").timers()).isEmpty();
+    @DisplayName("핸들러는 지원자 저장소·분석 요청 발행·지연 지표를 갖지 않아 상태와 지표를 바꿀 수 없다")
+    void handler_HasNoCollaborators() {
+        // 상태(지원자·제출 건)와 지표(AiRoundtripMetrics)를 바꾸려면 협력 객체가 필요하다. 필드가 없으면 바꿀 수 없다.
+        assertThat(Arrays.stream(ApplicantProfileSyncCompletedHandler.class.getDeclaredFields())
+                .filter(field -> !Modifier.isStatic(field.getModifiers())))
+                .isEmpty();
     }
 
-    @Test
-    @DisplayName("이미 동기화 완료된 지원자의 결과 재수신은 지연 타이머에 기록하지 않는다")
-    void handle_DoesNotRecordRoundtrip_WhenAlreadyCompleted() {
-        // given
-        ApplicantProfileSyncCompletedHandler handler = handler();
-        Applicant applicant = requestedApplicant(OffsetDateTime.now().minusSeconds(30));
-        applicant.markProfileSyncCompleted(OffsetDateTime.now());
-        given(applicantRepository.findById(1L)).willReturn(Optional.of(applicant));
-
-        // when
-        handler.handle(envelope(new ApplicantProfileSyncCompletedData(1L, true)));
-
-        // then
-        assertThat(meterRegistry.find("weiver.ai.roundtrip").timers()).isEmpty();
-    }
-
-    @Test
-    @DisplayName("요청 중(REQUESTED)이 아닌 지원자(FAILED)의 결과 수신은 지연 타이머에 기록하지 않는다")
-    void handle_DoesNotRecordRoundtrip_WhenNotRequested() {
-        // given
-        ApplicantProfileSyncCompletedHandler handler = handler();
-        Applicant applicant = Applicant.builder()
-                .applicantId(1L)
-                .profileSyncStatus(ProfileSyncStatus.FAILED)
-                .profileSyncRequestedAt(OffsetDateTime.now().minusSeconds(30))
-                .build();
-        given(applicantRepository.findById(1L)).willReturn(Optional.of(applicant));
-
-        // when
-        handler.handle(envelope(new ApplicantProfileSyncCompletedData(1L, true)));
-
-        // then
-        assertThat(applicant.getProfileSyncStatus()).isEqualTo(ProfileSyncStatus.COMPLETED);
-        assertThat(meterRegistry.find("weiver.ai.roundtrip").timers()).isEmpty();
-    }
-
-    private ApplicantProfileSyncCompletedHandler handler() {
-        return new ApplicantProfileSyncCompletedHandler(
-                objectMapper,
-                applicantRepository,
-                applicantAnalysisEventService,
-                aiRoundtripMetrics
-        );
-    }
-
-    private Applicant requestedApplicant(OffsetDateTime requestedAt) {
-        return Applicant.builder()
-                .applicantId(1L)
-                .profileSyncStatus(ProfileSyncStatus.REQUESTED)
-                .profileSyncRequestedAt(requestedAt)
-                .build();
-    }
-
-    private Timer roundtrip(String outcome) {
-        return meterRegistry.find("weiver.ai.roundtrip")
-                .tag("flow", "profile_sync")
-                .tag("outcome", outcome)
-                .timer();
-    }
-
-    private EventEnvelope<JsonNode> envelope(ApplicantProfileSyncCompletedData data) {
+    private EventEnvelope<JsonNode> envelope(JsonNode data) {
         return new EventEnvelope<>(
                 "event-1",
                 EventType.APPLICANT_PROFILE_SYNC_COMPLETED,
                 null,
                 OffsetDateTime.now(),
                 EventEnvelope.CURRENT_VERSION,
-                objectMapper.valueToTree(data)
+                data
         );
     }
 }

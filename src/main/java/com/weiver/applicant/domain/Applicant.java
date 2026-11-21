@@ -71,16 +71,32 @@ public class Applicant extends BaseTimeEntity {
     @Column(name = "address", nullable = true)
     private String address;  // 주소
 
+    /** 더 이상 읽거나 쓰지 않는다(상태 정본은 applicant_analysis_submissions). 운영 NOT NULL 컬럼이라 기본값만 남긴다. */
+    @Deprecated
     @Builder.Default
     @Enumerated(EnumType.STRING)
     @Column(name = "profile_sync_status", nullable = false, length = 50)
     private ProfileSyncStatus profileSyncStatus = ProfileSyncStatus.PENDING;
 
+    /** 더 이상 읽거나 쓰지 않는다(요청 시각은 applicant_analysis_submissions.requested_at). */
+    @Deprecated
     @Column(name = "profile_sync_requested_at")
     private OffsetDateTime profileSyncRequestedAt;
 
+    /** 더 이상 읽거나 쓰지 않는다. */
+    @Deprecated
     @Column(name = "profile_synced_at")
     private OffsetDateTime profileSyncedAt;
+
+    /**
+     * 현재 분석 제출 건의 submission_version. null이면 제출한 적이 없다.
+     *
+     * <p>updatable=false: 잠그지 않는 다른 갱신 경로(merge·dirty checking)가 읽을 때의 값으로 덮어쓰지 못하게 한다.
+     * 값은 지원자 행 잠금을 쥔 제출 트랜잭션에서 {@code ApplicantRepository.updateCurrentSubmissionVersion}으로만 바꾼다.
+     * (updatable은 DDL에 영향이 없다.)
+     */
+    @Column(name = "current_submission_version", updatable = false)
+    private Integer currentSubmissionVersion;
 
     @Builder.Default
     @Column(nullable = false)
@@ -119,22 +135,17 @@ public class Applicant extends BaseTimeEntity {
         this.password = encodedPassword;
     }
 
-    public void markProfileSyncRequested() {
-        this.profileSyncStatus = ProfileSyncStatus.REQUESTED;
-        this.profileSyncRequestedAt = OffsetDateTime.now();
+    /** 다음에 발급할 제출 버전. 제출한 적이 없으면 1이다. */
+    public int nextSubmissionVersion() {
+        return this.currentSubmissionVersion == null ? 1 : this.currentSubmissionVersion + 1;
     }
 
-    public void markProfileSyncCompleted(OffsetDateTime syncedAt) {
-        this.profileSyncStatus = ProfileSyncStatus.COMPLETED;
-        this.profileSyncedAt = Objects.requireNonNull(syncedAt, "syncedAt must not be null");
-    }
-
-    public void markProfileSyncFailed() {
-        this.profileSyncStatus = ProfileSyncStatus.FAILED;
-    }
-
-    public boolean isProfileSubmitted() {
-        return this.profileSyncStatus != ProfileSyncStatus.PENDING;
+    /**
+     * 관리 중인 엔티티의 현재 제출 버전을 DB에 반영한 값과 맞춘다. 이 필드는 updatable=false라 이 메서드만으로는
+     * DB에 쓰이지 않는다. DB 갱신은 {@code ApplicantRepository.updateCurrentSubmissionVersion}이 한다.
+     */
+    public void pointToSubmission(int submissionVersion) {
+        this.currentSubmissionVersion = submissionVersion;
     }
 
     /**

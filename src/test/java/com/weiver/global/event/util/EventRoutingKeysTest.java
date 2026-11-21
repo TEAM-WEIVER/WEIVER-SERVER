@@ -15,7 +15,7 @@ class EventRoutingKeysTest {
         assertThat(EventRoutingKeys.from(EventType.INTERVIEW_QUESTION_GENERATED))
                 .isEqualTo("interview.question.generated");
 
-        assertThat(EventRoutingKeys.from(EventType.APPLICANT_PROFILE_CHANGED))
-                .isEqualTo("applicant.profile.changed");
+        assertThat(EventRoutingKeys.from(EventType.APPLICANT_PROFILE_SYNC_COMPLETED))
+                .isEqualTo("applicant.profile.sync.completed");
     }
 }
