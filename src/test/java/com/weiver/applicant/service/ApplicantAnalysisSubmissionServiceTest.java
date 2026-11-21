@@ -130,6 +130,22 @@ class ApplicantAnalysisSubmissionServiceTest {
         assertThat(submissionService.isCurrentRequested(applicant)).isTrue();
     }
 
+    @Test
+    @DisplayName("현재 제출 건이 COMPLETED일 때만 분석 완료로 보고, 제출한 적이 없으면 미완료다")
+    void isCurrentCompleted_UsesCurrentVersionStatus() {
+        // given
+        Applicant applicant = Applicant.builder().applicantId(1L).currentSubmissionVersion(2).build();
+        ApplicantAnalysisSubmission submission = submission(applicant, 2);
+        given(submissionRepository.findByApplicantAndSubmissionVersion(applicant, 2))
+                .willReturn(Optional.of(submission));
+
+        // when & then
+        assertThat(submissionService.isCurrentCompleted(applicant)).isFalse();
+        submission.markCompleted("pdf", null, OffsetDateTime.now());
+        assertThat(submissionService.isCurrentCompleted(applicant)).isTrue();
+        assertThat(submissionService.isCurrentCompleted(Applicant.builder().applicantId(3L).build())).isFalse();
+    }
+
     private ApplicantAnalysisSubmission submission(Applicant applicant, int version) {
         return ApplicantAnalysisSubmission.request(applicant, version, "event-1", java.util.Map.of(),
                 "c".repeat(64), OffsetDateTime.now(), DEADLINE);

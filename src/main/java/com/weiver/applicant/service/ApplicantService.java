@@ -1,7 +1,5 @@
 package com.weiver.applicant.service;
 
-import com.weiver.analysis.domain.TechnicalSkillReport;
-import com.weiver.analysis.repository.TechnicalSkillReportRepository;
 import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.request.put.*;
 import com.weiver.applicant.dto.response.*;
@@ -35,7 +33,6 @@ public class ApplicantService {
     private final WorkExperienceRepository workExperienceRepository;
     private final EssayAnswerRepository essayAnswerRepository;
     private final PortfolioRepository portfolioRepository;
-    private final TechnicalSkillReportRepository technicalSkillReportRepository;
     private final WorkExperienceService workExperienceService;
     private final ApplicantAnalysisSubmissionService applicantAnalysisSubmissionService;
     private final S3Service s3Service;
@@ -122,17 +119,8 @@ public class ApplicantService {
                 documentStatus.resumeCompleted(),
                 documentStatus.essayCompleted(),
                 documentStatus.portfolioCompleted(),
-                isAnalysisCompleted(applicant)
+                currentSubmission.map(ApplicantAnalysisSubmission::isCompleted).orElse(false)
         );
-    }
-
-    /**
-     * 면접 시작 버튼 활성화 판단용: 기술 리포트가 있고 직무·역할 분석이 끝난 상태. 리포트가 없으면 false.
-     */
-    private boolean isAnalysisCompleted(Applicant applicant) {
-        return technicalSkillReportRepository.findByApplicant(applicant)
-                .map(TechnicalSkillReport::isAnalysisCompleted)
-                .orElse(false);
     }
 
     /**
@@ -168,7 +156,7 @@ public class ApplicantService {
 
     /**
      * 응답의 syncStatus 값은 기존 계약(PENDING·REQUESTED·COMPLETED·FAILED)을 유지하고, 현재 제출 건 상태에서 만든다.
-     * 제출한 적이 없으면 PENDING이다. 의미 설명(Swagger) 변경은 2단계에서 한다.
+     * 제출한 적이 없으면 PENDING이다.
      */
     private ProfileSyncStatus toSyncStatus(Optional<ApplicantAnalysisSubmission> currentSubmission) {
         return currentSubmission

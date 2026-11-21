@@ -55,6 +55,14 @@ public class ApplicantAnalysisSubmissionService {
                 .orElse(false);
     }
 
+    /** 현재 제출 건의 분석 결과 저장이 끝났는지(COMPLETED). 제출한 적이 없으면 false다. */
+    @Transactional(readOnly = true)
+    public boolean isCurrentCompleted(Applicant applicant) {
+        return findCurrent(applicant)
+                .map(ApplicantAnalysisSubmission::isCompleted)
+                .orElse(false);
+    }
+
     /**
      * 다음 버전의 제출 건을 REQUESTED로 저장하고 지원자의 현재 제출을 바꾼 뒤, 분석 요청을 커밋 뒤에 발행한다.
      *

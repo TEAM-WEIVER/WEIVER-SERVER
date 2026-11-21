@@ -2,159 +2,184 @@ package com.weiver.analysis.event.handler;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.weiver.analysis.domain.CultureReport;
-import com.weiver.analysis.domain.TechnicalSkillReport;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.weiver.analysis.event.dto.ApplicantAnalysisCompletedData;
-import com.weiver.analysis.repository.CultureReportRepository;
-import com.weiver.analysis.repository.TechnicalSkillReportRepository;
-import com.weiver.analysis.type.CulturefitStyle;
-import com.weiver.applicant.domain.Applicant;
-import com.weiver.applicant.repository.ApplicantRepository;
+import com.weiver.analysis.service.ApplicantAnalysisResultService;
 import com.weiver.global.event.dto.EventEnvelope;
 import com.weiver.global.event.dto.EventType;
 import com.weiver.global.event.exception.NonRetryableEventException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
-import java.util.List;
-import java.util.Optional;
+import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.BDDMockito.given;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class ApplicantAnalysisCompletedHandlerTest {
 
+    private static final String CORRELATION_ID = "request-event-1";
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    @Mock private ApplicantRepository applicantRepository;
-    @Mock private TechnicalSkillReportRepository technicalSkillReportRepository;
-    @Mock private CultureReportRepository cultureReportRepository;
+    @Mock private ApplicantAnalysisResultService applicantAnalysisResultService;
+
+    private ApplicantAnalysisCompletedHandler handler;
+
+    @BeforeEach
+    void setUp() {
+        handler = new ApplicantAnalysisCompletedHandler(objectMapper, applicantAnalysisResultService);
+    }
 
     @Test
-    @DisplayName("지원자 분석 완료 이벤트를 수신하면 기술 리포트와 컬처 리포트를 upsert한다")
-    void handle_UpsertsReports() {
-        ApplicantAnalysisCompletedHandler handler = new ApplicantAnalysisCompletedHandler(
-                objectMapper,
-                applicantRepository,
-                technicalSkillReportRepository,
-                cultureReportRepository
-        );
-        Applicant applicant = Applicant.builder().applicantId(1L).build();
-        ApplicantAnalysisCompletedData data = new ApplicantAnalysisCompletedData(
-                1L,
-                List.of("Java", "Spring"),
-                "Backend",
-                "Server Engineer",
-                CulturefitStyle.INCLUSIVE_INNOVATOR.name(),
-                List.of("협업", "포용")
-        );
+    @DisplayName("성공 결과는 correlation_id와 data를 그대로 완료 처리 서비스에 넘긴다")
+    void handle_Success_DelegatesWithCorrelationId() {
+        // given
+        ObjectNode data = successPayload();
 
-        given(applicantRepository.findById(1L)).willReturn(Optional.of(applicant));
-        given(technicalSkillReportRepository.findByApplicant_ApplicantId(1L)).willReturn(Optional.empty());
-        given(cultureReportRepository.findByApplicant_ApplicantId(1L)).willReturn(Optional.empty());
-
+        // when
         handler.handle(envelope(data));
 
-        ArgumentCaptor<TechnicalSkillReport> technicalCaptor = ArgumentCaptor.forClass(TechnicalSkillReport.class);
-        ArgumentCaptor<CultureReport> cultureCaptor = ArgumentCaptor.forClass(CultureReport.class);
-        verify(technicalSkillReportRepository).save(technicalCaptor.capture());
-        verify(cultureReportRepository).save(cultureCaptor.capture());
-
-        TechnicalSkillReport technicalSkillReport = technicalCaptor.getValue();
-        assertThat(technicalSkillReport.getSkillTags()).containsExactly("Java", "Spring");
-        assertThat(technicalSkillReport.getJob()).isEqualTo("Backend");
-        assertThat(technicalSkillReport.getRole()).isEqualTo("Server Engineer");
-
-        CultureReport cultureReport = cultureCaptor.getValue();
-        assertThat(cultureReport.getCulturefitStyles()).isEqualTo(CulturefitStyle.INCLUSIVE_INNOVATOR);
-        assertThat(cultureReport.getCulturefitTag()).containsExactly("협업", "포용");
+        // then
+        ArgumentCaptor<ApplicantAnalysisCompletedData> captor = ArgumentCaptor.forClass(ApplicantAnalysisCompletedData.class);
+        verify(applicantAnalysisResultService).applyCompletion(eq(CORRELATION_ID), captor.capture());
+        assertThat(captor.getValue().applicantId()).isEqualTo(1L);
+        assertThat(captor.getValue().submissionVersion()).isEqualTo(2);
+        assertThat(captor.getValue().isFailed()).isFalse();
     }
 
     @Test
-    @DisplayName("지원자 분석 완료 payload에 applicant_id가 없으면 non-retryable 예외가 발생한다")
-    void handle_ThrowsNonRetryable_WhenApplicantIdIsMissing() {
-        ApplicantAnalysisCompletedHandler handler = new ApplicantAnalysisCompletedHandler(
-                objectMapper,
-                applicantRepository,
-                technicalSkillReportRepository,
-                cultureReportRepository
-        );
-        ApplicantAnalysisCompletedData data = new ApplicantAnalysisCompletedData(
-                null,
-                List.of("Java"),
-                "Backend",
-                "Server Engineer",
-                null,
-                null
-        );
+    @DisplayName("outcome이 없으면(AI 배포 전 payload) 성공으로 보고 넘긴다")
+    void handle_MissingOutcome_TreatedAsSuccess() {
+        // given
+        ObjectNode data = successPayload();
+        data.remove("outcome");
 
-        assertThatThrownBy(() -> handler.handle(envelope(data)))
-                .isInstanceOf(NonRetryableEventException.class)
-                .hasMessage("applicant_id is required");
+        // when
+        handler.handle(envelope(data));
+
+        // then
+        ArgumentCaptor<ApplicantAnalysisCompletedData> captor = ArgumentCaptor.forClass(ApplicantAnalysisCompletedData.class);
+        verify(applicantAnalysisResultService).applyCompletion(eq(CORRELATION_ID), captor.capture());
+        assertThat(captor.getValue().outcome()).isNull();
+        assertThat(captor.getValue().isFailed()).isFalse();
     }
 
     @Test
-    @DisplayName("지원자 분석 완료 payload에 job이 없으면 non-retryable 예외가 발생한다")
-    void handle_ThrowsNonRetryable_WhenJobIsMissing() {
-        ApplicantAnalysisCompletedHandler handler = new ApplicantAnalysisCompletedHandler(
-                objectMapper,
-                applicantRepository,
-                technicalSkillReportRepository,
-                cultureReportRepository
-        );
-        ApplicantAnalysisCompletedData data = new ApplicantAnalysisCompletedData(
-                1L,
-                List.of("Java"),
-                null,
-                "BACKEND",
-                null,
-                null
-        );
+    @DisplayName("실패 결과는 job·role이 null이어도 예외 없이 넘긴다")
+    void handle_Failure_DoesNotRequireJobAndRole() {
+        // given
+        ObjectNode data = objectMapper.createObjectNode();
+        data.put("applicant_id", 1);
+        data.put("submission_version", 2);
+        data.put("outcome", "FAILED");
+        data.putNull("job");
+        data.putNull("role");
+        data.putObject("error").put("stage", "PORTFOLIO_DOWNLOAD").put("code", "S3_DOWNLOAD_FAILED");
 
-        assertThatThrownBy(() -> handler.handle(envelope(data)))
-                .isInstanceOf(NonRetryableEventException.class)
-                .hasMessage("job is required");
+        // when
+        handler.handle(envelope(data));
+
+        // then
+        ArgumentCaptor<ApplicantAnalysisCompletedData> captor = ArgumentCaptor.forClass(ApplicantAnalysisCompletedData.class);
+        verify(applicantAnalysisResultService).applyCompletion(eq(CORRELATION_ID), captor.capture());
+        assertThat(captor.getValue().isFailed()).isTrue();
+        assertThat(captor.getValue().error().stage()).isEqualTo("PORTFOLIO_DOWNLOAD");
     }
 
     @Test
-    @DisplayName("지원자 분석 완료 payload에 role이 없으면 non-retryable 예외가 발생한다")
-    void handle_ThrowsNonRetryable_WhenRoleIsMissing() {
-        ApplicantAnalysisCompletedHandler handler = new ApplicantAnalysisCompletedHandler(
-                objectMapper,
-                applicantRepository,
-                technicalSkillReportRepository,
-                cultureReportRepository
-        );
-        ApplicantAnalysisCompletedData data = new ApplicantAnalysisCompletedData(
-                1L,
-                List.of("Java"),
-                "DEVELOPER",
-                " ",
-                null,
-                null
-        );
+    @DisplayName("applicant_id가 없으면 non-retryable 예외가 발생한다")
+    void handle_MissingApplicantId_ThrowsNonRetryable() {
+        ObjectNode data = successPayload();
+        data.remove("applicant_id");
 
-        assertThatThrownBy(() -> handler.handle(envelope(data)))
-                .isInstanceOf(NonRetryableEventException.class)
-                .hasMessage("role is required");
+        assertNonRetryable(data, "applicant_id is required");
     }
 
-    private EventEnvelope<JsonNode> envelope(ApplicantAnalysisCompletedData data) {
+    @Test
+    @DisplayName("submission_version이 없으면 non-retryable 예외가 발생한다")
+    void handle_MissingSubmissionVersion_ThrowsNonRetryable() {
+        ObjectNode data = successPayload();
+        data.remove("submission_version");
+
+        assertNonRetryable(data, "submission_version is required");
+    }
+
+    @Test
+    @DisplayName("outcome이 SUCCEEDED·FAILED 밖의 값이면 non-retryable 예외가 발생한다")
+    void handle_UnknownOutcome_ThrowsNonRetryable() {
+        ObjectNode data = successPayload();
+        data.put("outcome", "PARTIAL");
+
+        assertNonRetryable(data, "Unsupported outcome: PARTIAL");
+    }
+
+    @Test
+    @DisplayName("성공 결과에 job이 없으면 non-retryable 예외가 발생한다")
+    void handle_SuccessWithoutJob_ThrowsNonRetryable() {
+        ObjectNode data = successPayload();
+        data.putNull("job");
+
+        assertNonRetryable(data, "job is required");
+    }
+
+    @Test
+    @DisplayName("성공 결과에 role이 비어 있으면 non-retryable 예외가 발생한다")
+    void handle_SuccessWithBlankRole_ThrowsNonRetryable() {
+        ObjectNode data = successPayload();
+        data.put("role", " ");
+
+        assertNonRetryable(data, "role is required");
+    }
+
+    @Test
+    @DisplayName("핸들러는 트랜잭션을 열지 않는다(트랜잭션은 완료 처리 서비스에 있다)")
+    void handle_IsNotTransactional() {
+        assertThat(Arrays.stream(ApplicantAnalysisCompletedHandler.class.getDeclaredMethods())
+                .filter(method -> method.isAnnotationPresent(Transactional.class)))
+                .isEmpty();
+        assertThat(ApplicantAnalysisCompletedHandler.class.isAnnotationPresent(Transactional.class)).isFalse();
+    }
+
+    private void assertNonRetryable(ObjectNode data, String message) {
+        assertThatThrownBy(() -> handler.handle(envelope(data)))
+                .isInstanceOf(NonRetryableEventException.class)
+                .hasMessage(message);
+        verifyNoInteractions(applicantAnalysisResultService);
+    }
+
+    private ObjectNode successPayload() {
+        ObjectNode data = objectMapper.createObjectNode();
+        data.put("applicant_id", 1);
+        data.put("submission_version", 2);
+        data.put("outcome", "SUCCEEDED");
+        data.putArray("skill_tags").add("Java");
+        data.put("job", "DEVELOPER");
+        data.put("role", "BACKEND");
+        data.put("portfolio_status", "pdf");
+        data.putNull("portfolio_issue");
+        return data;
+    }
+
+    private EventEnvelope<JsonNode> envelope(JsonNode data) {
         return new EventEnvelope<>(
-                "event-1",
+                "result-event-1",
                 EventType.APPLICANT_ANALYSIS_COMPLETED,
-                null,
+                CORRELATION_ID,
                 OffsetDateTime.now(),
                 EventEnvelope.CURRENT_VERSION,
-                objectMapper.valueToTree(data)
+                data
         );
     }
 }

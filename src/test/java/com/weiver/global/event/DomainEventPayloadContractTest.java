@@ -246,6 +246,54 @@ class DomainEventPayloadContractTest {
         assertThat(report.cultureAxis().yAxis()).isEqualTo(-0.0567);
     }
 
+    @Test
+    @DisplayName("AI 지원자 분석 완료 예시 payload 3종(성공 pdf, 성공 unavailable+encrypted, 실패)을 역직렬화한다")
+    void deserializesApplicantAnalysisCompletedExamples() throws Exception {
+        ApplicantAnalysisCompletedData pdf = objectMapper.readValue(
+                """
+                {"applicant_id":1,"submission_version":2,"outcome":"SUCCEEDED",
+                 "skill_tags":["Java","Spring"],"job":"DEVELOPER","role":"BACKEND",
+                 "portfolio_status":"pdf","portfolio_issue":null,"error":null}
+                """,
+                ApplicantAnalysisCompletedData.class
+        );
+        assertThat(pdf.applicantId()).isEqualTo(1L);
+        assertThat(pdf.submissionVersion()).isEqualTo(2);
+        assertThat(pdf.outcome()).isEqualTo("SUCCEEDED");
+        assertThat(pdf.isFailed()).isFalse();
+        assertThat(pdf.skillTags()).containsExactly("Java", "Spring");
+        assertThat(pdf.portfolioStatus()).isEqualTo("pdf");
+        assertThat(pdf.portfolioIssue()).isNull();
+        assertThat(pdf.error()).isNull();
+
+        ApplicantAnalysisCompletedData unavailable = objectMapper.readValue(
+                """
+                {"applicant_id":1,"submission_version":3,"outcome":"SUCCEEDED",
+                 "skill_tags":["Java"],"job":"DEVELOPER","role":"BACKEND",
+                 "portfolio_status":"unavailable","portfolio_issue":"encrypted","error":null}
+                """,
+                ApplicantAnalysisCompletedData.class
+        );
+        assertThat(unavailable.isFailed()).isFalse();
+        assertThat(unavailable.portfolioStatus()).isEqualTo("unavailable");
+        assertThat(unavailable.portfolioIssue()).isEqualTo("encrypted");
+
+        ApplicantAnalysisCompletedData failed = objectMapper.readValue(
+                """
+                {"applicant_id":1,"submission_version":4,"outcome":"FAILED",
+                 "skill_tags":null,"job":null,"role":null,
+                 "portfolio_status":null,"portfolio_issue":null,
+                 "error":{"stage":"PORTFOLIO_DOWNLOAD","code":"S3_DOWNLOAD_FAILED"}}
+                """,
+                ApplicantAnalysisCompletedData.class
+        );
+        assertThat(failed.isFailed()).isTrue();
+        assertThat(failed.job()).isNull();
+        assertThat(failed.role()).isNull();
+        assertThat(failed.error().stage()).isEqualTo("PORTFOLIO_DOWNLOAD");
+        assertThat(failed.error().code()).isEqualTo("S3_DOWNLOAD_FAILED");
+    }
+
     private ApplicantAnalysisRequestedData analysisRequested(ApplicantAnalysisRequestedData.PortfolioData portfolio) {
         return new ApplicantAnalysisRequestedData(
                 1L,

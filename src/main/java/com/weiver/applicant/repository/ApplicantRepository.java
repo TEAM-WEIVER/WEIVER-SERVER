@@ -24,4 +24,9 @@ public interface ApplicantRepository extends JpaRepository<Applicant, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM Applicant a WHERE a.publicId = :publicId")
     Optional<Applicant> findWithLockByPublicId(@Param("publicId") String publicId);
+
+    /** 분석 완료 처리용: 지원자 id로 지원자 행을 비관적 쓰기 잠금으로 조회한다. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM Applicant a WHERE a.applicantId = :applicantId")
+    Optional<Applicant> findWithLockByApplicantId(@Param("applicantId") Long applicantId);
 }

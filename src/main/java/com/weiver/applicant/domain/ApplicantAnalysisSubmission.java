@@ -142,4 +142,43 @@ public class ApplicantAnalysisSubmission extends BaseTimeEntity {
     public boolean allowsResubmission() {
         return this.status == AnalysisSubmissionStatus.FAILED;
     }
+
+    /** 현재 제출의 분석 결과 저장이 끝났는지(COMPLETED). 면접 시작과 상태 API가 이 기준을 쓴다. */
+    public boolean isCompleted() {
+        return this.status == AnalysisSubmissionStatus.COMPLETED;
+    }
+
+    /** 완료 이벤트의 correlation_id가 이 제출 건의 요청 event_id와 같은지. */
+    public boolean isResultOf(String correlationId) {
+        return this.eventId.equals(correlationId);
+    }
+
+    /**
+     * 분석 성공 결과를 반영한다. AI가 보낸 portfolio_status·portfolio_issue는 원문 그대로 저장한다.
+     */
+    public void markCompleted(String portfolioStatus, String portfolioIssue, OffsetDateTime completedAt) {
+        requireRequested();
+        this.status = AnalysisSubmissionStatus.COMPLETED;
+        this.portfolioStatus = portfolioStatus;
+        this.portfolioIssue = portfolioIssue;
+        this.completedAt = Objects.requireNonNull(completedAt, "completedAt must not be null");
+    }
+
+    /**
+     * AI가 알린 분석 실패를 반영한다. 실패 이유는 ANALYSIS_FAILED이고 error.stage·error.code는 원문 그대로 저장한다.
+     */
+    public void markAnalysisFailed(String errorStage, String errorCode, OffsetDateTime failedAt) {
+        requireRequested();
+        this.status = AnalysisSubmissionStatus.FAILED;
+        this.failureReason = AnalysisFailureReason.ANALYSIS_FAILED;
+        this.errorStage = errorStage;
+        this.errorCode = errorCode;
+        this.failedAt = Objects.requireNonNull(failedAt, "failedAt must not be null");
+    }
+
+    private void requireRequested() {
+        if (!isRequested()) {
+            throw new IllegalStateException("analysis submission is not REQUESTED: " + this.status);
+        }
+    }
 }

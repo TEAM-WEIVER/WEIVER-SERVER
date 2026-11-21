@@ -9,6 +9,7 @@ import com.weiver.analysis.repository.TechnicalSkillReportRepository;
 import com.weiver.analysis.service.CulturefitAxisService;
 import com.weiver.analysis.type.CulturefitStyle;
 import com.weiver.applicant.domain.Applicant;
+import com.weiver.applicant.service.ApplicantAnalysisSubmissionService;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.global.event.dto.EventEnvelope;
 import com.weiver.global.event.dto.EventType;
@@ -70,6 +71,7 @@ public class InterviewFlowService {
     private final SimpMessagingTemplate messagingTemplate;
     private final InterviewQuestionVoiceService interviewQuestionVoiceService;
     private final AiRoundtripMetrics aiRoundtripMetrics;
+    private final ApplicantAnalysisSubmissionService applicantAnalysisSubmissionService;
 
     /**
      * 새 면접 세션을 만들고 첫 질문 생성 요청 이벤트를 발행한다.
@@ -81,6 +83,11 @@ public class InterviewFlowService {
         // 면접 결과를 제출하면 1개월간 재응시할 수 없다.
         if (!applicant.isInterviewAvailableAt(LocalDateTime.now())) {
             throw new BusinessException(ErrorCode.INTERVIEW_COOLDOWN_NOT_EXPIRED);
+        }
+        // 현재 제출의 분석 결과 저장이 끝난(COMPLETED) 지원자만 시작할 수 있다. 이전 제출의 리포트가 남아 있어도 막는다.
+        // 첫 질문 요청에서 쓰는 job·role은 아래 publishQuestionRequested가 리포트에서 읽는다.
+        if (!applicantAnalysisSubmissionService.isCurrentCompleted(applicant)) {
+            throw new BusinessException(ErrorCode.APPLICANT_ANALYSIS_NOT_COMPLETED);
         }
 
         InterviewSession session = InterviewSession.builder()

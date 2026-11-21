@@ -1,6 +1,5 @@
 package com.weiver.applicant.service;
 
-import com.weiver.analysis.domain.TechnicalSkillReport;
 import com.weiver.analysis.repository.TechnicalSkillReportRepository;
 import com.weiver.applicant.domain.*;
 import com.weiver.applicant.dto.request.post.AwardDetailDTO;
@@ -459,43 +458,38 @@ class ApplicantServiceTest {
     }
 
     @Test
-    @DisplayName("프로필 제출 여부 조회 시 기술 리포트가 없으면 동기화가 COMPLETED여도 analysisCompleted는 false를 반환한다.")
-    void getSubmissionStatus_NoTechnicalSkillReport_ReturnsAnalysisFalse() {
+    @DisplayName("프로필 제출 여부 조회 시 현재 제출 건이 REQUESTED면 리포트가 남아 있어도 analysisCompleted는 false다.")
+    void getSubmissionStatus_Requested_ReturnsAnalysisFalseRegardlessOfReport() {
         // Given
         String publicId = "2222";
-        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.COMPLETED);
+        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.REQUESTED);
 
         given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
         given(educationRepository.existsByApplicant(applicant)).willReturn(true);
         given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
         given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
-        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.empty());
 
         // When
         ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
 
         // Then
-        assertThat(responseDTO.syncStatus()).isEqualTo(ProfileSyncStatus.COMPLETED);
+        assertThat(responseDTO.syncStatus()).isEqualTo(ProfileSyncStatus.REQUESTED);
         assertThat(responseDTO.analysisCompleted()).isFalse();
+        // 리포트 존재 여부는 더 이상 판단에 쓰지 않는다(이전 제출의 리포트가 남아 있을 수 있다).
+        verifyNoInteractions(technicalSkillReportRepository);
     }
 
     @Test
-    @DisplayName("프로필 제출 여부 조회 시 기술 리포트의 job 또는 role이 비어 있으면 analysisCompleted는 false를 반환한다.")
-    void getSubmissionStatus_BlankJobOrRole_ReturnsAnalysisFalse() {
+    @DisplayName("프로필 제출 여부 조회 시 현재 제출 건이 FAILED면 analysisCompleted는 false다.")
+    void getSubmissionStatus_Failed_ReturnsAnalysisFalse() {
         // Given
         String publicId = "2222";
-        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.COMPLETED);
-        TechnicalSkillReport report = TechnicalSkillReport.builder()
-                .applicant(applicant)
-                .job("DEVELOPER")
-                .role(" ")
-                .build();
+        Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.FAILED);
 
         given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
         given(educationRepository.existsByApplicant(applicant)).willReturn(true);
         given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
         given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
-        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.of(report));
 
         // When
         ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);
@@ -505,22 +499,16 @@ class ApplicantServiceTest {
     }
 
     @Test
-    @DisplayName("프로필 제출 여부 조회 시 기술 리포트에 job과 role이 모두 있으면 analysisCompleted는 true를 반환한다.")
-    void getSubmissionStatus_JobAndRole_ReturnsAnalysisTrue() {
+    @DisplayName("프로필 제출 여부 조회 시 현재 제출 건이 COMPLETED면 analysisCompleted는 true다.")
+    void getSubmissionStatus_Completed_ReturnsAnalysisTrue() {
         // Given
         String publicId = "2222";
         Applicant applicant = completedApplicantWithSyncStatus(publicId, ProfileSyncStatus.COMPLETED);
-        TechnicalSkillReport report = TechnicalSkillReport.builder()
-                .applicant(applicant)
-                .job("DEVELOPER")
-                .role("BACKEND")
-                .build();
 
         given(applicantRepository.findByPublicId(publicId)).willReturn(Optional.of(applicant));
         given(educationRepository.existsByApplicant(applicant)).willReturn(true);
         given(essayAnswerRepository.existsByApplicant(applicant)).willReturn(true);
         given(portfolioRepository.existsByApplicant(applicant)).willReturn(true);
-        given(technicalSkillReportRepository.findByApplicant(applicant)).willReturn(Optional.of(report));
 
         // When
         ApplicantSubmissionStatusResponseDTO responseDTO = applicantService.getSubmissionStatus(publicId);

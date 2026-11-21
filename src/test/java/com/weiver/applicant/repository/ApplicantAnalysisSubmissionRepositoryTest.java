@@ -138,6 +138,21 @@ class ApplicantAnalysisSubmissionRepositoryTest {
         assertThat(found.getDeadlineAt()).isAtSameInstantAs(found.getRequestedAt().plus(DEADLINE));
     }
 
+    @Test
+    @DisplayName("완료 처리용 잠금 조회는 지원자 id로 지원자 행을 찾는다")
+    void findWithLockByApplicantId_FindsApplicant() {
+        // given
+        Applicant applicant = applicantRepository.saveAndFlush(applicant("lock@weiver.com"));
+        entityManager.clear();
+
+        // when
+        Optional<Applicant> locked = applicantRepository.findWithLockByApplicantId(applicant.getApplicantId());
+
+        // then
+        assertThat(locked).hasValueSatisfying(found -> assertThat(found.getEmail()).isEqualTo("lock@weiver.com"));
+        assertThat(applicantRepository.findWithLockByApplicantId(-1L)).isEmpty();
+    }
+
     private Applicant applicant(String email) {
         return Applicant.builder()
                 .email(email)
