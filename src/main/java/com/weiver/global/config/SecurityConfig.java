@@ -112,6 +112,12 @@ public class SecurityConfig {
                                 WhiteListConfig.companyAuthWhitelist().toArray(String[]::new)
                         ).permitAll()
                         .requestMatchers(HttpMethod.PATCH, "/api/auth/applicants/password").permitAll()
+                        .requestMatchers(HttpMethod.GET, WhiteListConfig.KAKAO_CALLBACK_PATH).permitAll()
+                        .requestMatchers(HttpMethod.POST, WhiteListConfig.kakaoPublicPostPaths().toArray(String[]::new)).permitAll()
+                        .requestMatchers(WhiteListConfig.KAKAO_AUTH_PATH + "/**",
+                                "/api/auth/applicants/me/login-methods",
+                                "/api/auth/applicants/me/password/setup",
+                                "/api/auth/applicants/me/password/setup/send").hasRole("APPLICANT")
 
                         .anyRequest().authenticated()
                 );

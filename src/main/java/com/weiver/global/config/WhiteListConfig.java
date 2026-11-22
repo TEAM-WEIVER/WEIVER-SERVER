@@ -8,6 +8,18 @@ import java.util.List;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class WhiteListConfig {
 
+    public static final String KAKAO_AUTH_PATH = "/api/auth/applicants/kakao";
+    public static final String KAKAO_CALLBACK_PATH = KAKAO_AUTH_PATH + "/callback";
+
+    // 공개 카카오 POST는 JWT 없이 접근하되 CSRF 검증은 유지한다.
+    public static List<String> kakaoPublicPostPaths() {
+        return List.of(
+                KAKAO_AUTH_PATH + "/start",
+                KAKAO_AUTH_PATH + "/exchange",
+                KAKAO_AUTH_PATH + "/signup/complete"
+        );
+    }
+
     // Swagger 관련 인가 설정
     public static List<String> swaggerWhitelist() {
         return List.of(

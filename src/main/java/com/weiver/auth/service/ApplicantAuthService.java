@@ -11,6 +11,7 @@ import com.weiver.auth.dto.response.ApplicantPasswordVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
 import com.weiver.auth.repository.ApplicantEmailSendLimitRepository;
 import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
+import com.weiver.auth.repository.ApplicantKakaoAccountRepository;
 import com.weiver.auth.repository.ApplicantPasswordReauthTokenRepository;
 import com.weiver.auth.repository.ApplicantSignupTokenRepository;
 import com.weiver.auth.repository.LoginAttemptRepository;
@@ -65,6 +66,7 @@ public class ApplicantAuthService {
     private final ApplicantRepository applicantRepository;
     private final ApplicantAgreementRepository applicantAgreementRepository;
     private final ApplicantEmailVerificationRepository emailVerificationRepository;
+    private final ApplicantKakaoAccountRepository applicantKakaoAccountRepository;
     private final ApplicantSignupTokenRepository signupTokenRepository;
     private final ApplicantPasswordReauthTokenRepository passwordReauthTokenRepository;
     private final TokenVersionRepository tokenVersionRepository;
@@ -101,12 +103,13 @@ public class ApplicantAuthService {
         // 가입 여부 확인 전에 검사해, 제한 응답도 가입 여부와 무관하게 똑같이 나가게 한다(이메일 열거 방지).
         checkEmailSendLimit(email);
 
-        boolean activeApplicantExists = applicantRepository.findByEmailAndDeletedFalse(email)
+        boolean activePasswordAccountExists = applicantRepository.findByEmailAndDeletedFalse(email)
                 .filter(existing -> existing.getStatus() == ApplicantStatus.ACTIVE)
+                .filter(Applicant::hasLocalPassword)
                 .isPresent();
 
         // 이메일 열거(enumeration) 방지: 가입되지 않은 이메일도 성공 응답을 반환하되 실제 코드는 발송하지 않는다.
-        if (!activeApplicantExists) {
+        if (!activePasswordAccountExists) {
             return;
         }
 
@@ -136,62 +139,82 @@ public class ApplicantAuthService {
      * 사전조건(가입 여부 검사 등)은 호출부에서 처리한 뒤 진입한다.
      */
     private void issueAndSendVerificationCode(String email, String logPrefix) {
+        issueAndSendVerificationCode(email, email, logPrefix);
+    }
+
+    void sendPasswordSetupCode(Applicant applicant) {
+        String email = applicant.getEmail();
+        checkEmailSendLimit(email);
+        issueAndSendVerificationCode(email, passwordSetupCodeKey(applicant), "[PasswordSetup]");
+    }
+
+    void verifyPasswordSetupCode(Applicant applicant, String code) {
+        verifyCode(applicant.getEmail(), passwordSetupCodeKey(applicant), code);
+    }
+
+    private String passwordSetupCodeKey(Applicant applicant) {
+        return "password-setup:" + applicant.getPublicId() + ":" + applicant.getEmail();
+    }
+
+    private void issueAndSendVerificationCode(String email, String verificationKey, String logPrefix) {
         if (testEmailBypassEnabled && isTestEmail(email)) {
-            emailVerificationRepository.deleteCode(email);
-            emailVerificationRepository.deleteAttemptCount(email);
+            emailVerificationRepository.deleteCode(verificationKey);
+            emailVerificationRepository.deleteAttemptCount(verificationKey);
             return;
         }
 
         String code = codeGenerator.generateCode();
 
         // 시도 카운터는 지우지 않는다. 재발송으로 확인 시도 한도를 초기화할 수 없게 하기 위함이다.
-        emailVerificationRepository.saveCode(email, code, EMAIL_CODE_TTL);
+        emailVerificationRepository.saveCode(verificationKey, code, EMAIL_CODE_TTL);
 
         try {
             emailVerificationService.sendVerificationCode(email, code);
         } catch (Exception e) {
             log.warn("{} 인증번호 메일 발송 실패 email={} cause={}", logPrefix, email, e.toString());
-            emailVerificationRepository.deleteCode(email);
+            emailVerificationRepository.deleteCode(verificationKey);
             throw new BusinessException(ErrorCode.EMAIL_SEND_FAILED);
         }
     }
 
     public ApplicantEmailVerifyResponseDTO verifyEmailCode(ApplicantEmailVerifyRequestDTO request) {
-        String email = request.email();
+        verifyCode(request.email(), request.email(), request.code());
+        return issueVerificationToken(request.email());
+    }
 
+    private void verifyCode(String email, String verificationKey, String code) {
         if (testEmailBypassEnabled && isTestEmail(email)) {
-            if (!TEST_EMAIL_VERIFICATION_CODE.equals(request.code())) {
+            if (!TEST_EMAIL_VERIFICATION_CODE.equals(code)) {
                 throw new BusinessException(ErrorCode.INVALID_VERIFICATION_CODE);
             }
 
-            emailVerificationRepository.deleteCode(email);
-            emailVerificationRepository.deleteAttemptCount(email);
-            return issueVerificationToken(email);
+            emailVerificationRepository.deleteCode(verificationKey);
+            emailVerificationRepository.deleteAttemptCount(verificationKey);
+            return;
         }
 
         // 1) 코드 존재 여부만 확인 (소비하지 않음 - 시도 횟수 한도 내에선 재시도 허용)
-        String savedCode = emailVerificationRepository.findCodeByEmail(email)
+        String savedCode = emailVerificationRepository.findCodeByEmail(verificationKey)
                 .orElseThrow(() -> new BusinessException(ErrorCode.VERIFICATION_CODE_EXPIRED));
 
         // 2) 시도 횟수 증가 (TTL 30분은 첫 증가 때만 걸리고 재발송·재시도로 연장되지 않는다)
-        long attemptCount = emailVerificationRepository.incrementAttemptCount(email, VERIFICATION_ATTEMPT_TTL);
+        long attemptCount = emailVerificationRepository.incrementAttemptCount(verificationKey, VERIFICATION_ATTEMPT_TTL);
 
         // 3) 한도 초과 시 코드만 소각하고 카운터는 남긴다 (재발송으로 우회 불가)
         if (attemptCount > MAX_VERIFICATION_ATTEMPTS) {
-            emailVerificationRepository.deleteCode(email);
+            emailVerificationRepository.deleteCode(verificationKey);
             throw new BusinessException(ErrorCode.TOO_MANY_VERIFICATION_ATTEMPTS);
         }
 
         // 4) 코드 불일치 - 카운터는 살린 채 거절 (사용자가 한도 내에서 재시도 가능)
-        if (!savedCode.equals(request.code())) {
+        if (!savedCode.equals(code)) {
             throw new BusinessException(ErrorCode.INVALID_VERIFICATION_CODE);
         }
 
         // 5) 일치 - 코드/카운터 정리 + verificationToken 발급
-        emailVerificationRepository.deleteCode(email);
-        emailVerificationRepository.deleteAttemptCount(email);
+        emailVerificationRepository.deleteCode(verificationKey);
+        emailVerificationRepository.deleteAttemptCount(verificationKey);
 
-        return issueVerificationToken(email);
     }
 
     private boolean isTestEmail(String email) {
@@ -224,12 +247,17 @@ public class ApplicantAuthService {
 
         Applicant applicant = applicantRepository.findByEmailAndDeletedFalse(request.email())
                 .filter(existing -> existing.getStatus() == ApplicantStatus.ACTIVE)
+                .filter(Applicant::hasLocalPassword)
                 .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
 
         String encodedPassword = passwordEncoder.encode(request.newPassword());
         applicant.updatePassword(encodedPassword);
 
         // 비밀번호 변경 후 기존 세션/토큰 무효화 (액세스 토큰 버전 증가 + 리프레시 토큰 폐기)
+        invalidateSessions(applicant);
+    }
+
+    void invalidateSessions(Applicant applicant) {
         tokenVersionRepository.increaseVersion(applicant.getPublicId(), applicant.getRole());
         refreshTokenRepository.deleteByPublicId(applicant.getPublicId(), applicant.getRole());
     }
@@ -244,9 +272,7 @@ public class ApplicantAuthService {
     public ApplicantPasswordVerifyResponseDTO verifyCurrentPassword(String applicantPublicId, ApplicantPasswordVerifyRequestDTO request) {
         Applicant applicant = applicantProvider.findByPublicId(applicantPublicId);
 
-        if (!passwordEncoder.matches(request.currentPassword(), applicant.getPassword())) {
-            throw new BusinessException(ErrorCode.INVALID_CURRENT_PASSWORD);
-        }
+        requireMatchingPassword(applicant, request.currentPassword());
 
         String reauthToken = UUID.randomUUID().toString();
         passwordReauthTokenRepository.save(reauthToken, applicant.getPublicId(), REAUTH_TOKEN_TTL);
@@ -275,13 +301,15 @@ public class ApplicantAuthService {
         }
 
         Applicant applicant = applicantProvider.findByPublicId(applicantPublicId);
+        if (!applicant.hasLocalPassword()) {
+            throw new BusinessException(ErrorCode.INVALID_PASSWORD_REAUTH_TOKEN);
+        }
 
         String encoded = passwordEncoder.encode(request.newPassword());
         applicant.updatePassword(encoded);
 
         // 비밀번호 변경 후 기존 세션/토큰 무효화 (액세스 토큰 버전 증가 + 리프레시 토큰 폐기)
-        tokenVersionRepository.increaseVersion(applicant.getPublicId(), applicant.getRole());
-        refreshTokenRepository.deleteByPublicId(applicant.getPublicId(), applicant.getRole());
+        invalidateSessions(applicant);
     }
 
     @Transactional
@@ -341,58 +369,38 @@ public class ApplicantAuthService {
             throw new BusinessException(ErrorCode.INVALID_SIGNUP_TOKEN);
         }
 
+        activateWithAgreements(applicant, request.agreements());
+        return issueApplicantLogin(applicant);
+    }
+
+    void activateWithAgreements(Applicant applicant, ApplicantAgreementRequestDTO agreements) {
         ApplicantAgreement agreement = ApplicantAgreement.builder()
                 .applicant(applicant)
-                .termsOfService(request.agreements().termsOfService())
-                .privacyPolicy(request.agreements().privacyPolicy())
-                .individualMemberTerms(request.agreements().individualMemberTerms())
-                .aiAnalysisConsent(request.agreements().aiAnalysisConsent())
-                .sensitiveDataConsent(request.agreements().sensitiveDataConsent())
-                .marketingConsent(request.agreements().marketingConsent())
+                .termsOfService(agreements.termsOfService())
+                .privacyPolicy(agreements.privacyPolicy())
+                .individualMemberTerms(agreements.individualMemberTerms())
+                .aiAnalysisConsent(agreements.aiAnalysisConsent())
+                .sensitiveDataConsent(agreements.sensitiveDataConsent())
+                .marketingConsent(agreements.marketingConsent())
                 .build();
 
         applicantAgreementRepository.save(agreement);
         applicant.activate();
-
-        UserRole userRole = applicant.getRole();
-
-        long tokenVersion = tokenVersionRepository.getCurrentVersion(publicId, userRole);
-
-        String accessToken = jwtTokenProvider.createAccessToken(publicId, userRole, tokenVersion);
-        String refreshToken = jwtTokenProvider.createRefreshToken(publicId, userRole, tokenVersion);
-        long refreshTokenTtlMillis = jwtTokenProvider.getRefreshTokenExpirationMillis();
-
-        refreshTokenRepository.save(
-                publicId,
-                userRole,
-                refreshToken,
-                refreshTokenTtlMillis
-        );
-
-        return new ApplicantLoginResult(
-                accessToken,
-                refreshToken,
-                userRole
-        );
-
     }
 
     @Transactional
     public ApplicantLoginResult login(ApplicantLoginRequestDTO request) {
         String email = request.email();
 
-        // 계정 조회·비밀번호 비교 전에 시도를 원자적으로 기록하고 허용 여부를 확인한다.
-        // 한도를 넘었거나 차단 중이면 비밀번호가 맞아도 거절한다.
-        if (!loginAttemptRepository.tryAcquire(email, UserRole.APPLICANT, MAX_LOGIN_ATTEMPTS, LOGIN_ATTEMPT_WINDOW, LOGIN_BLOCK_DURATION)) {
-            throw new BusinessException(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
-        }
+        checkLoginAttempt(email);
 
         // 로그인 경로에서는 계정 미존재와 비밀번호 불일치를 동일한 오류(INVALID_PASSWORD)로 통일해 이메일 열거를 차단한다.
         // 계정이 없는 경우도 시도로 센다.
         Applicant applicant = applicantRepository.findByEmailAndDeletedFalse(email).orElse(null);
 
         // 시도는 tryAcquire에서 이미 셌으므로 실패 시 추가 Redis 호출은 없다.
-        if (applicant == null || !passwordEncoder.matches(request.password(), applicant.getPassword())) {
+        if (applicant == null || !applicant.hasLocalPassword()
+                || !passwordEncoder.matches(request.password(), applicant.getPassword())) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD);
         }
 
@@ -402,6 +410,28 @@ public class ApplicantAuthService {
             throw new BusinessException(ErrorCode.SIGNUP_NOT_COMPLETED);
         }
 
+        return issueApplicantLogin(applicant);
+    }
+
+    void verifyLinkPassword(Applicant applicant, String currentPassword) {
+        checkLoginAttempt(applicant.getEmail());
+        requireMatchingPassword(applicant, currentPassword);
+        loginAttemptRepository.clearAttempts(applicant.getEmail(), UserRole.APPLICANT);
+    }
+
+    private void requireMatchingPassword(Applicant applicant, String currentPassword) {
+        if (!applicant.hasLocalPassword() || !passwordEncoder.matches(currentPassword, applicant.getPassword())) {
+            throw new BusinessException(ErrorCode.INVALID_CURRENT_PASSWORD);
+        }
+    }
+
+    private void checkLoginAttempt(String email) {
+        if (!loginAttemptRepository.tryAcquire(email, UserRole.APPLICANT, MAX_LOGIN_ATTEMPTS, LOGIN_ATTEMPT_WINDOW, LOGIN_BLOCK_DURATION)) {
+            throw new BusinessException(ErrorCode.TOO_MANY_LOGIN_ATTEMPTS);
+        }
+    }
+
+    ApplicantLoginResult issueApplicantLogin(Applicant applicant) {
         String publicId = applicant.getPublicId();
         UserRole userRole = applicant.getRole();
 
@@ -427,7 +457,11 @@ public class ApplicantAuthService {
 
     @Transactional
     public void withdraw(String publicId) {
-        Applicant applicant = applicantProvider.findByPublicId(publicId);
+        Applicant applicant = applicantRepository.findByPublicIdAndDeletedFalseForUpdate(publicId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+        if (applicantKakaoAccountRepository.existsByApplicant_ApplicantId(applicant.getApplicantId())) {
+            throw new BusinessException(ErrorCode.KAKAO_WITHDRAWAL_UNAVAILABLE);
+        }
 
         refreshTokenRepository.deleteByPublicId(
                 applicant.getPublicId(),
@@ -437,13 +471,13 @@ public class ApplicantAuthService {
         applicant.withdraw();
     }
 
-    private void validatePasswordConfirm(String password, String passwordConfirm) {
+    void validatePasswordConfirm(String password, String passwordConfirm) {
         if(!password.equals(passwordConfirm)) {
             throw new BusinessException(ErrorCode.PASSWORD_CONFIRM_NOT_MATCH);
         }
     }
 
-    private void validateRequiredAgreements(ApplicantAgreementRequestDTO agreements) {
+    void validateRequiredAgreements(ApplicantAgreementRequestDTO agreements) {
         if(!Boolean.TRUE.equals(agreements.termsOfService())
         || !Boolean.TRUE.equals(agreements.privacyPolicy())
         || !Boolean.TRUE.equals(agreements.individualMemberTerms())

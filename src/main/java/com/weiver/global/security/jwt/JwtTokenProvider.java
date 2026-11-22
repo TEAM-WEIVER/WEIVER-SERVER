@@ -7,6 +7,7 @@ import com.weiver.global.security.jwt.type.TokenType;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -15,6 +16,7 @@ import io.jsonwebtoken.security.Keys;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
+import java.util.UUID;
 
 @Component
 @EnableConfigurationProperties(JwtProperties.class)
@@ -103,15 +105,18 @@ public class JwtTokenProvider {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + expirationMillis);
 
-        return Jwts.builder()
+        JwtBuilder builder = Jwts.builder()
                 .subject(publicId)
                 .claim("role", role.name())
                 .claim("tokenVersion", tokenVersion)
                 .claim(TOKEN_TYPE_CLAIM, tokenType.getClaimValue())
                 .issuedAt(now)
-                .expiration(expiration)
-                .signWith(secretKey)
-                .compact();
+                .expiration(expiration);
+
+        if (role == UserRole.APPLICANT && tokenType == TokenType.ACCESS) {
+            builder.id(UUID.randomUUID().toString());
+        }
+        return builder.signWith(secretKey).compact();
     }
 
     private Claims getClaims(String token) {

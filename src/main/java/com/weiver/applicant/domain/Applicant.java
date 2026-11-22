@@ -37,7 +37,7 @@ public class Applicant extends BaseTimeEntity {
     @Column(name = "email", unique = true, nullable = false)
     private String email;   // 이메일
 
-    @Column(name = "password", nullable = false)
+    @Column(name = "password")
     private String password;    // 비밀번호
 
     @Builder.Default
@@ -113,6 +113,10 @@ public class Applicant extends BaseTimeEntity {
 
     public void resetPendingPassword(String encodedPassword) {
         this.password = encodedPassword;
+    }
+
+    public boolean hasLocalPassword() {
+        return password != null;
     }
 
     public void updatePassword(String encodedPassword) {

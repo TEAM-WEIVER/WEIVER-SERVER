@@ -59,6 +59,17 @@ public class JwtAuthenticationFilterTest {
         verify(jwtTokenProvider, never()).getPublicId(anyString());
     }
 
+    @Test
+    @DisplayName("카카오 콜백 GET만 JWT 검사를 건너뛴다")
+    void kakaoCallback_OnlyGetSkipsJwt() {
+        // given
+        String callbackPath = "/api/auth/applicants/kakao/callback";
+
+        // when / then
+        assertThat(jwtAuthenticationFilter.shouldNotFilter(new MockHttpServletRequest("GET", callbackPath))).isTrue();
+        assertThat(jwtAuthenticationFilter.shouldNotFilter(new MockHttpServletRequest("POST", callbackPath))).isFalse();
+    }
+
     @Nested
     @DisplayName("실제 토큰 종류별 인증 (Issue #171)")
     class RealTokenTypeTest {
