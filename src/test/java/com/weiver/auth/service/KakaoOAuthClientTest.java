@@ -39,7 +39,7 @@ class KakaoOAuthClientTest {
     void setUp() {
         var builder = RestClient.builder();
         server = MockRestServiceServer.bindTo(builder).build();
-        client = new KakaoOAuthClient(new KakaoOAuthProperties("mock-client", "mock-secret", CALLBACK, FRONTEND_RETURN),
+        client = new KakaoOAuthClient(new KakaoOAuthProperties("mock-client", "mock-secret", CALLBACK, FRONTEND_RETURN, null),
                 builder.build());
     }
 

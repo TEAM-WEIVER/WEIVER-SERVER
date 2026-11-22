@@ -27,6 +27,7 @@ import com.weiver.global.security.jwt.repository.BlacklistTokenRepository;
 import com.weiver.global.security.jwt.repository.TokenVersionRepository;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -95,7 +96,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "auth.kakao.client-id=mock-kakao-app",
         "auth.kakao.client-secret=mock-kakao-secret",
         "auth.kakao.redirect-uri=https://api.weiverai.com/api/auth/applicants/kakao/callback",
-        "auth.kakao.frontend-return-uri=https://weiverai.com/auth/kakao/return"
+        "auth.kakao.frontend-return-uri=https://weiverai.com/auth/kakao/return",
+        "auth.kakao.local-frontend-return-uri=https://weiver.local.weiverai.com:3000/auth/kakao/return"
 })
 class KakaoOAuthControllerTest {
 
@@ -145,6 +147,45 @@ class KakaoOAuthControllerTest {
         mockMvc.perform(post(BASE + path))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.errorCode").value("FORBIDDEN"));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"/start", "/link/start", "/reauth/start"})
+    @DisplayName("로컬 웹에서 카카오 인증을 시작하면 콜백은 로컬 웹으로 복귀한다")
+    void callbackReturnsToLocalWebForEachStart(String path) throws Exception {
+        // given
+        when(accounts.getLoginMethods(PUBLIC_ID)).thenReturn(new ApplicantLoginMethodsResponseDTO(false, true));
+        MockHttpServletRequestBuilder request = post(BASE + path)
+                .header(HttpHeaders.ORIGIN, "https://weiver.local.weiverai.com:3000")
+                .header(HttpHeaders.AUTHORIZATION, bearer(UserRole.APPLICANT))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"currentPassword\":\"password\"}");
+
+        // when
+        Start start = start(request);
+
+        // then
+        mockMvc.perform(get(BASE + "/callback").param("state", start.state())
+                        .param("error", "access_denied").cookie(start.browser()))
+                .andExpect(status().isSeeOther())
+                .andExpect(header().string(HttpHeaders.LOCATION,
+                        "https://weiver.local.weiverai.com:3000/auth/kakao/return"));
+    }
+
+    @Test
+    @DisplayName("운영 웹에서 카카오 로그인을 시작하면 콜백은 기존 복귀 주소로 돌아간다")
+    void callbackReturnsToDefaultWebForProductionOrigin() throws Exception {
+        // given
+        MockHttpServletRequestBuilder request = post(BASE + "/start").header(HttpHeaders.ORIGIN, "https://weiverai.com");
+
+        // when
+        Start start = start(request);
+
+        // then
+        mockMvc.perform(get(BASE + "/callback").param("state", start.state())
+                        .param("error", "access_denied").cookie(start.browser()))
+                .andExpect(status().isSeeOther())
+                .andExpect(header().string(HttpHeaders.LOCATION, "https://weiverai.com/auth/kakao/return"));
     }
 
     @Test

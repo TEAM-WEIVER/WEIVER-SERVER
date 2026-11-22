@@ -35,32 +35,32 @@ public class KakaoOAuthService {
     private final KakaoOAuthTicketRepository tickets;
     private final KakaoApplicantAccountService accounts;
 
-    public AuthorizationStart startLogin(String browserId) {
-        return start(browserId, Purpose.LOGIN, null);
+    public AuthorizationStart startLogin(String browserId, String origin) {
+        return start(browserId, origin, Purpose.LOGIN, null);
     }
 
-    public AuthorizationStart startLink(String browserId, String publicId, String accessToken, String currentPassword) {
+    public AuthorizationStart startLink(String browserId, String origin, String publicId, String accessToken, String currentPassword) {
         properties.requireLoginConfiguration();
         String session = sessionBinding(publicId, accessToken);
         accounts.verifyLinkPassword(publicId, currentPassword);
-        return start(browserId, Purpose.LINK, session);
+        return start(browserId, origin, Purpose.LINK, session);
     }
 
-    public AuthorizationStart startReauth(String browserId, String publicId, String accessToken) {
+    public AuthorizationStart startReauth(String browserId, String origin, String publicId, String accessToken) {
         properties.requireLoginConfiguration();
         String session = sessionBinding(publicId, accessToken);
         if (!accounts.getLoginMethods(publicId).kakaoLinked()) {
             throw new BusinessException(ErrorCode.INVALID_PASSWORD_REAUTH_TOKEN);
         }
-        return start(browserId, Purpose.REAUTH, session);
+        return start(browserId, origin, Purpose.REAUTH, session);
     }
 
-    private AuthorizationStart start(String browserId, Purpose purpose, String session) {
+    private AuthorizationStart start(String browserId, String origin, Purpose purpose, String session) {
         String browser = isOpaqueToken(browserId) ? browserId : newToken();
         String state = newToken();
         String flowId = newToken();
         URI authorizationUri = client.authorizationUri(state, purpose != Purpose.LOGIN);
-        tickets.save(STATE, browser, state, new State(purpose, session, flowId), STATE_TTL);
+        tickets.save(STATE, browser, state, new State(purpose, session, flowId, properties.isLocalOrigin(origin)), STATE_TTL);
         return new AuthorizationStart(authorizationUri, browser, flowId);
     }
 
@@ -70,7 +70,8 @@ public class KakaoOAuthService {
         String resultToken = newToken();
         tickets.save(stored.purpose().resultKey, binding(browserId, resultBinding(stored.session(), stored.flowId())),
                 resultToken, result, RESULT_TTL);
-        return new CallbackReturn(properties.frontendReturnUri(), stored.flowId(), resultToken);
+        URI returnUri = stored.localReturn() ? properties.localFrontendReturnUri() : properties.frontendReturnUri();
+        return new CallbackReturn(returnUri, stored.flowId(), resultToken);
     }
 
     private AuthorizationOutcome authorize(String code, String providerError) {
@@ -194,7 +195,7 @@ public class KakaoOAuthService {
         }
     }
 
-    private record State(Purpose purpose, String session, String flowId) {
+    private record State(Purpose purpose, String session, String flowId, boolean localReturn) {
     }
 
     private record AuthorizationOutcome(KakaoProfile profile, ErrorCode error) {

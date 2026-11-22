@@ -36,6 +36,7 @@ import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -58,9 +59,10 @@ public class KakaoOAuthController {
 
     @PostMapping("/start")
     public ResponseEntity<ApiResponse<StartResponse>> start(
-            @CookieValue(name = BROWSER_COOKIE_NAME, required = false) String browserId
+            @CookieValue(name = BROWSER_COOKIE_NAME, required = false) String browserId,
+            @RequestHeader(name = HttpHeaders.ORIGIN, required = false) String origin
     ) {
-        return startResponse(kakaoOAuthService.startLogin(browserId));
+        return startResponse(kakaoOAuthService.startLogin(browserId, origin));
     }
 
     @GetMapping("/callback")
@@ -115,10 +117,11 @@ public class KakaoOAuthController {
     public ResponseEntity<ApiResponse<StartResponse>> startLink(
             @AuthenticationPrincipal AuthenticatedPrincipal principal,
             @CookieValue(name = BROWSER_COOKIE_NAME, required = false) String browserId,
+            @RequestHeader(name = HttpHeaders.ORIGIN, required = false) String origin,
             @Valid @RequestBody ApplicantPasswordVerifyRequestDTO request,
             HttpServletRequest httpRequest
     ) {
-        return startResponse(kakaoOAuthService.startLink(browserId, applicantPublicId(principal),
+        return startResponse(kakaoOAuthService.startLink(browserId, origin, applicantPublicId(principal),
                 bearerTokenResolver.resolve(httpRequest), request.currentPassword()));
     }
 
@@ -141,9 +144,10 @@ public class KakaoOAuthController {
     public ResponseEntity<ApiResponse<StartResponse>> startReauth(
             @AuthenticationPrincipal AuthenticatedPrincipal principal,
             @CookieValue(name = BROWSER_COOKIE_NAME, required = false) String browserId,
+            @RequestHeader(name = HttpHeaders.ORIGIN, required = false) String origin,
             HttpServletRequest request
     ) {
-        return startResponse(kakaoOAuthService.startReauth(browserId, applicantPublicId(principal), bearerTokenResolver.resolve(request)));
+        return startResponse(kakaoOAuthService.startReauth(browserId, origin, applicantPublicId(principal), bearerTokenResolver.resolve(request)));
     }
 
     @PostMapping("/reauth/complete")
