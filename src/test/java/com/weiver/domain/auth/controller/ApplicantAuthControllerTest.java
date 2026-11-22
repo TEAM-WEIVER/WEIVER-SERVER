@@ -311,6 +311,28 @@ public class ApplicantAuthControllerTest {
     }
 
     @Test
+    @DisplayName("카카오 연결 회원 탈퇴 제한은 409 오류로 응답하고 쿠키를 만료하지 않는다")
+    void withdraw_linkedKakaoAccount_returnsConflictWithoutExpiringCookie() throws Exception {
+        String publicId = "uuid-kakao-applicant";
+        AuthenticatedPrincipal principal = new AuthenticatedPrincipal(publicId, UserRole.APPLICANT);
+        UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                principal, null, List.of(new SimpleGrantedAuthority("ROLE_APPLICANT"))
+        );
+        doThrow(new BusinessException(ErrorCode.KAKAO_WITHDRAWAL_UNAVAILABLE))
+                .when(applicantAuthService).withdraw(publicId);
+        SecurityContextHolder.getContext().setAuthentication(auth);
+
+        try {
+            mockMvc.perform(delete("/api/auth/applicants/me"))
+                    .andExpect(status().isConflict())
+                    .andExpect(jsonPath("$.errorCode").value("KAKAO_WITHDRAWAL_UNAVAILABLE"))
+                    .andExpect(header().doesNotExist(HttpHeaders.SET_COOKIE));
+        } finally {
+            SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
     @DisplayName("비밀번호 재설정 인증번호 전송 성공 시 200 응답")
     public void sendPasswordResetCode_success() throws Exception {
         // given

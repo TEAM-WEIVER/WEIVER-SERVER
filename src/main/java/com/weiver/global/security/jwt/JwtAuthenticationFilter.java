@@ -13,6 +13,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpMethod;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -54,7 +55,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      */
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
-        String path = request.getRequestURI();
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        if (path.startsWith(WhiteListConfig.KAKAO_AUTH_PATH + "/")) {
+            return (HttpMethod.GET.matches(request.getMethod()) && WhiteListConfig.KAKAO_CALLBACK_PATH.equals(path))
+                    || (HttpMethod.POST.matches(request.getMethod()) && WhiteListConfig.kakaoPublicPostPaths().contains(path));
+        }
         return WHITELIST_PATHS.stream().anyMatch(pattern -> PATH_MATCHER.match(pattern, path));
     }
 

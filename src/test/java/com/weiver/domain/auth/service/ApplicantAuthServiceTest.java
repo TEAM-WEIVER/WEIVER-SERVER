@@ -5,11 +5,14 @@ import com.weiver.applicant.domain.ApplicantAgreement;
 import com.weiver.applicant.repository.ApplicantAgreementRepository;
 import com.weiver.applicant.repository.ApplicantRepository;
 import com.weiver.applicant.type.ApplicantStatus;
+import com.weiver.auth.domain.ApplicantKakaoAccount;
+import com.weiver.auth.dto.KakaoProfile;
 import com.weiver.auth.dto.request.ApplicantAgreementRequestDTO;
 import com.weiver.auth.dto.request.ApplicantEmailSendRequestDTO;
 import com.weiver.auth.dto.request.ApplicantEmailVerifyRequestDTO;
 import com.weiver.auth.dto.request.ApplicantLoginRequestDTO;
 import com.weiver.auth.dto.request.ApplicantPasswordChangeRequestDTO;
+import com.weiver.auth.dto.request.ApplicantPasswordSetupRequestDTO;
 import com.weiver.auth.dto.request.ApplicantPasswordUpdateRequestDTO;
 import com.weiver.auth.dto.request.ApplicantPasswordVerifyRequestDTO;
 import com.weiver.auth.dto.request.ApplicantSignupCompleteRequestDTO;
@@ -19,6 +22,7 @@ import com.weiver.auth.dto.response.ApplicantPasswordVerifyResponseDTO;
 import com.weiver.auth.dto.response.ApplicantSignupInitResponseDTO;
 import com.weiver.auth.repository.ApplicantEmailSendLimitRepository;
 import com.weiver.auth.repository.ApplicantEmailVerificationRepository;
+import com.weiver.auth.repository.ApplicantKakaoAccountRepository;
 import com.weiver.auth.repository.ApplicantPasswordReauthTokenRepository;
 import com.weiver.auth.repository.ApplicantSignupTokenRepository;
 import com.weiver.auth.repository.LoginAttemptRepository;
@@ -26,6 +30,7 @@ import com.weiver.auth.service.ApplicantAuthService;
 import com.weiver.auth.service.ApplicantVerificationCodeGenerator;
 import com.weiver.auth.service.dto.ApplicantLoginResult;
 import com.weiver.auth.service.EmailVerificationService;
+import com.weiver.auth.service.KakaoApplicantAccountService;
 import com.weiver.applicant.service.ApplicantProvider;
 import com.weiver.global.common.UserRole;
 import com.weiver.global.exception.BusinessException;
@@ -71,6 +76,7 @@ public class ApplicantAuthServiceTest {
     @Mock private ApplicantRepository applicantRepository;
     @Mock private ApplicantAgreementRepository applicantAgreementRepository;
     @Mock private ApplicantEmailVerificationRepository emailVerificationRepository;
+    @Mock private ApplicantKakaoAccountRepository applicantKakaoAccountRepository;
     @Mock private ApplicantSignupTokenRepository signupTokenRepository;
     @Mock private ApplicantPasswordReauthTokenRepository passwordReauthTokenRepository;
     @Mock private ApplicantVerificationCodeGenerator codeGenerator;
@@ -626,6 +632,47 @@ public class ApplicantAuthServiceTest {
     }
 
     @Test
+    @DisplayName("카카오 전용 회원은 연락 이메일을 확인하고 최초 비밀번호를 설정한 뒤 같은 publicId로 로그인한다.")
+    void login_afterFirstPasswordSetup_usesSameApplicant() {
+        String email = "owner@example.com";
+        String publicId = "kakao-applicant";
+        String code = "123456";
+        String password = "Pass1234!";
+        String emailCodeKey = "password-setup:" + publicId + ":" + email;
+        Applicant applicant = Applicant.builder().applicantId(7L).publicId(publicId)
+                .email(email).status(ApplicantStatus.ACTIVE).build();
+        ApplicantKakaoAccount account = ApplicantKakaoAccount.builder().applicant(applicant)
+                .kakaoUserId(123L).build();
+        var accountService = new KakaoApplicantAccountService(applicantRepository, applicantKakaoAccountRepository,
+                emailVerificationRepository, applicantAuthService, passwordEncoder);
+
+        when(applicantRepository.findByPublicIdAndDeletedFalse(publicId)).thenReturn(Optional.of(applicant));
+        when(applicantRepository.findByPublicIdAndDeletedFalseForUpdate(publicId)).thenReturn(Optional.of(applicant));
+        when(applicantKakaoAccountRepository.findByApplicant_ApplicantId(7L)).thenReturn(Optional.of(account));
+        when(codeGenerator.generateCode()).thenReturn(code);
+        when(emailVerificationRepository.findCodeByEmail(emailCodeKey)).thenReturn(Optional.of(code));
+        when(emailVerificationRepository.incrementAttemptCount(eq(emailCodeKey), any(Duration.class))).thenReturn(1L);
+        when(passwordEncoder.encode(password)).thenReturn("encoded");
+        allowLoginAttempt(email);
+        when(applicantRepository.findByEmailAndDeletedFalse(email)).thenReturn(Optional.of(applicant));
+        when(passwordEncoder.matches(password, "encoded")).thenReturn(true);
+        when(tokenVersionRepository.getCurrentVersion(publicId, UserRole.APPLICANT)).thenReturn(1L);
+        when(jwtTokenProvider.createAccessToken(publicId, UserRole.APPLICANT, 1L)).thenReturn("access");
+
+        accountService.sendPasswordSetupCode(publicId);
+        accountService.setupPassword(publicId, new KakaoProfile(123L, "provider@example.com"),
+                new ApplicantPasswordSetupRequestDTO("reauth-token", code, password, password));
+        ApplicantLoginResult login = applicantAuthService.login(new ApplicantLoginRequestDTO(email, password));
+
+        verify(emailVerificationService).sendVerificationCode(email, code);
+        verify(emailVerificationRepository).saveCode(eq(emailCodeKey), eq(code), any(Duration.class));
+        verify(emailVerificationRepository).deleteCode(emailCodeKey);
+        verify(tokenVersionRepository).increaseVersion(publicId, UserRole.APPLICANT);
+        verify(refreshTokenRepository).deleteByPublicId(publicId, UserRole.APPLICANT);
+        assertThat(login.accessToken()).isEqualTo("access");
+    }
+
+    @Test
     @DisplayName("존재하지 않는 이메일이면 이메일 열거 방지를 위해 INVALID_PASSWORD 예외")
     public void login_applicantNotFound() {
         // given
@@ -702,7 +749,7 @@ public class ApplicantAuthServiceTest {
                 .build();
         ReflectionTestUtils.setField(applicant, "applicantId", 5L);
 
-        when(applicantProvider.findByPublicId(publicId)).thenReturn(applicant);
+        when(applicantRepository.findByPublicIdAndDeletedFalseForUpdate(publicId)).thenReturn(Optional.of(applicant));
 
         // when
         applicantAuthService.withdraw(publicId);
@@ -718,8 +765,7 @@ public class ApplicantAuthServiceTest {
     public void withdraw_applicantNotFound() {
         // given
         String publicId = "uuid-missing";
-        when(applicantProvider.findByPublicId(publicId))
-                .thenThrow(new BusinessException(ErrorCode.APPLICANT_NOT_FOUND));
+        when(applicantRepository.findByPublicIdAndDeletedFalseForUpdate(publicId)).thenReturn(Optional.empty());
 
         // when & then
         assertThatThrownBy(() -> applicantAuthService.withdraw(publicId))
@@ -727,6 +773,42 @@ public class ApplicantAuthServiceTest {
                 .hasMessage(ErrorCode.APPLICANT_NOT_FOUND.defaultMessage);
 
         verify(refreshTokenRepository, never()).deleteByPublicId(anyString(), any(UserRole.class));
+    }
+
+    @Test
+    @DisplayName("카카오 연결 회원은 기존 탈퇴 경로에서 계정과 세션을 변경하지 않는다")
+    void withdraw_linkedKakaoAccount_leavesAccountAndSessionUnchanged() {
+        String publicId = "uuid-kakao-applicant";
+        Applicant applicant = Applicant.builder()
+                .publicId(publicId)
+                .email("kakao@example.com")
+                .status(ApplicantStatus.ACTIVE)
+                .build();
+        ReflectionTestUtils.setField(applicant, "applicantId", 7L);
+        given(applicantRepository.findByPublicIdAndDeletedFalseForUpdate(publicId))
+                .willReturn(Optional.of(applicant));
+        given(applicantKakaoAccountRepository.existsByApplicant_ApplicantId(7L)).willReturn(true);
+
+        assertThatThrownBy(() -> applicantAuthService.withdraw(publicId))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo(ErrorCode.KAKAO_WITHDRAWAL_UNAVAILABLE);
+
+        assertThat(applicant.isDeleted()).isFalse();
+        assertThat(applicant.getStatus()).isEqualTo(ApplicantStatus.ACTIVE);
+        verifyNoInteractions(refreshTokenRepository);
+    }
+
+    @Test
+    @DisplayName("카카오 전용 계정에는 비밀번호 재설정 메일을 발송하지 않는다")
+    void sendPasswordResetCode_withoutLocalPassword_doesNotSend() {
+        String email = "kakao@example.com";
+        Applicant applicant = Applicant.builder().email(email).status(ApplicantStatus.ACTIVE).build();
+        given(applicantRepository.findByEmailAndDeletedFalse(email)).willReturn(Optional.of(applicant));
+
+        applicantAuthService.sendPasswordResetCode(new ApplicantEmailSendRequestDTO(email));
+
+        verifyNoInteractions(emailVerificationRepository, emailVerificationService);
     }
 
     // ----------- sendPasswordResetCode -----------

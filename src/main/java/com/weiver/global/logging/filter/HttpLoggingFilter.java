@@ -1,5 +1,6 @@
 package com.weiver.global.logging.filter;
 
+import com.weiver.global.config.WhiteListConfig;
 import com.weiver.global.logging.util.TraceIdGenerator;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -48,11 +49,14 @@ public class HttpLoggingFilter extends OncePerRequestFilter {
     }
 
     private void logRequest(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        boolean kakaoCallback = WhiteListConfig.KAKAO_CALLBACK_PATH.equals(path)
+                || WhiteListConfig.KAKAO_CALLBACK_PATH.equals(request.getServletPath());
         log.info(
                 "[HTTP REQUEST] method={} uri={} query={} clientIp={} userAgent={}",
                 request.getMethod(),
-                request.getRequestURI(),
-                request.getQueryString(),
+                path,
+                kakaoCallback ? null : request.getQueryString(),
                 getClientIp(request),
                 request.getHeader("User-Agent")
         );
