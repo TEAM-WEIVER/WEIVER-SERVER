@@ -5,6 +5,10 @@
 # 활성화 방법: IDE Run Configuration → Active Profiles: local
 # =============================================================================
 
+auth:
+  kakao:
+    frontend-return-uri: ${KAKAO_FRONTEND_RETURN_URI_ROCAL:${KAKAO_FRONTEND_RETURN_URI:https://weiver.local.weiverai.com:3000/auth/kakao/return}}
+
 server:
   port: 8080
   error:
