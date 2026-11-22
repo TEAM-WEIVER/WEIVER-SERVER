@@ -15,7 +15,7 @@ class KakaoOAuthPropertiesTest {
     void prodProfileUsesTheOptionalLocalReturnEnvironmentVariable() {
         new ApplicationContextRunner()
                 .withInitializer(new ConfigDataApplicationContextInitializer())
-                .withPropertyValues("spring.profiles.active=prod", "KAKAO_FRONTEND_RETURN_URI_ROCAL=" + LOCAL_RETURN_URI)
+                .withPropertyValues("spring.profiles.active=prod", "KAKAO_FRONTEND_RETURN_URI_LOCAL=" + LOCAL_RETURN_URI)
                 .run(context -> assertThat(context.getEnvironment().getProperty("auth.kakao.local-frontend-return-uri"))
                         .isEqualTo(LOCAL_RETURN_URI));
     }
