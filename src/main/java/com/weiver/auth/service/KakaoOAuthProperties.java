@@ -12,7 +12,8 @@ public record KakaoOAuthProperties(
         String clientId,
         String clientSecret,
         URI redirectUri,
-        URI frontendReturnUri
+        URI frontendReturnUri,
+        URI localFrontendReturnUri
 ) {
     void requireLoginConfiguration() {
         if (!StringUtils.hasText(clientId) || !StringUtils.hasText(clientSecret)
@@ -20,6 +21,11 @@ public record KakaoOAuthProperties(
                 || redirectUri.getQuery() != null || frontendReturnUri.getQuery() != null) {
             throw new BusinessException(ErrorCode.KAKAO_OAUTH_UNAVAILABLE);
         }
+    }
+
+    boolean isLocalOrigin(String origin) {
+        return origin != null && isBrowserUri(localFrontendReturnUri) && localFrontendReturnUri.getQuery() == null
+                && origin.equals(localFrontendReturnUri.getScheme() + "://" + localFrontendReturnUri.getRawAuthority());
     }
 
     private static boolean isBrowserUri(URI uri) {
